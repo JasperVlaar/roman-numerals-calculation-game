@@ -1,10 +1,12 @@
 const $ = id => document.getElementById(id);
 const cvs = $('arena'), ctx = cvs.getContext('2d'), stage = $('stage');
 const css = getComputedStyle(document.documentElement);
-const C = {}; ['night','stone','stone-2','porphyry','bronze','sand','sand-2','ink','muted','blood','blood-dark','laurel','coin','coin-edge','coin-ink','horse','wall'].forEach(k => C[k] = css.getPropertyValue('--' + k).trim());
+const C = {}; ['night','stone','stone-2','porphyry','bronze','sand','sand-2','ink','muted','blood','blood-dark','laurel','coin','coin-edge','coin-ink','horse','wall','silver','silver-edge'].forEach(k => C[k] = css.getPropertyValue('--' + k).trim());
 
 const PRICE = { armor: 20, augur: 12 };
-const S = { level: 1, money: 0, armor: 0, augur: 0, op: '+', tokens: [], total: null, target: 0, ents: [], floats: [], dust: [], paused: true, cfg: null };
+// expect: welk soort munt je nu kunt vangen ('num' = cijfer, 'op' = teken). pendingOp: het gevangen teken dat op een cijfer wacht.
+const S = { level: 1, money: 0, armor: 0, augur: 0, tokens: [], total: null, target: 0, expect: 'num', pendingOp: null,
+  time: 0, shownTime: null, loot: 0, ents: [], floats: [], dust: [], paused: true, cfg: null };
 const W = { rx: 280, ry: 220, area: 66000 };
 const view = { cw: 1, ch: 1, dpr: 1, scale: 1 };
 const car = { x: 0, y: 0, vx: 0, vy: 0, a: -Math.PI / 2, ha: -Math.PI / 2 };   // a = richting van de wagen, ha = van de paarden
@@ -13,7 +15,8 @@ const keys = new Set();
 
 const ROMAN = [[1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],[100,'C'],[90,'XC'],[50,'L'],[40,'XL'],[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']];
 function toRoman(n) {
-  if (n <= 0) return 'nulla';
+  if (n < 0) return '−' + toRoman(-n);
+  if (n === 0) return 'nulla';
   if (n > 3999) return 'MMMM+';
   let s = ''; for (const [v, r] of ROMAN) while (n >= v) { s += r; n -= v; } return s;
 }
@@ -25,20 +28,25 @@ function cfg(l) {
   const ranges = [[8,20],[16,45],[30,110],[60,240]];
   const i = Math.min(l - 1, 3), extra = Math.max(0, l - 4);
   return {
+    time: 20,                                      // seconden per ronde; later per level te variëren
     values: sets[i],
-    count: Math.min(7 + (l - 1) * 2, 16),
+    count: Math.min(6 + (l - 1) * 2, 14),          // cijfermunten
+    ops: l === 1 ? ['+', '−'] : ['+', '−', '×'],    // tekens die als munt in het veld liggen
+    opCount: l === 1 ? 3 : 4,
+    denarii: { count: 4 + Math.min(l, 4), value: 2 },
     range: ranges[i].map(v => Math.round(v * Math.pow(1.5, extra))),
     terms: l === 1 ? [2] : l < 4 ? [2, 3] : [3],
     fakeRate: Math.min(.1 + .07 * (l - 1), .4),
     area: 66000 * Math.pow(1.2, l - 1)
   };
 }
-function evalSeq(vals, ops) { let t = vals[0]; for (let i = 1; i < vals.length; i++) t = ops[i - 1] === '+' ? t + vals[i] : t * vals[i]; return t; }
+const applyOp = (t, op, v) => op === '+' ? t + v : op === '−' ? t - v : t * v;
+function evalSeq(vals, ops) { let t = vals[0]; for (let i = 1; i < vals.length; i++) t = applyOp(t, ops[i - 1], vals[i]); return t; }
 function findTarget(vals, c) {
   for (let n = 0; n < 400; n++) {
     const k = pick(c.terms), idx = [];
     while (idx.length < k) { const j = Math.floor(Math.random() * vals.length); if (!idx.includes(j)) idx.push(j); }
-    const ops = Array.from({ length: k - 1 }, () => Math.random() < .5 ? '+' : '×');
+    const ops = Array.from({ length: k - 1 }, () => pick(c.ops));
     const target = evalSeq(idx.map(j => vals[j]), ops);
     if (target >= c.range[0] && target <= c.range[1] && !vals.includes(target)) return { target, idx };
   }
@@ -75,13 +83,17 @@ function place(e) {
   e.vx = Math.cos(a) * sp; e.vy = Math.sin(a) * sp;
 }
 function rollFake(e) {
-  e.fake = !e.anchor && Math.random() < S.cfg.fakeRate;
+  e.fake = e.kind === 'num' && !e.anchor && Math.random() < S.cfg.fakeRate;
   e.trueVal = e.fake ? pick(S.cfg.values.filter(v => v !== e.val)) : e.val;
 }
-function mkEnt(val, anchor) {
-  const e = { val, shown: val, anchor, state: 'free', t: 0, spawn: 0, oracle: false, x: 0, y: 0, vx: 0, vy: 0 };
-  rollFake(e); place(e); return e;
+// kind: 'num' = cijfer, 'op' = teken (+ − ×), 'den' = denarius om op te rapen
+function mkEnt(kind, val, anchor) {
+  const e = { kind, val, shown: val, anchor, state: 'free', t: 0, spawn: 0, oracle: false, x: 0, y: 0, vx: 0, vy: 0 };
+  rollFake(e); place(e);
+  if (kind === 'den') { e.vx *= .5; e.vy *= .5; }
+  return e;
 }
+const catchable = e => e.state === 'free' && e.spawn === 0 && (e.kind === 'den' || e.kind === S.expect);
 function respawn(e) { e.shown = e.val; e.oracle = false; e.state = 'free'; e.spawn = .35; rollFake(e); place(e); }
 
 function newRound() {
@@ -91,49 +103,67 @@ function newRound() {
   let vals, sol;
   do { vals = Array.from({ length: c.count }, () => pick(c.values)); sol = findTarget(vals, c); } while (!sol);
   S.target = sol.target; S.ents = [];
-  vals.forEach((v, i) => S.ents.push(mkEnt(v, sol.idx.includes(i))));
-  S.tokens = []; S.total = null; S.floats = []; S.dust = []; quadrigaReset();
+  vals.forEach((v, i) => S.ents.push(mkEnt('num', v, sol.idx.includes(i))));
+  const ops = [...c.ops]; while (ops.length < c.opCount) ops.push(pick(c.ops));   // elk teken minstens één keer
+  ops.forEach(op => S.ents.push(mkEnt('op', op, false)));
+  for (let i = 0; i < c.denarii.count; i++) S.ents.push(mkEnt('den', c.denarii.value, false));
+  S.tokens = []; S.total = null; S.expect = 'num'; S.pendingOp = null; S.loot = 0;
+  S.time = c.time; S.shownTime = null; S.floats = []; S.dust = []; quadrigaReset();
   updateUI();
 }
 
 /* ---------- rules ---------- */
+// Een cijfer rekent met het teken dat ervoor gevangen is. Daarna moet er eerst weer een teken komen.
 function applyVal(v, fake) {
-  if (S.total === null) { S.tokens.push({ k: 'n', v, fake }); S.total = v; }
-  else {
-    S.tokens.push({ k: 'o', op: S.op }, { k: 'n', v, fake });
-    S.total = S.op === '+' ? S.total + v : S.total * v;
-  }
+  S.total = S.total === null ? v : applyOp(S.total, S.pendingOp || '+', v);
+  S.tokens.push({ k: 'n', v, fake }); S.pendingOp = null; S.expect = 'op';
+  updateUI();
+}
+function applyOperator(op) {
+  S.tokens.push({ k: 'o', op }); S.pendingOp = op; S.expect = 'num';
   updateUI();
 }
 function catchEnt(e) {
-  if (e.fake) {
-    if (S.armor > 0) { S.armor--; e.state = 'blocked'; e.t = .7; float(e.x, e.y - 30, 'Lorica!', C.sand); }
-    else { e.state = 'reveal'; e.t = 1; float(e.x, e.y - 34, 'Vals!', C.blood); }
-    updateUI();
+  if (e.kind === 'den') {
+    S.money += e.val; S.loot += e.val; e.state = 'gone';
+    float(e.x, e.y - 24, `+${e.val} d`, C.coin); updateUI();
+  } else if (e.kind === 'op') {
+    applyOperator(e.val); float(e.x, e.y - 30, e.val, C.ink); respawn(e);
+  } else if (e.fake) {
+    if (S.armor > 0) { S.armor--; e.state = 'blocked'; e.t = .7; float(e.x, e.y - 30, 'Lorica!', C.sand); updateUI(); }
+    else {
+      // Vals cijfer: telt meteen mee met zijn echte waarde; de munt laat zien dat hij verandert.
+      const op = S.pendingOp;
+      e.state = 'reveal'; e.t = 1; applyVal(e.trueVal, true);
+      float(e.x, e.y - 34, `Vals! ${op ? op + ' ' : ''}${toRoman(e.trueVal)}`, C.blood);
+    }
   } else {
-    const label = (S.total === null ? '' : S.op + ' ') + toRoman(e.val);
+    const label = (S.pendingOp ? S.pendingOp + ' ' : '') + toRoman(e.val);
     applyVal(e.val, false); float(e.x, e.y - 30, label, C.ink); respawn(e);
   }
 }
 function float(x, y, text, color) { S.floats.push({ x, y, text, color, t: 1 }); }
 
+// Augur: zoekt de kortste reeks cijfers (met de tekens die in het veld liggen) naar het doel.
+// Hij wijst alleen cijfers aan; volgorde en tekens verraadt hij niet.
 function oracleSearch() {
-  const reals = S.ents.filter(e => !e.fake && e.state === 'free');
-  const used = []; let best = null;
-  function rec(total, depth, maxD) {
+  const byVal = new Map();
+  for (const e of S.ents) if (e.kind === 'num' && !e.fake && e.state === 'free' && !byVal.has(e.val)) byVal.set(e.val, e);
+  const vals = [...byVal.keys()];
+  const ops = [...new Set(S.ents.filter(e => e.kind === 'op' && e.state === 'free').map(e => e.val))];
+  const lim = Math.max(60, S.target * 4), used = []; let best = null;
+  function rec(total, first, depth, maxD) {
     if (total === S.target && used.length) { best = used.slice(); return true; }
     if (depth === maxD) return false;
-    for (const e of reals) {
-      if (used.includes(e)) continue;
-      const opts = total === null ? [e.val] : [total + e.val, total * e.val];
-      for (const nt of opts) {
-        if (nt > S.target) continue;
-        used.push(e); if (rec(nt, depth + 1, maxD)) return true; used.pop();
-      }
+    const useOps = total === null ? [null] : first && S.pendingOp ? [S.pendingOp] : ops;
+    for (const v of vals) for (const op of useOps) {
+      const nt = op === null ? v : applyOp(total, op, v);
+      if (Math.abs(nt) > lim) continue;
+      used.push(byVal.get(v)); if (rec(nt, false, depth + 1, maxD)) return true; used.pop();
     }
     return false;
   }
-  for (let d = 1; d <= 4; d++) if (rec(S.total, 0, d)) break;
+  for (let d = 1; d <= 4; d++) if (rec(S.total, true, 0, d)) break;
   return best;
 }
 
@@ -149,6 +179,10 @@ function contain(o, ex, ey, bounce) {
 function lerpAngle(a, b, t) { const d = ((b - a + Math.PI * 3) % (Math.PI * 2)) - Math.PI; return a + d * t; }
 
 function update(dt) {
+  S.time = Math.max(0, S.time - dt);
+  const ts = Math.ceil(S.time);
+  if (ts !== S.shownTime) { S.shownTime = ts; const el = $('time'); el.textContent = ts; el.classList.toggle('warn', ts <= 5); }
+  if (S.time === 0) { toast('De tijd is om!'); openJudge(); return; }
   const MAX = 230; let dx = 0, dy = 0, tx = 0, ty = 0;
   if (keys.has('ArrowLeft') || keys.has('a')) dx--;
   if (keys.has('ArrowRight') || keys.has('d')) dx++;
@@ -177,15 +211,16 @@ function update(dt) {
       [e.vx, e.vy] = [e.vx * c - e.vy * s, e.vx * s + e.vy * c];
       e.x += e.vx * dt; e.y += e.vy * dt;
       contain(e, W.rx - 26, W.ry - 26, true);
-      if (e.spawn === 0 && Math.hypot(e.x - car.x, e.y - car.y) < 42) catchEnt(e);
+      if (catchable(e) && Math.hypot(e.x - car.x, e.y - car.y) < (e.kind === 'den' ? 36 : 42)) catchEnt(e);
     } else {
       e.t -= dt;
       if (e.state === 'reveal') {
         if (e.t < .55) e.shown = e.trueVal;
-        if (e.t <= 0) { applyVal(e.trueVal, true); respawn(e); }
+        if (e.t <= 0) respawn(e);
       } else if (e.state === 'blocked' && e.t <= 0) respawn(e);
     }
   }
+  S.ents = S.ents.filter(e => e.state !== 'gone');
   for (const f of S.floats) { f.t -= dt * .9; f.y -= dt * 30; }
   S.floats = S.floats.filter(f => f.t > 0);
   for (const p of S.dust) p.t -= dt * 1.8;
@@ -219,8 +254,12 @@ function draw(now) {
   }
   ctx.globalAlpha = 1; ctx.restore();
 }
+// Munten: goud = cijfer, purper = teken, klein zilver = denarius. Wat je nu niet kunt vangen is gedimd.
 function drawCoin(e, now) {
-  let r = 24 * (1 - e.spawn / .35 * .9), alpha = 1, fill = C.coin, ink = C['coin-ink'];
+  if (e.kind === 'den') return drawDenarius(e, now);
+  const isOp = e.kind === 'op', can = e.state !== 'free' || catchable(e) || e.spawn > 0;
+  let r = (isOp ? 22 : 24) * (1 - e.spawn / .35 * .9), alpha = can ? 1 : .38;
+  let fill = isOp ? C.porphyry : C.coin, ink = isOp ? C.ink : C['coin-ink'], edge = isOp ? C.bronze : C['coin-edge'];
   if (e.state === 'reveal') { const on = Math.floor(now / 90) % 2 === 0; fill = on ? C.blood : C['blood-dark']; ink = C.ink; }
   if (e.state === 'blocked') { alpha = Math.max(0, e.t / .7); r *= 1 + (1 - alpha) * .5; fill = C.muted; }
   ctx.save(); ctx.translate(e.x, e.y); ctx.globalAlpha = alpha;
@@ -230,12 +269,28 @@ function drawCoin(e, now) {
   }
   ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.arc(2, 4, r, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = fill; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = C['coin-edge']; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.strokeStyle = edge; ctx.lineWidth = 2.5; ctx.stroke();
   ctx.globalAlpha = alpha * .35; ctx.beginPath(); ctx.arc(0, 0, Math.max(0, r - 5), 0, Math.PI * 2); ctx.lineWidth = 1; ctx.stroke();
   ctx.globalAlpha = alpha;
-  const txt = toRoman(e.shown), size = txt.length <= 2 ? 21 : txt.length === 3 ? 17 : 14;
-  ctx.fillStyle = ink; ctx.font = `700 ${size * r / 24}px Cinzel, Georgia, serif`;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, 0, 1);
+  ctx.fillStyle = ink; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  if (isOp) { ctx.font = `700 ${30 * r / 22}px Cinzel, Georgia, serif`; ctx.fillText(e.val, 0, 2); }
+  else {
+    const txt = toRoman(e.shown), size = txt.length <= 2 ? 21 : txt.length === 3 ? 17 : 14;
+    ctx.font = `700 ${size * r / 24}px Cinzel, Georgia, serif`; ctx.fillText(txt, 0, 1);
+  }
+  ctx.restore();
+}
+function drawDenarius(e, now) {
+  const r = 13 * (1 - e.spawn / .35 * .9), bob = Math.sin(now / 260 + e.x) * 1.5;
+  ctx.save(); ctx.translate(e.x, e.y + bob);
+  ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.arc(1.5, 3, r, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = C.silver; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = C['silver-edge']; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = C['coin-ink']; ctx.font = `700 ${r * 1.05}px Cinzel, Georgia, serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('D', 0, 1);
+  const g = (now / 900 + e.x * .01) % 1;   // glinstering die over de munt trekt
+  ctx.globalAlpha = .55 * Math.sin(g * Math.PI); ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(-r * .45 + g * r * .9, -r * .35, r * .22, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 }
 let last = performance.now();
@@ -251,34 +306,33 @@ function updateUI() {
   $('lvl').textContent = toRoman(S.level);
   $('money').textContent = S.money;
   $('armor').textContent = S.armor;
+  $('time').textContent = Math.ceil(S.time);
   $('augur').textContent = `Augur · ${S.augur}`;
   $('augur').disabled = S.augur <= 0;
   $('claim').disabled = S.total === null;
-  $('clear').disabled = !S.tokens.length;
-  $('opAdd').setAttribute('aria-pressed', S.op === '+');
-  $('opMul').setAttribute('aria-pressed', S.op === '×');
   const el = $('expr'); el.innerHTML = '';
-  if (!S.tokens.length) { el.innerHTML = '<span class="hint">Vang je eerste cijfer</span>'; return; }
   const add = (cls, text, title) => { const s = document.createElement('span'); s.className = 'tok ' + cls; s.textContent = text; if (title) s.title = title; el.appendChild(s); };
+  if (!S.tokens.length) { el.innerHTML = '<span class="hint">Vang je eerste cijfer</span>'; return; }
   for (const t of S.tokens) t.k === 'o' ? add('op', t.op) : add(t.fake ? 'fake' : '', toRoman(t.v), t.fake ? 'Vals cijfer: veranderd bij het oppakken' : '');
-  add('op', S.op); add('next', '?');
+  if (S.tokens.length > 1 && S.total !== null) add('sum', '= ' + toRoman(S.total));
+  add('next', S.expect === 'num' ? 'cijfer' : S.cfg.ops.join(' '));
   el.scrollLeft = el.scrollWidth;
 }
 let toastTimer;
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2400); }
-function setOp(op) { S.op = op; updateUI(); }
 function anyOverlay() { return !$('start').hidden || !$('judge').hidden || !$('shop').hidden; }
 
 let jt = [];
 function openJudge() {
-  if (S.total === null) return;
+  if (S.paused || (S.total === null && S.time > 0)) return;
   S.paused = true; keys.clear(); steer.down = false;
-  const ok = S.total === S.target, salary = 10 + S.target;
+  const ok = S.total !== null && S.total === S.target;
   // Uitslag en knop staan er meteen (onzichtbaar), zodat het venster niet verspringt als ze verschijnen.
   const d = $('judgeDetail'), b = $('judgeBtn');
-  d.innerHTML = `<dt>Jouw som</dt><dd class="${ok ? 'good' : 'bad'}">${toRoman(S.total)} · ${S.total}</dd>
+  d.innerHTML = `<dt>Jouw som</dt><dd class="${ok ? 'good' : 'bad'}">${S.total === null ? 'geen' : toRoman(S.total) + ' · ' + String(S.total).replace('-', '−')}</dd>
     <dt>Doel</dt><dd>${toRoman(S.target)} · ${S.target}</dd>
-    <dt>Salaris</dt><dd>${ok ? '+' + salary + ' denarii' : 'geen'}</dd>`;
+    <dt>Opgeraapt</dt><dd>${S.loot} denarii</dd>
+    <dt>Tijd over</dt><dd>${Math.ceil(S.time)} s</dd>`;
   b.textContent = ok ? 'Naar de wapensmid' : 'Nieuwe poging'; b.dataset.ok = ok ? '1' : '';
   for (const el of [d, b]) { el.hidden = false; el.style.visibility = 'hidden'; }
   $('judgeTitle').textContent = 'Caesar overweegt…';
@@ -288,7 +342,7 @@ function openJudge() {
   jt = [
     setTimeout(() => { $('judgeTitle').textContent = ok ? 'Duim omhoog!' : 'Duim omlaag.'; judgeVerdict(ok); }, JUDGE.think),
     setTimeout(() => {
-      if (ok) { S.money += salary; S.level++; updateUI(); }
+      if (ok) { S.level++; updateUI(); }
       for (const el of [d, b]) { el.style.visibility = ''; el.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'ease-out' }); }
       b.focus();
     }, JUDGE.think + JUDGE.detail)
@@ -298,19 +352,16 @@ function openShop() {
   $('shopMoney').textContent = S.money;
   $('buyArmor').disabled = S.money < PRICE.armor;
   $('buyAugur').disabled = S.money < PRICE.augur;
-  $('shopNote').textContent = `Je hebt Lorica ${S.armor} en Augur ${S.augur}. In ronde ${toRoman(S.level)} wordt het doel groter, het veld groter en zijn meer cijfers vals.`;
+  $('shopNote').textContent = `Je hebt Lorica ${S.armor} en Augur ${S.augur}. In ronde ${toRoman(S.level)} wordt het doel groter, het veld groter en zijn meer cijfers vals.${S.level === 2 ? ' Vanaf nu ligt ook × in het veld.' : ''}`;
   $('shopNext').textContent = `Betreed ronde ${toRoman(S.level)}`;
   $('shop').hidden = false;
 }
 
-$('opAdd').onclick = () => setOp('+');
-$('opMul').onclick = () => setOp('×');
-$('clear').onclick = () => { S.tokens = []; S.total = null; updateUI(); toast('Som gewist.'); };
 $('claim').onclick = openJudge;
 $('augur').onclick = () => {
   if (S.total === S.target) { toast('De augur knikt: zeg het tegen Caesar.'); return; }
   const path = oracleSearch();
-  if (!path) { toast('De augur ziet geen weg. Wis je som en begin opnieuw.'); return; }
+  if (!path) { toast('De augur ziet geen weg binnen vier cijfers.'); return; }
   S.augur--; path.forEach(e => e.oracle = true); updateUI();
   toast(`De augur wijst ${path.length} ${path.length === 1 ? 'cijfer' : 'cijfers'} aan.`);
 };
@@ -337,9 +388,7 @@ addEventListener('keydown', ev => {
   if (anyOverlay()) return;
   const k = ev.key.length === 1 ? ev.key.toLowerCase() : ev.key;
   if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','a','d','w','s'].includes(k)) { keys.add(k); ev.preventDefault(); }
-  else if (k === ' ') { ev.preventDefault(); setOp(S.op === '+' ? '×' : '+'); }
   else if (k === 'Enter' && document.activeElement === document.body) { ev.preventDefault(); openJudge(); }
-  else if (k === 'Backspace') { ev.preventDefault(); $('clear').click(); }
 });
 addEventListener('keyup', ev => keys.delete(ev.key.length === 1 ? ev.key.toLowerCase() : ev.key));
 addEventListener('blur', () => keys.clear());

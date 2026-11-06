@@ -32,22 +32,27 @@ npx serve .
 | Actie | Toetsenbord | Touch / muis |
 |---|---|---|
 | Rijden | Pijltjes of WASD | Slepen of tikken in de arena |
-| Operator wisselen | Spatie | + / × knoppen |
-| Som wissen | Backspace | Wis |
 | Oordeel vragen | Enter | Ik zeg: goed! |
+| Augur gebruiken | | Augur-knop |
+
+Tekens kies je niet meer met een knop: je vangt ze als munt. Wissen bestaat niet meer: zit je te hoog, trek er dan iets af.
 
 ## Huidige regels (demo)
 
 | Onderdeel | Waarde |
 |---|---|
-| Rekenvolgorde | Van links naar rechts, dus X + V × II = 30 |
-| Salaris | 10 + doelgetal, alleen bij een goed antwoord |
+| Tijd | 20 seconden per ronde (`time` in `cfg()`). Bij 0 oordeelt Caesar over wat je hebt; zonder som is het duim omlaag. |
+| Munten | Goud = cijfer, purper = teken, zilver = denarius |
+| Vangen | Om en om: cijfer, teken, cijfer … Munten van het verkeerde soort zijn gedimd; daar rijd je doorheen. |
+| Tekens | Ronde I: + en −. Vanaf ronde II: + − ×. Van elk teken ligt er altijd minstens één munt in het veld. |
+| Rekenvolgorde | Van links naar rechts, dus X + V × II = 30. Tussenstanden mogen 0 (*nulla*) of negatief (−X) worden. |
+| Denarii | 4 + ronde (max 8) zilveren munten van 2 denarii. Ze tellen direct bij je beurs en komen niet terug. |
 | Lorica (armor) | 20 denarii, blokkeert 3 valse cijfers |
-| Augur (power-up) | 12 denarii, licht de kortste route op zonder volgorde of operator |
-| Kans op vals cijfer | 10% in ronde I, +7% per ronde, max 40% |
+| Augur (power-up) | 12 denarii, licht de kortste route op (max. 4 cijfers) zonder volgorde of tekens te verraden |
+| Kans op vals cijfer | 10% in ronde I, +7% per ronde, max 40%. Een vals cijfer telt meteen mee met zijn echte waarde. |
 | Fout antwoord | Nieuwe poging met een nieuw doel, geen straf |
 
-Moeilijkheid per ronde staat in `cfg(level)` in `game.js`: welke cijfers voorkomen, het bereik van het doelgetal, aantal termen, aantal munten en grootte van de arena.
+Moeilijkheid per ronde staat in `cfg(level)` in `game.js`: tijd, welke cijfers en tekens voorkomen, het bereik van het doelgetal, aantal termen, aantal munten en denarii, en grootte van de arena.
 
 ## Arena aanpassen
 
@@ -97,6 +102,8 @@ Met *verminderde beweging* aan in het besturingssysteem slaat het spel de animat
 ## Open punten
 
 - Rekenen van links naar rechts of met de schoolregel (× vóór +)?
-- Straf voor een fout antwoord of voor wissen (tijd of denarii)?
+- Andere tijden per ronde?
+- De winkel: zie de voorstellen in het gesprek van 6 november.
+- Straf voor een fout antwoord (tijd of denarii)?
 - Is zelf de som bijhouden naast het sturen te zwaar? Optie: tussenstand kort in Romeinse cijfers tonen na elke vangst.
 - Geluid, menigte die reageert, tijdslimiet per ronde.

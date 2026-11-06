@@ -12,6 +12,7 @@
   <header class="hud gutter">
     <div class="goal"><span class="label">Maak dit getal</span><span id="goal" class="goal-num">XV</span></div>
     <dl class="stats">
+      <div><dt>Tijd</dt><dd id="time">20</dd></div>
       <div><dt>Ronde</dt><dd id="lvl">I</dd></div>
       <div><dt>Denarii</dt><dd id="money">0</dd></div>
       <div><dt>Lorica</dt><dd id="armor">0</dd></div>
@@ -23,11 +24,6 @@
   </div>
   <div class="rail gutter"><div class="expr" id="expr" aria-live="polite"></div></div>
   <div class="controls gutter">
-    <div class="ops" role="group" aria-label="Operator">
-      <button id="opAdd" aria-pressed="true" aria-label="Optellen">+</button>
-      <button id="opMul" aria-pressed="false" aria-label="Vermenigvuldigen">×</button>
-    </div>
-    <button id="clear" class="btn">Wis</button>
     <button id="augur" class="btn">Augur · 0</button>
     <button id="claim" class="primary">Ik zeg: goed!</button>
   </div>
@@ -39,9 +35,10 @@
     <h1>Roman Numerals</h1>
     <ul class="rules">
       <li>Stuur je wagen: sleep met je vinger, of gebruik de pijltjes.</li>
-      <li>Rij over cijfers om ze te vangen. Ze worden van links naar rechts gerekend.</li>
-      <li>Wissel tussen + en × met de knop of de spatiebalk.</li>
-      <li>Klopt je som volgens jou? Zeg het tegen Caesar. Hij oordeelt met zijn duim.</li>
+      <li>Vang om en om een cijfer (goud) en een teken (purper: + − ×). Wat je nu niet kunt vangen is gedimd.</li>
+      <li>Er wordt van links naar rechts gerekend. Wissen kan niet: zit je te hoog, trek er dan iets af.</li>
+      <li>Raap de zilveren denarii op. Daarmee betaal je bij de wapensmid.</li>
+      <li>Je hebt 20 seconden. Klopt je som eerder, zeg het dan tegen Caesar. Is de tijd om, dan oordeelt hij over wat je hebt.</li>
       <li>Pas op: sommige cijfers zijn vals. Pak je er een, dan wordt hij rood en verandert hij.</li>
     </ul>
     <button id="startBtn" class="primary wide">Betreed de arena</button>

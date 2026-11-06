@@ -11,6 +11,7 @@ img{max-width:100%}
   --bronze:#d49a48; --sand:#dcc08a; --sand-2:#bf9f63; --ink:#f5ead6; --muted:#b5a28a;
   --blood:#d4463b; --blood-dark:#7e1f1b; --laurel:#a6c85a;
   --coin:#e2b35e; --coin-edge:#8a5a22; --coin-ink:#3a230f; --horse:#5a3a26; --wall:#6b4a2a;
+  --silver:#d6d1c4; --silver-edge:#7d776a;
   --skin:#e3b78c; --skin-edge:#6a3f22; --line:rgba(245,234,214,.14); --scrim:rgba(14,9,13,.8);
   /* Arena (arena.js): steen, mozaïek, licht en publiek */
   --marble:#d6c8aa; --marble-shade:#9c8a6c; --travertine:#6f5c46; --travertine-2:#7b674e;
@@ -44,6 +45,10 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
 .tok.op{background:none;border:0;padding:0 1px;color:var(--muted)}
 .tok.fake{border-color:var(--blood);color:var(--blood)}
 .tok.next{border-style:dashed;color:var(--muted);background:none}
+.tok.sum{background:none;border-color:transparent;color:var(--bronze)}
+.stats dd.warn{color:var(--blood);animation:tick 1s ease-in-out infinite}
+@keyframes tick{50%{transform:scale(1.18)}}
+@media (prefers-reduced-motion:reduce){.stats dd.warn{animation:none}}
 .hint{color:var(--muted);font-size:14px}
 .controls{display:flex;flex-wrap:wrap;gap:8px;padding-block:6px 12px}
 button{font:inherit;color:inherit;cursor:pointer}
