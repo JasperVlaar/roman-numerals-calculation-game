@@ -27,7 +27,7 @@ const ARENA = {
 // Meander (Griekse sleutel) voor de mozaïekrand: één periode van 6 steentjes breed, 5 hoog.
 const MEANDER = ['#####.', '#...#.', '#.###.', '#.....', '######'];
 
-const AR = { bg: document.createElement('canvas'), dirty: true, people: [], torches: [], wave: -1, col: null, glow: null };
+const AR = { bg: document.createElement('canvas'), dirty: true, people: [], torches: [], wave: -1, jeer: -1, judging: null, col: null, glow: null };
 const TAU = Math.PI * 2;
 const wrapPi = a => ((a + Math.PI) % TAU + TAU) % TAU - Math.PI;
 const smooth01 = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
@@ -262,6 +262,10 @@ function buildArena() {
       AR.torches.push({ x: sx * (rx + A.wall / 2) * Math.cos(th), y: sy * (A.gateHalf + 16), ph: Math.random() * 100 });
     }
   }
+  // Vaste gloed van de fakkels zit in de achtergrond; live komt er alleen een kleine flakkering bij.
+  g.globalCompositeOperation = 'lighter'; g.globalAlpha = .27;
+  for (const t of AR.torches) g.drawImage(AR.glow, t.x - 95, t.y - 95, 190, 190);
+  g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
   for (const t of AR.torches) {
     g.fillStyle = K.iron; g.beginPath(); g.arc(t.x, t.y, 4.6, 0, TAU); g.fill();
     g.fillStyle = '#1c120c'; g.beginPath(); g.arc(t.x, t.y, 3.1, 0, TAU); g.fill();
@@ -290,6 +294,8 @@ function paintPeople(g, list) {
 
 /* ---------- levend deel ---------- */
 function arenaCheer() { AR.wave = performance.now(); }
+// Joelen: ongeveer de helft van het publiek springt op en neer met de armen omhoog.
+function arenaJeer() { AR.jeer = performance.now(); }
 
 function drawArenaLive(g, now) {
   const A = ARENA, K = AR.col;
@@ -299,11 +305,17 @@ function drawArenaLive(g, now) {
     if (prog >= 1 || prog < 0) AR.wave = -1;
     else wave = { head: -Math.PI / 2 + prog * A.waveLaps * TAU, amp: Math.min(1, prog * 8, (1 - prog) * 8) };
   }
+  let jeer = 0;
+  if (AR.jeer >= 0) {
+    const pj = (now - AR.jeer) / 2400;
+    if (pj >= 1 || pj < 0) AR.jeer = -1; else jeer = Math.min(1, pj * 6, (1 - pj) * 3);
+  }
   const live = [];
   for (const p of AR.people) {
     let s = 0;
     if (p.restless) { s = Math.max(0, Math.sin(now * .0011 * p.f + p.ph)) ** 12 * .75; p.b = Math.sin(now * .005 * p.f + p.ph) * .45; }
     if (wave) s = Math.max(s, wave.amp * Math.exp(-((wrapPi(p.th - wave.head) / .32) ** 2)));
+    if (jeer && (p.ph * 997) % 1 < .5) s = Math.max(s, jeer * (.3 + .45 * (Math.sin(now * .02 + p.ph * 7) * .5 + .5)));
     if (p.restless || s > .04) { p.s = s; live.push(p); }
   }
   paintPeople(g, live);
@@ -314,8 +326,8 @@ function drawArenaLive(g, now) {
   g.globalCompositeOperation = 'lighter';
   for (const t of AR.torches) {
     const f = Math.sin(now * .011 + t.ph) * .5 + Math.sin(now * .027 + t.ph * 1.7) * .3 + Math.sin(now * .053 + t.ph * 2.3) * .2;
-    t.f = f; const R = 95 * (1 + .05 * f);
-    g.globalAlpha = .27 + .06 * f; g.drawImage(AR.glow, t.x - R, t.y - R, 2 * R, 2 * R);
+    t.f = f; const R = 34 + 4 * f;
+    g.globalAlpha = .16 + .08 * f; g.drawImage(AR.glow, t.x - R, t.y - R, 2 * R, 2 * R);
   }
   g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
   for (const t of AR.torches) {
@@ -346,13 +358,25 @@ function drawCaesar(g, now) {
   // Zijn hoofd draait mee met de wagen.
   let dx = car.x, dy = car.y - cy; const l = Math.hypot(dx, dy) || 1; dx /= l; dy /= l;
   const face = Math.atan2(dy, dx);
-  g.save(); g.translate(0, cy); g.scale(1.2, 1.2);
+  const standing = !!AR.judging;   // tijdens het oordeel staat Caesar op en steekt zijn arm uit over de arena
+  g.save(); g.translate(0, cy); g.scale(standing ? 1.32 : 1.2, standing ? 1.32 : 1.2);
   const rr = (x, y, w, h, r) => { g.beginPath(); g.roundRect(x, y, w, h, r); g.fill(); };
   g.fillStyle = K.bronze; rr(-12, -9, 24, 4.5, 2);
   g.fillStyle = K.porphyry; rr(-11, -6, 22, 9, 4);
   g.fillStyle = K.skin; for (const sx of [-1, 1]) { g.beginPath(); g.ellipse(sx * 6.3, 3.6, 1.6, 2.6, 0, 0, TAU); g.fill(); }
   g.fillStyle = K.toga; rr(-9, -3.4, 18, 7, 3.5);
   g.strokeStyle = K.porphyry; g.lineWidth = 1.4; g.beginPath(); g.moveTo(-6.5, -3.2); g.lineTo(3, 3.4); g.stroke();
+  if (standing) {
+    const reach = 11 + Math.sin(now * .012) * (AR.judging === 'thinking' ? .8 : 0);
+    g.strokeStyle = K.toga; g.lineWidth = 3.2; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(7, 0); g.lineTo(9, reach); g.stroke(); g.lineCap = 'butt';
+    g.fillStyle = K.skin; g.beginPath(); g.arc(9.2, reach + 1.4, 2.1, 0, TAU); g.fill();
+    if (AR.judging !== 'thinking') {   // de duim, als klein streepje naar buiten of binnen gedraaid
+      g.strokeStyle = K.skin; g.lineWidth = 1.3; g.lineCap = 'round';
+      const dir = AR.judging === 'up' ? -1 : 1;
+      g.beginPath(); g.moveTo(9.2, reach + 1.4); g.lineTo(9.2 + 3.2, reach + 1.4 + dir * 1.6); g.stroke(); g.lineCap = 'butt';
+    }
+  }
   const hx = dx * 1, hy = 1.6 + dy * .3;
   g.fillStyle = K.skin; g.beginPath(); g.arc(hx + Math.cos(face) * 1.2, hy + Math.sin(face) * 1.2, 3.1, 0, TAU); g.fill();
   g.fillStyle = K['hair-1']; g.beginPath(); g.arc(hx - Math.cos(face) * .5, hy - Math.sin(face) * .5, 3.5, 0, TAU); g.fill();

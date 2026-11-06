@@ -7,7 +7,7 @@ const PRICE = { armor: 20, augur: 12 };
 const S = { level: 1, money: 0, armor: 0, augur: 0, op: '+', tokens: [], total: null, target: 0, ents: [], floats: [], dust: [], paused: true, cfg: null };
 const W = { rx: 280, ry: 220, area: 66000 };
 const view = { cw: 1, ch: 1, dpr: 1, scale: 1 };
-const car = { x: 0, y: 0, vx: 0, vy: 0, a: -Math.PI / 2 };
+const car = { x: 0, y: 0, vx: 0, vy: 0, a: -Math.PI / 2, ha: -Math.PI / 2 };   // a = richting van de wagen, ha = van de paarden
 const steer = { active: false, down: false, x: 0, y: 0 };
 const keys = new Set();
 
@@ -92,7 +92,7 @@ function newRound() {
   do { vals = Array.from({ length: c.count }, () => pick(c.values)); sol = findTarget(vals, c); } while (!sol);
   S.target = sol.target; S.ents = [];
   vals.forEach((v, i) => S.ents.push(mkEnt(v, sol.idx.includes(i))));
-  S.tokens = []; S.total = null; S.floats = []; S.dust = [];
+  S.tokens = []; S.total = null; S.floats = []; S.dust = []; quadrigaReset();
   updateUI();
 }
 
@@ -163,10 +163,12 @@ function update(dt) {
   const k = 1 - Math.exp(-dt * 5);
   car.vx += (tx - car.vx) * k; car.vy += (ty - car.vy) * k;
   car.x += car.vx * dt; car.y += car.vy * dt;
-  contain(car, W.rx - 20, W.ry - 20, false);
+  contain(car, W.rx - 40, W.ry - 40, false);
   const sp = Math.hypot(car.vx, car.vy);
-  if (sp > 8) car.a = lerpAngle(car.a, Math.atan2(car.vy, car.vx), 1 - Math.exp(-dt * 10));
-  if (sp > 80 && Math.random() < dt * 40) S.dust.push({ x: car.x - Math.cos(car.a) * 18 + (Math.random() - .5) * 14, y: car.y - Math.sin(car.a) * 18 + (Math.random() - .5) * 14, t: 1 });
+  // De paarden draaien eerst, de wagen zwaait erachteraan.
+  if (sp > 8) car.ha = lerpAngle(car.ha, Math.atan2(car.vy, car.vx), 1 - Math.exp(-dt * 14));
+  car.a = lerpAngle(car.a, car.ha, 1 - Math.exp(-dt * 8));
+  quadrigaStep(dt, sp, MAX);
 
   for (const e of S.ents) {
     if (e.spawn > 0) e.spawn = Math.max(0, e.spawn - dt);
@@ -202,11 +204,12 @@ function draw(now) {
     ctx.strokeStyle = C.porphyry; ctx.lineWidth = 2; ctx.globalAlpha = .6;
     ctx.beginPath(); ctx.arc(steer.x, steer.y, 10 + Math.sin(now / 150) * 2, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
   }
+  drawTracks(ctx);
   for (const p of S.dust) { ctx.fillStyle = C['sand-2']; ctx.globalAlpha = p.t * .5; ctx.beginPath(); ctx.arc(p.x, p.y, 4 + (1 - p.t) * 6, 0, Math.PI * 2); ctx.fill(); }
   ctx.globalAlpha = 1;
 
   for (const e of S.ents) drawCoin(e, now);
-  drawCar();
+  drawQuadriga(ctx);
 
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (const f of S.floats) {
@@ -233,22 +236,6 @@ function drawCoin(e, now) {
   const txt = toRoman(e.shown), size = txt.length <= 2 ? 21 : txt.length === 3 ? 17 : 14;
   ctx.fillStyle = ink; ctx.font = `700 ${size * r / 24}px Cinzel, Georgia, serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, 0, 1);
-  ctx.restore();
-}
-function drawCar() {
-  ctx.save(); ctx.translate(car.x, car.y); ctx.rotate(car.a);
-  ctx.strokeStyle = C.wall; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(2, -6); ctx.lineTo(18, -7); ctx.moveTo(2, 6); ctx.lineTo(18, 7); ctx.stroke();
-  for (const y of [-7, 7]) {
-    ctx.fillStyle = C.horse;
-    ctx.beginPath(); ctx.ellipse(24, y, 13, 5, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(39, y, 5.5, 3.6, 0, 0, Math.PI * 2); ctx.fill();
-  }
-  ctx.fillStyle = C['coin-ink'];
-  ctx.fillRect(-14, -16, 14, 4); ctx.fillRect(-14, 12, 14, 4);
-  ctx.beginPath(); ctx.moveTo(-14, -12); ctx.lineTo(-4, -12); ctx.arc(-4, 0, 12, -Math.PI / 2, Math.PI / 2); ctx.lineTo(-14, 12); ctx.closePath();
-  ctx.fillStyle = C.porphyry; ctx.fill(); ctx.strokeStyle = C.bronze; ctx.lineWidth = 2; ctx.stroke();
-  ctx.fillStyle = C.bronze; ctx.beginPath(); ctx.arc(-6, 0, 5, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 }
 let last = performance.now();
@@ -287,23 +274,24 @@ function openJudge() {
   if (S.total === null) return;
   S.paused = true; keys.clear(); steer.down = false;
   const ok = S.total === S.target, salary = 10 + S.target;
-  const hand = $('hand');
-  hand.style.transition = 'none'; hand.classList.remove('up', 'down'); hand.classList.add('side');
-  void hand.getBoundingClientRect(); hand.style.transition = '';
+  // Uitslag en knop staan er meteen (onzichtbaar), zodat het venster niet verspringt als ze verschijnen.
+  const d = $('judgeDetail'), b = $('judgeBtn');
+  d.innerHTML = `<dt>Jouw som</dt><dd class="${ok ? 'good' : 'bad'}">${toRoman(S.total)} · ${S.total}</dd>
+    <dt>Doel</dt><dd>${toRoman(S.target)} · ${S.target}</dd>
+    <dt>Salaris</dt><dd>${ok ? '+' + salary + ' denarii' : 'geen'}</dd>`;
+  b.textContent = ok ? 'Naar de wapensmid' : 'Nieuwe poging'; b.dataset.ok = ok ? '1' : '';
+  for (const el of [d, b]) { el.hidden = false; el.style.visibility = 'hidden'; }
   $('judgeTitle').textContent = 'Caesar overweegt…';
-  $('judgeDetail').hidden = true; $('judgeBtn').hidden = true; $('judge').hidden = false;
+  $('judge').hidden = false;
+  judgeStart();
   jt.forEach(clearTimeout);
   jt = [
-    setTimeout(() => { hand.classList.remove('side'); hand.classList.add(ok ? 'up' : 'down'); if (ok) arenaCheer(); $('judgeTitle').textContent = ok ? 'Duim omhoog!' : 'Duim omlaag.'; }, 1700),
+    setTimeout(() => { $('judgeTitle').textContent = ok ? 'Duim omhoog!' : 'Duim omlaag.'; judgeVerdict(ok); }, JUDGE.think),
     setTimeout(() => {
-      const d = $('judgeDetail');
-      d.innerHTML = `<dt>Jouw som</dt><dd class="${ok ? 'good' : 'bad'}">${toRoman(S.total)} · ${S.total}</dd>
-        <dt>Doel</dt><dd>${toRoman(S.target)} · ${S.target}</dd>
-        <dt>Salaris</dt><dd>${ok ? '+' + salary + ' denarii' : 'geen'}</dd>`;
-      d.hidden = false;
       if (ok) { S.money += salary; S.level++; updateUI(); }
-      const b = $('judgeBtn'); b.textContent = ok ? 'Naar de wapensmid' : 'Nieuwe poging'; b.dataset.ok = ok ? '1' : ''; b.hidden = false; b.focus();
-    }, 2400)
+      for (const el of [d, b]) { el.style.visibility = ''; el.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'ease-out' }); }
+      b.focus();
+    }, JUDGE.think + JUDGE.detail)
   ];
 }
 function openShop() {
@@ -328,7 +316,7 @@ $('augur').onclick = () => {
 };
 $('startBtn').onclick = () => { $('start').hidden = true; S.paused = false; arenaCheer(); };
 $('judgeBtn').onclick = () => {
-  $('judge').hidden = true;
+  $('judge').hidden = true; judgeEnd();
   if ($('judgeBtn').dataset.ok) openShop();
   else { newRound(); S.paused = false; }
 };
