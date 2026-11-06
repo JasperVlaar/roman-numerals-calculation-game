@@ -19,8 +19,9 @@ npx serve .
 | Bestand | Inhoud |
 |---|---|
 | `index.html` | Opmaak: HUD, arena-canvas, controls en de drie overlays (start, oordeel, winkel) |
-| `style.css` | Kleuren als CSS-variabelen in `:root`, plus layout |
-| `game.js` | Alle spellogica en het tekenen op canvas |
+| `style.css` | Kleuren als CSS-variabelen in `:root` (ook die van de arena), plus layout |
+| `game.js` | Spellogica, munten, wagen en de UI |
+| `arena.js` | Het Colosseum bij nacht: tribunes met publiek, muur met fakkels, poorten, Caesars loge, zandvloer met mozaïekrand |
 | `docs/initieel-idee.md` | Het idee zoals ik het opschreef |
 
 ## Besturing
@@ -44,6 +45,17 @@ npx serve .
 | Fout antwoord | Nieuwe poging met een nieuw doel, geen straf |
 
 Moeilijkheid per ronde staat in `cfg(level)` in `game.js`: welke cijfers voorkomen, het bereik van het doelgetal, aantal termen, aantal munten en grootte van de arena.
+
+## Arena aanpassen
+
+De arena wordt in code getekend, omdat de vorm per ronde en per schermformaat verandert. Alles wat stil staat (tribunes, zittend publiek, muur, vloer, mozaïek) wordt één keer naar een offscreen canvas getekend. Elk frame komen daar alleen het bewegende publiek, Caesar en de fakkels bij.
+
+| Wat | Waar |
+|---|---|
+| Kleuren van steen, mozaïek, licht en publiek | `style.css`, blok `/* Arena */` (`--crowd-1` t/m `--crowd-7` zijn de kleding van het volk) |
+| Maten, aantallen, hoe donker de tribune wordt | `ARENA` bovenaan `arena.js` |
+| Het meanderpatroon van de mozaïekrand | `MEANDER` in `arena.js` (`#` = donker steentje) |
+| De wave van het publiek | `arenaCheer()`, nu bij de start en bij duim omhoog |
 
 ## Open punten
 

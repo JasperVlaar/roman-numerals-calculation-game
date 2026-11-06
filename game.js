@@ -4,7 +4,7 @@ const css = getComputedStyle(document.documentElement);
 const C = {}; ['night','stone','stone-2','porphyry','bronze','sand','sand-2','ink','muted','blood','blood-dark','laurel','coin','coin-edge','coin-ink','horse','wall'].forEach(k => C[k] = css.getPropertyValue('--' + k).trim());
 
 const PRICE = { armor: 20, augur: 12 };
-const S = { level: 1, money: 0, armor: 0, augur: 0, op: '+', tokens: [], total: null, target: 0, ents: [], floats: [], dust: [], crowd: [], paused: true, cfg: null };
+const S = { level: 1, money: 0, armor: 0, augur: 0, op: '+', tokens: [], total: null, target: 0, ents: [], floats: [], dust: [], paused: true, cfg: null };
 const W = { rx: 280, ry: 220, area: 66000 };
 const view = { cw: 1, ch: 1, dpr: 1, scale: 1 };
 const car = { x: 0, y: 0, vx: 0, vy: 0, a: -Math.PI / 2 };
@@ -59,15 +59,9 @@ function fitWorld(reset) {
     car.x *= sx; car.y *= sy; steer.x *= sx; steer.y *= sy;
   }
   W.rx = nrx; W.ry = nry;
-  view.scale = Math.min(view.cw / (2 * (W.rx + 48)), view.ch / (2 * (W.ry + 48)));
-  makeCrowd();
-}
-function makeCrowd() {
-  const n = Math.round((W.rx + W.ry) * 1.6), cols = [C.porphyry, C['sand-2'], C.muted, C.wall, C.bronze];
-  S.crowd = Array.from({ length: n }, () => {
-    const a = Math.random() * Math.PI * 2, t = 14 + Math.random() * 28;
-    return { x: (W.rx + t) * Math.cos(a), y: (W.ry + t) * Math.sin(a), c: pick(cols), r: 1.6 + Math.random() * 1.4 };
-  });
+  // Ruimte rondom de zandvloer: opzij de muur en een paar rijen publiek, boven ook Caesars loge.
+  view.scale = Math.min(view.cw / (2 * (W.rx + 40)), view.ch / (2 * (W.ry + 58)));
+  AR.dirty = true;
 }
 function place(e) {
   for (let i = 0; i < 40; i++) {
@@ -196,24 +190,13 @@ function update(dt) {
   S.dust = S.dust.filter(p => p.t > 0);
 }
 
-function ellipse(rx, ry) { ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2); }
 function draw(now) {
   const { cw, ch, dpr, scale } = view;
+  if (AR.dirty) buildArena();
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(AR.bg, 0, 0);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = C.night; ctx.fillRect(0, 0, cw, ch);
   ctx.save(); ctx.translate(cw / 2, ch / 2); ctx.scale(scale, scale);
-
-  ellipse(W.rx + 44, W.ry + 44); ctx.fillStyle = C.stone; ctx.fill();
-  for (const p of S.crowd) { ctx.fillStyle = p.c; ctx.globalAlpha = .7; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); }
-  ctx.globalAlpha = 1;
-  ellipse(W.rx + 8, W.ry + 8); ctx.fillStyle = C.wall; ctx.fill();
-  ellipse(W.rx, W.ry);
-  const g = ctx.createRadialGradient(0, 0, 10, 0, 0, Math.max(W.rx, W.ry));
-  g.addColorStop(0, C.sand); g.addColorStop(1, C['sand-2']);
-  ctx.fillStyle = g; ctx.fill();
-  ctx.strokeStyle = C.wall; ctx.globalAlpha = .12; ctx.lineWidth = 1.5;
-  for (const f of [.3, .55, .8]) { ellipse(W.rx * f, W.ry * f); ctx.stroke(); }
-  ctx.globalAlpha = 1;
+  drawArenaLive(ctx, now);
 
   if (steer.active) {
     ctx.strokeStyle = C.porphyry; ctx.lineWidth = 2; ctx.globalAlpha = .6;
@@ -311,7 +294,7 @@ function openJudge() {
   $('judgeDetail').hidden = true; $('judgeBtn').hidden = true; $('judge').hidden = false;
   jt.forEach(clearTimeout);
   jt = [
-    setTimeout(() => { hand.classList.remove('side'); hand.classList.add(ok ? 'up' : 'down'); $('judgeTitle').textContent = ok ? 'Duim omhoog!' : 'Duim omlaag.'; }, 1700),
+    setTimeout(() => { hand.classList.remove('side'); hand.classList.add(ok ? 'up' : 'down'); if (ok) arenaCheer(); $('judgeTitle').textContent = ok ? 'Duim omhoog!' : 'Duim omlaag.'; }, 1700),
     setTimeout(() => {
       const d = $('judgeDetail');
       d.innerHTML = `<dt>Jouw som</dt><dd class="${ok ? 'good' : 'bad'}">${toRoman(S.total)} · ${S.total}</dd>
@@ -343,7 +326,7 @@ $('augur').onclick = () => {
   S.augur--; path.forEach(e => e.oracle = true); updateUI();
   toast(`De augur wijst ${path.length} ${path.length === 1 ? 'cijfer' : 'cijfers'} aan.`);
 };
-$('startBtn').onclick = () => { $('start').hidden = true; S.paused = false; };
+$('startBtn').onclick = () => { $('start').hidden = true; S.paused = false; arenaCheer(); };
 $('judgeBtn').onclick = () => {
   $('judge').hidden = true;
   if ($('judgeBtn').dataset.ok) openShop();

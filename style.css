@@ -12,6 +12,12 @@ img{max-width:100%}
   --blood:#d4463b; --blood-dark:#7e1f1b; --laurel:#a6c85a;
   --coin:#e2b35e; --coin-edge:#8a5a22; --coin-ink:#3a230f; --horse:#5a3a26; --wall:#6b4a2a;
   --skin:#e3b78c; --skin-edge:#6a3f22; --line:rgba(245,234,214,.14); --scrim:rgba(14,9,13,.8);
+  /* Arena (arena.js): steen, mozaïek, licht en publiek */
+  --marble:#d6c8aa; --marble-shade:#9c8a6c; --travertine:#6f5c46; --travertine-2:#7b674e;
+  --tess-light:#dfcba2; --tess-dark:#7e3a5e; --tess-line:#a4753b; --grout:#b89a68;
+  --iron:#3b3034; --flame:#f08a3a; --flame-core:#ffe0a0; --glow:#ff9a4a;
+  --toga:#ece3cf; --skin-2:#c3895c; --skin-3:#8a5a3c; --hair-1:#3a271c; --hair-2:#5c4030; --hair-3:#8d8172;
+  --crowd-1:#d9cbb0; --crowd-2:#9a4a3a; --crowd-3:#74305a; --crowd-4:#5f6d45; --crowd-5:#c08a3e; --crowd-6:#6d7a86; --crowd-7:#a8957a;
   --f-display:"Cinzel","Trajan Pro",Georgia,serif;
   --f-body:"Alegreya Sans","Segoe UI",system-ui,sans-serif;
   color-scheme:dark;
