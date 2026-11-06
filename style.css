@@ -46,9 +46,14 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
 .tok.fake{border-color:var(--blood);color:var(--blood)}
 .tok.next{border-style:dashed;color:var(--muted);background:none}
 .tok.sum{background:none;border-color:transparent;color:var(--bronze)}
-.stats dd.warn{color:var(--blood);animation:tick 1s ease-in-out infinite}
+.timer{display:flex;flex-direction:column;align-items:center;gap:2px;flex:none}
+.time-num{font-family:var(--f-display);font-weight:900;font-size:clamp(28px,7vw,40px);line-height:1;color:var(--ink);font-variant-numeric:tabular-nums;min-width:2ch;text-align:center}
+.timer.warn .time-num{color:var(--blood);animation:tick 1s ease-in-out infinite}
+.timebar{position:absolute;left:0;right:0;top:0;height:7px;background:rgba(14,9,13,.55);z-index:2;pointer-events:none}
+#timebarFill{height:100%;background:linear-gradient(90deg,var(--bronze),var(--coin));transform-origin:left center;will-change:transform}
+.timebar.warn #timebarFill{background:var(--blood)}
 @keyframes tick{50%{transform:scale(1.18)}}
-@media (prefers-reduced-motion:reduce){.stats dd.warn{animation:none}}
+@media (prefers-reduced-motion:reduce){.timer.warn .time-num{animation:none}}
 .hint{color:var(--muted);font-size:14px}
 .controls{display:flex;flex-wrap:wrap;gap:8px;padding-block:6px 12px}
 button{font:inherit;color:inherit;cursor:pointer}

@@ -11,8 +11,8 @@
 <div class="app">
   <header class="hud gutter">
     <div class="goal"><span class="label">Maak dit getal</span><span id="goal" class="goal-num">XV</span></div>
+    <div class="timer" id="timer"><span class="label">Tijd</span><span id="time" class="time-num">30</span></div>
     <dl class="stats">
-      <div><dt>Tijd</dt><dd id="time">20</dd></div>
       <div><dt>Ronde</dt><dd id="lvl">I</dd></div>
       <div><dt>Denarii</dt><dd id="money">0</dd></div>
       <div><dt>Lorica</dt><dd id="armor">0</dd></div>
@@ -20,6 +20,7 @@
   </header>
   <div class="stage" id="stage">
     <canvas id="arena" aria-label="Arena met zwevende Romeinse cijfers"></canvas>
+    <div class="timebar" aria-hidden="true"><div id="timebarFill"></div></div>
     <div class="toast" id="toast" role="status"></div>
   </div>
   <div class="rail gutter"><div class="expr" id="expr" aria-live="polite"></div></div>
@@ -38,7 +39,7 @@
       <li>Vang om en om een cijfer (goud) en een teken (purper: + − ×). Wat je nu niet kunt vangen is gedimd.</li>
       <li>Er wordt van links naar rechts gerekend. Wissen kan niet: zit je te hoog, trek er dan iets af.</li>
       <li>Raap de zilveren denarii op. Daarmee betaal je bij de wapensmid.</li>
-      <li>Je hebt 20 seconden. Klopt je som eerder, zeg het dan tegen Caesar. Is de tijd om, dan oordeelt hij over wat je hebt.</li>
+      <li>Je hebt 30 seconden. Klopt je som eerder, zeg het dan tegen Caesar. Is de tijd om, dan oordeelt hij over wat je hebt.</li>
       <li>Pas op: sommige cijfers zijn vals. Pak je er een, dan wordt hij rood en verandert hij.</li>
     </ul>
     <button id="startBtn" class="primary wide">Betreed de arena</button>

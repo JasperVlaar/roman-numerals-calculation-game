@@ -28,7 +28,7 @@ function cfg(l) {
   const ranges = [[8,20],[16,45],[30,110],[60,240]];
   const i = Math.min(l - 1, 3), extra = Math.max(0, l - 4);
   return {
-    time: 20,                                      // seconden per ronde; later per level te variëren
+    time: 30,                                      // seconden per ronde; later per level te variëren
     values: sets[i],
     count: Math.min(6 + (l - 1) * 2, 14),          // cijfermunten
     ops: l === 1 ? ['+', '−'] : ['+', '−', '×'],    // tekens die als munt in het veld liggen
@@ -180,8 +180,7 @@ function lerpAngle(a, b, t) { const d = ((b - a + Math.PI * 3) % (Math.PI * 2)) 
 
 function update(dt) {
   S.time = Math.max(0, S.time - dt);
-  const ts = Math.ceil(S.time);
-  if (ts !== S.shownTime) { S.shownTime = ts; const el = $('time'); el.textContent = ts; el.classList.toggle('warn', ts <= 5); }
+  showTime();
   if (S.time === 0) { toast('De tijd is om!'); openJudge(); return; }
   const MAX = 230; let dx = 0, dy = 0, tx = 0, ty = 0;
   if (keys.has('ArrowLeft') || keys.has('a')) dx--;
@@ -252,7 +251,16 @@ function draw(now) {
     ctx.lineWidth = 4; ctx.strokeStyle = C.night; ctx.strokeText(f.text, f.x, f.y);
     ctx.fillStyle = f.color; ctx.fillText(f.text, f.x, f.y);
   }
-  ctx.globalAlpha = 1; ctx.restore();
+  ctx.globalAlpha = 1;
+  // Laatste 5 seconden: groot aftellen midden in de arena, dat elke seconde klopt.
+  if (!S.paused && S.time > 0 && S.time <= 5) {
+    const n = Math.ceil(S.time), f = S.time - Math.floor(S.time), pulse = 1 + .25 * Math.pow(f, 3);
+    ctx.save(); ctx.scale(pulse, pulse);
+    ctx.font = `900 ${Math.round(W.ry * .9)}px Cinzel, Georgia, serif`;
+    ctx.globalAlpha = .18 + .22 * f; ctx.lineWidth = 6; ctx.strokeStyle = C.night; ctx.strokeText(n, 0, 6);
+    ctx.fillStyle = C.blood; ctx.fillText(n, 0, 6); ctx.restore();
+  }
+  ctx.restore();
 }
 // Munten: goud = cijfer, purper = teken, klein zilver = denarius. Wat je nu niet kunt vangen is gedimd.
 function drawCoin(e, now) {
@@ -301,12 +309,20 @@ function loop(now) {
 }
 
 /* ---------- UI ---------- */
+// Timer: groot getal in de HUD, een balk die leegloopt, en onder 5 s rood.
+function showTime() {
+  const ts = Math.ceil(S.time);
+  $('timebarFill').style.transform = `scaleX(${S.cfg ? S.time / S.cfg.time : 1})`;
+  if (ts === S.shownTime) return;
+  S.shownTime = ts; $('time').textContent = ts;
+  const warn = ts <= 5; $('timer').classList.toggle('warn', warn); document.querySelector('.timebar').classList.toggle('warn', warn);
+}
 function updateUI() {
   $('goal').textContent = toRoman(S.target);
   $('lvl').textContent = toRoman(S.level);
   $('money').textContent = S.money;
   $('armor').textContent = S.armor;
-  $('time').textContent = Math.ceil(S.time);
+  showTime();
   $('augur').textContent = `Augur · ${S.augur}`;
   $('augur').disabled = S.augur <= 0;
   $('claim').disabled = S.total === null;

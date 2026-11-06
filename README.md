@@ -41,7 +41,7 @@ Tekens kies je niet meer met een knop: je vangt ze als munt. Wissen bestaat niet
 
 | Onderdeel | Waarde |
 |---|---|
-| Tijd | 20 seconden per ronde (`time` in `cfg()`). Bij 0 oordeelt Caesar over wat je hebt; zonder som is het duim omlaag. |
+| Tijd | 30 seconden per ronde (`time` in `cfg()`). Bij 0 oordeelt Caesar over wat je hebt; zonder som is het duim omlaag. |
 | Munten | Goud = cijfer, purper = teken, zilver = denarius |
 | Vangen | Om en om: cijfer, teken, cijfer … Munten van het verkeerde soort zijn gedimd; daar rijd je doorheen. |
 | Tekens | Ronde I: + en −. Vanaf ronde II: + − ×. Van elk teken ligt er altijd minstens één munt in het veld. |
