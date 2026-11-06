@@ -1,0 +1,85 @@
+/* Base reset (the artifact host supplied this before) */
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+
+/* Layout: one-screen arena — HUD strip, canvas arena, expression rail, control bar. Night in the Colosseum: porphyry, bronze, sand. */
+:root{
+  --night:#191117; --stone:#271c24; --stone-2:#33252f; --porphyry:#74305a;
+  --bronze:#d49a48; --sand:#dcc08a; --sand-2:#bf9f63; --ink:#f5ead6; --muted:#b5a28a;
+  --blood:#d4463b; --blood-dark:#7e1f1b; --laurel:#a6c85a;
+  --coin:#e2b35e; --coin-edge:#8a5a22; --coin-ink:#3a230f; --horse:#5a3a26; --wall:#6b4a2a;
+  --skin:#e3b78c; --skin-edge:#6a3f22; --line:rgba(245,234,214,.14); --scrim:rgba(14,9,13,.8);
+  --f-display:"Cinzel","Trajan Pro",Georgia,serif;
+  --f-body:"Alegreya Sans","Segoe UI",system-ui,sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--night);color:var(--ink);font-family:var(--f-body);font-size:15px;overflow:hidden}
+.app{height:100%;display:grid;grid-template-rows:auto minmax(0,1fr) auto auto}
+.gutter{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.label,.stats dt,.eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.hud{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding-block:10px 8px;border-bottom:1px solid var(--line)}
+.goal{display:flex;flex-direction:column;gap:2px;min-width:0}
+.goal-num{font-family:var(--f-display);font-weight:900;font-size:clamp(28px,7vw,40px);line-height:1;color:var(--bronze);letter-spacing:.04em;overflow-wrap:anywhere}
+.stats{display:flex;gap:16px;margin:0}
+.stats div{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.stats dd{margin:0;font-family:var(--f-display);font-weight:700;font-size:18px;font-variant-numeric:tabular-nums}
+.stage{position:relative;min-height:0}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:crosshair}
+.toast{position:absolute;left:50%;top:10px;transform:translateX(-50%);max-width:calc(100% - 32px);background:var(--stone-2);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:14px;text-align:center;opacity:0;transition:opacity .25s;pointer-events:none}
+.toast.show{opacity:1}
+.rail{padding-block:8px 4px;border-top:1px solid var(--line)}
+.expr{display:flex;align-items:center;gap:6px;overflow-x:auto;min-height:38px;scrollbar-width:none}
+.expr::-webkit-scrollbar{display:none}
+.tok{font-family:var(--f-display);font-weight:700;font-size:17px;padding:4px 11px;border-radius:999px;background:var(--stone-2);border:1px solid var(--line);white-space:nowrap}
+.tok.op{background:none;border:0;padding:0 1px;color:var(--muted)}
+.tok.fake{border-color:var(--blood);color:var(--blood)}
+.tok.next{border-style:dashed;color:var(--muted);background:none}
+.hint{color:var(--muted);font-size:14px}
+.controls{display:flex;flex-wrap:wrap;gap:8px;padding-block:6px 12px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:disabled{opacity:.4;cursor:default}
+:focus-visible{outline:2px solid var(--sand);outline-offset:2px}
+.ops{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.ops button{width:50px;height:46px;border:0;background:var(--stone);color:var(--muted);font-family:var(--f-display);font-size:24px;font-weight:700}
+.ops button[aria-pressed="true"]{background:var(--porphyry);color:var(--ink)}
+.btn{height:46px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--stone);font-weight:500}
+.primary{flex:1 1 150px;height:46px;padding:0 16px;border-radius:12px;border:0;background:var(--bronze);color:var(--coin-ink);font-family:var(--f-display);font-weight:700;font-size:16px;letter-spacing:.04em}
+.wide{width:100%}
+.overlay{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:var(--scrim);backdrop-filter:blur(3px);
+  padding-top:max(16px,env(safe-area-inset-top,0px));padding-bottom:max(16px,env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.panel{width:min(440px,100%);max-height:100%;overflow:auto;background:var(--stone);border:1px solid var(--line);border-radius:18px;padding:22px;display:flex;flex-direction:column;gap:14px}
+.panel h1,.panel h2{margin:0;font-family:var(--f-display);font-weight:900;text-wrap:balance;line-height:1.1}
+.panel h1{font-size:32px;color:var(--bronze);letter-spacing:.03em}
+.panel h2{font-size:24px}
+.panel p{margin:0;line-height:1.5}
+.rules{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;line-height:1.45}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.judge{align-items:center;text-align:center}
+.hand-svg{width:132px;height:165px}
+#hand{transform-box:view-box;transform-origin:60px 88px;transition:transform .55s cubic-bezier(.3,1.6,.5,1)}
+#hand.side{transform:rotate(-90deg);animation:waver 1.7s ease-in-out}
+#hand.up{transform:rotate(0deg)}
+#hand.down{transform:rotate(-180deg)}
+@keyframes waver{0%,100%{transform:rotate(-90deg)}25%{transform:rotate(-80deg)}50%{transform:rotate(-99deg)}75%{transform:rotate(-84deg)}}
+@media (prefers-reduced-motion:reduce){#hand{transition:none}#hand.side{animation:none}}
+.skin{fill:var(--skin);stroke:var(--skin-edge);stroke-width:3}
+.crease{fill:none;stroke:var(--skin-edge);stroke-width:3;stroke-linecap:round}
+.sleeve{fill:var(--porphyry)}
+.band{fill:var(--bronze)}
+.tally{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:0;text-align:left;width:100%}
+.tally dt{color:var(--muted)}
+.tally dd{margin:0;font-family:var(--f-display);font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+.tally .good{color:var(--laurel)}
+.tally .bad{color:var(--blood)}
+.wares{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.wares li{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--stone-2)}
+.wares li div{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.wares b{font-family:var(--f-display)}
+.wares span{color:var(--muted);font-size:14px;line-height:1.4}
+.wares .btn{flex:none;font-variant-numeric:tabular-nums}

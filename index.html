@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Roman Numerals</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="hud gutter">
+    <div class="goal"><span class="label">Maak dit getal</span><span id="goal" class="goal-num">XV</span></div>
+    <dl class="stats">
+      <div><dt>Ronde</dt><dd id="lvl">I</dd></div>
+      <div><dt>Denarii</dt><dd id="money">0</dd></div>
+      <div><dt>Lorica</dt><dd id="armor">0</dd></div>
+    </dl>
+  </header>
+  <div class="stage" id="stage">
+    <canvas id="arena" aria-label="Arena met zwevende Romeinse cijfers"></canvas>
+    <div class="toast" id="toast" role="status"></div>
+  </div>
+  <div class="rail gutter"><div class="expr" id="expr" aria-live="polite"></div></div>
+  <div class="controls gutter">
+    <div class="ops" role="group" aria-label="Operator">
+      <button id="opAdd" aria-pressed="true" aria-label="Optellen">+</button>
+      <button id="opMul" aria-pressed="false" aria-label="Vermenigvuldigen">×</button>
+    </div>
+    <button id="clear" class="btn">Wis</button>
+    <button id="augur" class="btn">Augur · 0</button>
+    <button id="claim" class="primary">Ik zeg: goed!</button>
+  </div>
+</div>
+
+<div class="overlay" id="start">
+  <div class="panel">
+    <p class="eyebrow">Een spel in de arena</p>
+    <h1>Roman Numerals</h1>
+    <ul class="rules">
+      <li>Stuur je wagen: sleep met je vinger, of gebruik de pijltjes.</li>
+      <li>Rij over cijfers om ze te vangen. Ze worden van links naar rechts gerekend.</li>
+      <li>Wissel tussen + en × met de knop of de spatiebalk.</li>
+      <li>Klopt je som volgens jou? Zeg het tegen Caesar. Hij oordeelt met zijn duim.</li>
+      <li>Pas op: sommige cijfers zijn vals. Pak je er een, dan wordt hij rood en verandert hij.</li>
+    </ul>
+    <button id="startBtn" class="primary wide">Betreed de arena</button>
+  </div>
+</div>
+
+<div class="overlay" id="judge" hidden>
+  <div class="panel judge">
+    <p class="eyebrow">Caesar oordeelt</p>
+    <svg class="hand-svg" viewBox="0 0 120 150" aria-hidden="true">
+      <g id="hand" class="side">
+        <rect class="sleeve" x="36" y="110" width="48" height="36" rx="5"/>
+        <rect class="band" x="36" y="110" width="48" height="6"/>
+        <rect class="skin" x="44" y="12" width="24" height="64" rx="12"/>
+        <rect class="skin" x="28" y="56" width="66" height="58" rx="18"/>
+        <path class="crease" d="M93 72h-16M93 86h-16M93 100h-16"/>
+      </g>
+    </svg>
+    <h2 id="judgeTitle">Caesar overweegt…</h2>
+    <dl class="tally" id="judgeDetail" hidden></dl>
+    <button id="judgeBtn" class="primary wide" hidden>Verder</button>
+  </div>
+</div>
+
+<div class="overlay" id="shop" hidden>
+  <div class="panel">
+    <p class="eyebrow">De wapensmid</p>
+    <h2>Je hebt <span id="shopMoney">0</span> denarii</h2>
+    <ul class="wares">
+      <li><div><b>Lorica segmentata</b><span>Blokkeert de volgende 3 valse cijfers.</span></div><button id="buyArmor" class="btn">20 d</button></li>
+      <li><div><b>Augur</b><span>Laat de cijfers oplichten die je het snelst naar het doel brengen. Volgorde en operator verraadt hij niet.</span></div><button id="buyAugur" class="btn">12 d</button></li>
+    </ul>
+    <p class="muted small" id="shopNote"></p>
+    <button id="shopNext" class="primary wide">Volgende ronde</button>
+  </div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
