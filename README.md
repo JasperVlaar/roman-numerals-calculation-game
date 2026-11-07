@@ -58,39 +58,40 @@ Moeilijkheid per ronde staat in `cfg(level)` in `game.js`: tijd, welke cijfers e
 
 Op deze branch is de rekenmodus vervangen door gladiatorgevechten. `index.html` laadt `fight.js` in plaats van `game.js`; arena, Caesar en publiek worden hergebruikt.
 
-**Nu:** gevechten I tot III (1, 2 en 3 slaven), met je vuisten. Voor elk gevecht verdeel je punten over vijf stats, zoals in *Swords and Sandals*: 3 aan het begin, +3 na elke overwinning. Slaan gaat vanzelf als een tegenstander binnen bereik is. Een tegenstander kleurt rood als hij aanzet; stap weg voordat hij uithaalt. Ga je neer, dan probeer je hetzelfde gevecht opnieuw en blijven je stats staan.
+**Nu:** gevechten I tot III (1, 2 en 3 slaven), met je vuisten. Punten verdien je met XP: verslagen tegenstanders laten 5 blauwwitte bolletjes wegspatten. Raap ze op: na 6 seconden verdwijnen ze (de laatste 2 seconden knipperen ze), en na de laatste klap heb je nog 2 seconden, daarna doven ze. Een niveau hoger (bij 4, 12, 24, 40 … XP in totaal) geeft 2 punten voor je stats. Je begint zonder punten. Verlies je, dan vervalt de XP uit dat gevecht. Slaan gaat vanzelf als een tegenstander binnen bereik is. Een tegenstander kleurt rood als hij aanzet; stap weg voordat hij uithaalt. Ga je neer, dan probeer je hetzelfde gevecht opnieuw en blijven je stats staan.
 
 | Stat | Per punt | Basis (0 punten, ook voor slaven) |
 |---|---|---|
-| Strength (Kracht) | +1 schade | Vuisten 2 |
+| Strength (Kracht) | +0,5 schade | Vuisten 2 |
 | Agility (Behendigheid) | +6 loopsnelheid (later ook afstandswapens) | 85 (slaaf 68) |
-| Attack (Aanval) | +5% kans dat je klap raakt (max 95%) | 60% |
-| Defense (Verdediging) | +6% kans dat je een klap blokt (max 75%) | 10% |
 | Vitality (Vitaliteit) | +2 leven | 8 (slaaf 14) |
 
-De getallen zijn bewust klein: je begint als een slaaf. Kracht is +1 per punt (in Swords and Sandals +2 op veel grotere getallen); daarom zijn er minder punten te verdelen.
+Attack en Defense (raak- en blokkans) staan voorlopig uit; elke klap binnen bereik raakt. De code staat er nog (`STAT_RULES`). De getallen zijn bewust klein: je begint als een slaaf. Kracht is +0,5 per punt; halve getallen nemen we voorlopig voor lief.
 
 Balans (gesimuleerd, 20 gevechten per regel, bot die elke 0,2 s reageert):
 
-| Gevecht | Punten | Gespreide verdeling | Alles in één stat |
-|---|---|---|---|
-| I (1 slaaf) | 3 | ±95% winst | – |
-| II (2 slaven) | 6 | 60–70% | – |
-| III (3 slaven) | 9 | 45–55% | ±40% (alles kracht) |
+| Gevecht | Punten (alles opgeraapt) | Winst |
+|---|---|---|
+| I (1 slaaf) | 0 | 100% |
+| II (2 slaven) | 2 | 5–20% |
+| III (3 slaven) | 4 | 0–5% |
+
+Stilstaan zonder punten verliest altijd.
 
 | Wat | Waar in `fight.js` |
 |---|---|
 | Jouw leven, snelheid, onkwetsbaarheid na een treffer | `PLAYER` |
 | Wapens (schade, bereik, slagen per seconde, terugslag) | `WEAPONS` |
 | Tegenstanders (leven, schade, armor, snelheid, aanzet, herstel) | `FOES` |
-| Stats: wat een punt doet, start- en winstpunten | `STATS`, `STAT_RULES`, `POINTS` |
+| Stats: wat een punt doet, punten per niveau | `STATS`, `STAT_RULES`, `POINTS` |
+| XP: drempels per niveau, bolletjes per tegenstander, oprapen, de 2 seconden aan het eind | `LEVELS`, `XP` |
 | De reeks gevechten | `FIGHTS` |
 | Geluid: welke bestanden (`SOUNDS`) en hoe hard (`MIX`) | bovenaan `sound.js` |
 | Raakgevoel (even stilstaan bij een treffer, schudden, flits) | `FEEL` |
 | Aftellen aan het begin (III, II, I, *Pugnate!*) | `INTRO` |
 | Grootte van het zandveld (kleiner = camera dichterbij) | `FIGHT_AREA` |
 
-Geluid: `sound.js` speelt echte opnames af uit `assets/sound/` (welke bestanden en waar je ze vindt: `assets/sound/LEESMIJ.md`). Het publiek roezemoest de hele tijd, juicht bij elke rake klap (groot gejuich als iemand valt, bij *Pugnate!* en als je wint) en joelt als jij geraakt wordt of verliest. Ontbreekt een bestand, dan blijft dat geluid stil. Aan/uit met de knop rechtsboven of de toets M.
+Geluid: `sound.js` speelt echte opnames af uit `assets/sound/` (welke bestanden en waar je ze vindt: `assets/sound/LEESMIJ.md`). Het publiek roezemoest de hele tijd, juicht bij elke rake klap (groot gejuich als iemand valt, bij *Pugnate!* en als je wint) en joelt als je verliest. Ontbreekt een bestand, dan blijft dat geluid stil. Aan/uit met de knop rechtsboven of de toets M.
 
 Testen met meer tegenstanders: open `index.html?n=3` (of een ander aantal slaven).
 

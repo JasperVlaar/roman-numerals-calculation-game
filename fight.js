@@ -16,14 +16,20 @@ const C = {}; ['night','porphyry','bronze','sand','sand-2','ink','muted','blood'
 const PLAYER = { hp: 8, speed: 85, radius: 10, accel: 12, invuln: .6, weapon: 'fists' };
 // Stats: wat één punt doet. Raken en blokken zijn kansen; tegenstanders gebruiken dezelfde formules.
 const STATS = {
-  strength: { name: 'Strength', nl: 'Kracht',     desc: '+1 schade per klap' },
+  strength: { name: 'Strength', nl: 'Kracht',     desc: '+0,5 schade per klap' },
   agility:  { name: 'Agility',  nl: 'Behendigheid', desc: '+6 loopsnelheid (later: afstandswapens)' },
-  attack:   { name: 'Attack',   nl: 'Aanval',     desc: '+5% kans dat je klap raakt' },
-  defense:  { name: 'Defense',  nl: 'Verdediging', desc: '+6% kans dat je een klap blokt' },
   vitality: { name: 'Vitality', nl: 'Vitaliteit',  desc: '+2 leven' }
 };
-const STAT_RULES = { dmg: 1, speed: 6, hitBase: .6, hit: .05, hitMax: .95, blockBase: .1, block: .06, blockMax: .75, hp: 2 };
-const POINTS = { start: 3, perWin: 3 };
+// Attack en Defense (raak- en blokkans) staan voorlopig uit: elke klap binnen bereik raakt.
+// Terugzetten: hitBase .6 en blockBase .1, en de twee stats weer in STATS en S.stats.
+const STAT_RULES = { dmg: .5, speed: 6, hitBase: 1, hit: .05, hitMax: 1, blockBase: 0, block: .06, blockMax: .75, hp: 2 };
+// Punten verdien je met XP: verslagen tegenstanders laten blauwwitte bolletjes vallen. Een niveau omhoog = POINTS.perLevel punten.
+const POINTS = { start: 0, perLevel: 2 };
+// XP-drempels (totaal) voor niveau II, III, IV, ... Gevecht I, II, III leveren 5, 10, 15 XP op.
+const LEVELS = [4, 12, 24, 40, 60, 85, 115];
+// life = na zoveel seconden verdwijnt een bolletje; de laatste 'fade' seconden knippert en vervaagt het.
+const XP = { life: 6, fade: 2, perFoe: { slave: 5 }, speed: [70, 150], friction: 3.5, settle: .3, pickup: 6, magnet: 26, pull: 160, collect: 2 };
+const levelOf = xp => 1 + LEVELS.filter(t => xp >= t).length;
 const hitChance = att => Math.min(STAT_RULES.hitMax, STAT_RULES.hitBase + STAT_RULES.hit * att);
 const blockChance = def => Math.min(STAT_RULES.blockMax, STAT_RULES.blockBase + STAT_RULES.block * def);
 // reach = hoe ver voorbij je eigen lijf je raakt; cooldown = seconden tussen twee slagen; price = in de winkel (fase 3).
@@ -51,7 +57,7 @@ const INTRO = { step: .8, count: 3, shout: .7 };
 const FIGHT_AREA = 30000;
 
 /* ---------- Toestand ---------- */
-const S = { fight: 0, money: 0, stats: { strength: 0, agility: 0, attack: 0, defense: 0, vitality: 0 }, points: 0, foes: [], floats: [], dust: [], paused: true, over: null, overT: 0, freeze: 0, shake: 0, intro: 0, shout: 0 };
+const S = { fight: 0, money: 0, xp: 0, xpStart: 0, pointsStart: 0, orbs: [], collect: 0, gained: 0, levelUps: 0, stats: { strength: 0, agility: 0, vitality: 0 }, points: 0, foes: [], floats: [], dust: [], paused: true, over: null, overT: 0, freeze: 0, shake: 0, intro: 0, shout: 0 };
 const W = { rx: 280, ry: 220, area: 66000 };
 const view = { cw: 1, ch: 1, dpr: 1, scale: 1 };
 const P = { x: 0, y: 0, vx: 0, vy: 0, face: -Math.PI / 2, hp: PLAYER.hp, cd: 0, swing: 0, swingDir: 1, hurt: 0, flash: 0, target: null, dead: false };
@@ -62,6 +68,7 @@ const keys = new Set();
 const ROMAN = [[1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],[100,'C'],[90,'XC'],[50,'L'],[40,'XL'],[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']];
 function toRoman(n) { if (n <= 0) return 'nulla'; let s = ''; for (const [v, r] of ROMAN) while (n >= v) { s += r; n -= v; } return s; }
 const pick = a => a[Math.floor(Math.random() * a.length)];
+const fmt = n => n.toLocaleString('nl-NL', { maximumFractionDigits: 1 });   // 2,5 in plaats van 2.5
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const TAU2 = Math.PI * 2;
 function lerpAngle(a, b, t) { const d = ((b - a + Math.PI * 3) % TAU2) - Math.PI; return a + d * t; }
@@ -71,8 +78,8 @@ const me = {
   get maxHp() { return PLAYER.hp + STAT_RULES.hp * S.stats.vitality; },
   get speed() { return PLAYER.speed + STAT_RULES.speed * S.stats.agility; },
   get dmg() { return WEAPONS[PLAYER.weapon].dmg + STAT_RULES.dmg * S.stats.strength; },
-  get hit() { return hitChance(S.stats.attack); },
-  get block() { return blockChance(S.stats.defense); }
+  get hit() { return hitChance(S.stats.attack || 0); },
+  get block() { return blockChance(S.stats.defense || 0); }
 };
 
 /* ---------- Wereld ---------- */
@@ -106,6 +113,7 @@ function startFight() {
   steer.active = false;
   S.foes = []; S.floats = []; S.dust = []; S.over = null; S.overT = 0; S.freeze = 0; S.shake = 0;
   S.intro = INTRO.step * INTRO.count; S.shout = 0;
+  S.orbs = []; S.collect = 0; S.gained = 0; S.levelUps = 0; S.xpStart = S.xp; S.pointsStart = S.points;
   const list = testCount ? [['slave', testCount]] : def.foes;
   let i = 0, total = list.reduce((n, [, c]) => n + c, 0);
   for (const [type, count] of list) for (let k = 0; k < count; k++, i++) {
@@ -123,18 +131,18 @@ function mkFoe(type, x, y) {
 
 /* ---------- Gevecht ---------- */
 function hitFoe(f, dmg, from) {
-  const w = WEAPONS[PLAYER.weapon], real = Math.max(1, dmg - f.d.armor);
+  const w = WEAPONS[PLAYER.weapon], real = Math.max(0, dmg - f.d.armor);
   f.hp -= real; f.flash = FEEL.flash;
   const dx = f.x - from.x, dy = f.y - from.y, l = Math.hypot(dx, dy) || 1;
   const kb = w.knock * (f.state === 'windup' ? .2 : 1);   // tijdens de aanzet zet hij zich schrap
   f.vx += dx / l * kb; f.vy += dy / l * kb;
   S.freeze = FEEL.hitstop; S.shake = Math.max(S.shake, FEEL.shake);
-  float(f.x, f.y - 18, '−' + real, C.ink);
+  float(f.x, f.y - 18, real ? '−' + fmt(real) : '0', C.ink);
   SFX.hit(); SFX.cheer(f.hp <= 0 ? .75 : .35);   // het publiek juicht bij elke rake klap, harder als hij valt
   if (f.hp <= 0) {
     f.state = 'dead'; f.dead = 1; f.vx *= 1.6; f.vy *= 1.6;
-    float(f.x, f.y - 30, 'Victus!', C.coin);
-    if (S.foes.every(o => o.state === 'dead')) endFight(true);
+    dropXp(f);
+    if (S.foes.every(o => o.state === 'dead')) { S.collect = XP.collect; arenaCheer(); SFX.cheer(1); }   // nog even oprapen
   }
 }
 // Blokken: korte bronzen flits aan de kant van de aanvaller, geen schade.
@@ -146,13 +154,13 @@ function blocked(def, att) {
 }
 function hitPlayer(f) {
   if (P.hurt > 0 || P.dead) return;
-  const real = Math.max(1, f.d.dmg);
+  const real = Math.max(0, f.d.dmg);
   P.hp = Math.max(0, P.hp - real); P.hurt = PLAYER.invuln; P.flash = FEEL.flash;
   const dx = P.x - f.x, dy = P.y - f.y, l = Math.hypot(dx, dy) || 1;
   P.vx += dx / l * 170; P.vy += dy / l * 170;
   S.freeze = FEEL.hitstop * 1.4; S.shake = Math.max(S.shake, FEEL.playerShake);
-  float(P.x, P.y - 20, '−' + real, C.blood);
-  SFX.hurt(); SFX.boo(.3);
+  float(P.x, P.y - 20, real ? '−' + fmt(real) : '0', C.blood);
+  SFX.hurt();
   $('stage').classList.remove('hurt'); void $('stage').offsetWidth; $('stage').classList.add('hurt');
   updateUI();
   if (P.hp <= 0) { P.dead = true; endFight(false); }
@@ -160,13 +168,34 @@ function hitPlayer(f) {
 function endFight(won) {
   if (S.over) return;
   S.over = won ? 'won' : 'lost'; S.overT = 0;
-  won ? arenaCheer() : arenaJeer();
-  won ? SFX.cheer(1) : SFX.boo(1);
+  if (!won) { arenaJeer(); SFX.boo(1); S.xp = S.xpStart; S.points = S.pointsStart; }   // verloren: XP en punten uit dit gevecht vervallen
+}
+/* XP: bolletjes spatten weg uit een verslagen tegenstander en blijven op het zand liggen. */
+function dropXp(f) {
+  const n = XP.perFoe[f.type] || 3, a0 = Math.random() * TAU2;
+  for (let i = 0; i < n; i++) {
+    const a = a0 + i / n * TAU2 + (Math.random() - .5) * .8, sp = XP.speed[0] + Math.random() * (XP.speed[1] - XP.speed[0]);
+    S.orbs.push({ x: f.x, y: f.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, ph: Math.random() * 6, state: 'free' });
+  }
+}
+function gainXp(o) {
+  o.state = 'taken'; S.xp++; S.gained++;
+  const before = levelOf(S.xp - 1), after = levelOf(S.xp);
+  if (after > before) {
+    S.points += POINTS.perLevel; S.levelUps++;
+    float(P.x, P.y - 34, `Niveau ${toRoman(after)}!`, '#bfe3ff'); SFX.cheer(.5);
+  }
+  updateUI();
 }
 function float(x, y, text, color) { S.floats.push({ x, y, text, color, t: 1 }); }
 
 function update(dt) {
-  if (S.over) { S.overT += dt; if (S.overT > 1.1 && $('result').hidden) openResult(); }
+  if (S.over) { S.overT += dt; if (S.overT > (S.over === 'won' ? .7 : 1.1) && $('result').hidden) openResult(); }
+  if (S.collect > 0 && !S.over) {   // laatste 2 seconden om XP op te rapen
+    S.collect -= dt;
+    if (!S.orbs.some(o => o.state === 'free')) S.collect = Math.min(S.collect, .25);   // alles opgeraapt: meteen door
+    if (S.collect <= 0) { S.collect = 0; for (const o of S.orbs) if (o.state === 'free') o.state = 'gone'; endFight(true); }
+  }
   if (S.freeze > 0) { S.freeze -= dt; return; }   // hit-stop: alles staat heel even stil
   S.shake = Math.max(0, S.shake - dt * 40);
   const w = WEAPONS[PLAYER.weapon];
@@ -212,7 +241,7 @@ function update(dt) {
   if (!P.dead && inReach && P.cd === 0) {
     P.cd = w.cooldown; P.swing = w.swing; P.swingDir *= -1;
     // Raakt de klap? Eerst je eigen raakkans, dan de blokkans van de tegenstander.
-    if (Math.random() >= me.hit) float(best.x, best.y - 18, 'mis', C.muted);
+    if (Math.random() >= me.hit) { /* mis */ }
     else if (Math.random() < blockChance(best.d.defense)) blocked(best, P);
     else hitFoe(best, me.dmg, P);
   }
@@ -235,8 +264,8 @@ function update(dt) {
       if (f.t <= 0) {
         f.lunge = 1; f.state = 'recover'; f.t = f.d.recover; f.cd = f.d.cooldown;
         // Uithalen: raakt als je nog binnen bereik staat (met een klein beetje speling voor de uitval).
-        if (gap > f.d.reach + f.d.lunge) float(P.x, P.y - 20, 'ontweken', C.laurel);
-        else if (Math.random() >= hitChance(f.d.attack)) float(f.x, f.y - 18, 'mis', C.muted);
+        if (gap > f.d.reach + f.d.lunge) { /* ontweken: buiten bereik gestapt */ }
+        else if (Math.random() >= hitChance(f.d.attack)) { /* mis */ }
         else if (Math.random() < me.block) blocked(P, f);
         else hitPlayer(f);
       }
@@ -250,6 +279,17 @@ function update(dt) {
     const a = bodies[i], b = bodies[j], ra = a === P ? PLAYER.radius : a.d.radius, rb = b === P ? PLAYER.radius : b.d.radius;
     const ddx = b.x - a.x, ddy = b.y - a.y, dd = Math.hypot(ddx, ddy) || .01, o = ra + rb - dd;
     if (o > 0) { const ux = ddx / dd * o / 2, uy = ddy / dd * o / 2; a.x -= ux; a.y -= uy; b.x += ux; b.y += uy; }
+  }
+  for (const o of S.orbs) {
+    if (o.state === 'taken') continue;
+    o.t += dt; const fr = Math.exp(-dt * XP.friction); o.vx *= fr; o.vy *= fr;
+    if (o.state === 'free' && o.t > XP.life) { o.state = 'taken'; continue; }   // te lang blijven liggen: verdwenen
+    if (o.state === 'free' && o.t > XP.settle && !P.dead) {
+      const dx = P.x - o.x, dy = P.y - o.y, d = Math.hypot(dx, dy);
+      if (d < PLAYER.radius + XP.pickup) { gainXp(o); continue; }
+      if (d < XP.magnet) { o.vx += dx / d * XP.pull * dt * 6; o.vy += dy / d * XP.pull * dt * 6; }
+    }
+    o.x += o.vx * dt; o.y += o.vy * dt; contain(o, W.rx - 6, W.ry - 6);
   }
   for (const f of S.floats) { f.t -= dt * .9; f.y -= dt * 30; }
   S.floats = S.floats.filter(f => f.t > 0);
@@ -275,6 +315,7 @@ function draw(now) {
   ctx.globalAlpha = 1;
 
   const ents = [...S.foes].sort((a, b) => (a.state === 'dead' ? -1 : 0) - (b.state === 'dead' ? -1 : 0));
+  drawOrbs(now);
   for (const f of ents) drawFoe(f, now);
   drawPlayer(now);
   for (const o of [P, ...S.foes]) if (o.block > 0) {   // blok: bronzen boog aan de kant van de aanvaller
@@ -299,6 +340,24 @@ function draw(now) {
     ctx.fillStyle = S.intro > 0 ? C.ink : C.coin; ctx.fillText(txt, 0, 0); ctx.restore();
   }
   ctx.globalAlpha = 1; ctx.restore();
+}
+function drawOrbs(now) {
+  for (const o of S.orbs) {
+    if (o.state === 'taken') continue;
+    if (o.state === 'gone') {   // te laat: dof en niet meer op te pakken
+      ctx.fillStyle = 'rgba(120,135,150,.45)'; ctx.beginPath(); ctx.arc(o.x, o.y, 2.6, 0, TAU2); ctx.fill(); continue;
+    }
+    const left = XP.life - o.t, fade = Math.max(0, Math.min(1, left / XP.fade));
+    // De laatste seconden: vervagen en steeds sneller knipperen.
+    ctx.globalAlpha = fade < 1 ? fade * (.55 + .45 * Math.sin(now / (40 + 120 * fade))) : 1;
+    const pulse = 1 + .18 * Math.sin(now / 160 + o.ph), r = 3.4 * pulse * (.6 + .4 * fade);
+    const g = ctx.createRadialGradient(o.x, o.y, 0, o.x, o.y, r * 3.2);
+    g.addColorStop(0, 'rgba(170,215,255,.75)'); g.addColorStop(1, 'rgba(90,160,255,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(o.x, o.y, r * 3.2, 0, TAU2); ctx.fill();
+    ctx.fillStyle = '#5aa8ff'; ctx.beginPath(); ctx.arc(o.x, o.y, r, 0, TAU2); ctx.fill();
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(o.x - r * .25, o.y - r * .25, r * .55, 0, TAU2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
 }
 function drawBar(x, y, f) {
   ctx.fillStyle = 'rgba(14,9,13,.7)'; ctx.fillRect(x - 13, y - 2, 26, 4);
@@ -411,6 +470,10 @@ function updateUI() {
   $('hpText').textContent = `${P.hp} / ${me.maxHp}`;
   $('hpFill').style.transform = `scaleX(${P.hp / me.maxHp})`;
   $('hpBar').classList.toggle('low', P.hp / me.maxHp <= .3);
+  const lv = levelOf(S.xp), lo = LEVELS[lv - 2] || 0, hi = LEVELS[lv - 1];
+  $('lvlText').textContent = `Niveau ${toRoman(lv)}`;
+  $('xpText').textContent = hi ? `${S.xp} / ${hi} XP` : `${S.xp} XP`;
+  $('xpFill').style.transform = `scaleX(${hi ? (S.xp - lo) / (hi - lo) : 1})`;
 }
 function openResult() {
   SFX.mood('calm');
@@ -418,19 +481,25 @@ function openResult() {
   const won = S.over === 'won';
   $('resultEyebrow').textContent = `Gevecht ${toRoman(S.fight + 1)}`;
   $('resultTitle').textContent = won ? 'Overwinning!' : 'Je ligt in het zand.';
+  const total = S.orbs.length, last = S.fight + 1 >= FIGHTS.length;
   $('resultText').textContent = won
-    ? `Het publiek juicht. Je had nog ${P.hp} van de ${me.maxHp} leven over.` + (S.fight + 1 < FIGHTS.length ? ` Je krijgt ${POINTS.perWin} nieuwe punten.` : ' Je hebt alle gevechten van deze proef gewonnen!')
-    : 'Het publiek joelt. Je mag het nog eens proberen; je stats blijven zoals ze zijn.';
-  $('resultBtn').textContent = won ? (S.fight + 1 < FIGHTS.length ? 'Verdeel je punten' : 'Opnieuw vanaf gevecht I') : 'Probeer opnieuw';
+    ? `Je had nog ${P.hp} van de ${me.maxHp} leven over en raapte ${S.gained} van de ${total} XP op. `
+      + (S.levelUps ? `Niveau ${toRoman(levelOf(S.xp))}: je hebt ${S.points} ${S.points === 1 ? 'punt' : 'punten'} te verdelen.` : `Nog ${LEVELS[levelOf(S.xp) - 1] - S.xp} XP tot het volgende niveau.`)
+      + (last ? ' Je hebt alle gevechten van deze proef gewonnen!' : '')
+    : 'Het publiek joelt. Je mag het nog eens proberen. De XP uit dit gevecht is weg; je stats blijven zoals ze waren.';
+  $('resultBtn').textContent = won ? (last ? 'Opnieuw vanaf gevecht I' : S.points ? 'Verdeel je punten' : 'Volgend gevecht') : 'Probeer opnieuw';
   $('result').hidden = false; $('resultBtn').focus();
 }
 $('resultBtn').onclick = () => {
   $('result').hidden = true;
   if (S.over !== 'won') { startFight(); S.paused = false; return; }          // verloren: zelfde gevecht, stats blijven
-  if (S.fight + 1 < FIGHTS.length) { S.fight++; openStats(POINTS.perWin); return; }
+  if (S.fight + 1 < FIGHTS.length) { S.fight++; if (S.points) openStats(0); else { startFight(); S.paused = false; } return; }
   newRun();                                                                     // alles gewonnen: opnieuw beginnen
 };
-function newRun() { S.fight = 0; for (const k in S.stats) S.stats[k] = 0; openStats(POINTS.start); }
+function newRun() {
+  S.fight = 0; S.xp = 0; S.points = POINTS.start; for (const k in S.stats) S.stats[k] = 0;
+  if (S.points) openStats(0); else { startFight(); S.paused = false; }
+}
 $('startBtn').onclick = () => { SFX.init(); $('start').hidden = true; newRun(); };
 // Geluid aan/uit: knop rechtsboven, of de toets M.
 function showMute() { const b = $('mute'); b.textContent = SFX.muted ? 'Geluid uit' : 'Geluid aan'; b.setAttribute('aria-pressed', String(!SFX.muted)); }
@@ -448,10 +517,8 @@ function openStats(extra) {
 }
 function statEffect(k, n) {
   const v = { ...S.stats, [k]: n };
-  return { strength: `${WEAPONS[PLAYER.weapon].dmg + STAT_RULES.dmg * v.strength} schade`,
+  return { strength: `${fmt(WEAPONS[PLAYER.weapon].dmg + STAT_RULES.dmg * v.strength)} schade`,
            agility: `snelheid ${PLAYER.speed + STAT_RULES.speed * v.agility}`,
-           attack: `${Math.round(hitChance(v.attack) * 100)}% raak`,
-           defense: `${Math.round(blockChance(v.defense) * 100)}% blok`,
            vitality: `${PLAYER.hp + STAT_RULES.hp * v.vitality} leven` }[k];
 }
 function renderStats() {

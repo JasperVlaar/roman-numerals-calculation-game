@@ -4,15 +4,16 @@
 
 | Bestand | Uit | Bron en licentie |
 |---|---|---|
-| `crowd-loop.wav` | 8,0–44,5 s, met een overvloeier van 2 s zodat de loop naadloos herhaalt; 24 kHz | "Crowd Ambience" door FlatHill, [Freesound 324757](https://freesound.org/people/FlatHill/sounds/324757/). Licentie: controleer op de pagina (de map heette *Creative Commons*). |
+| `crowd-loop.wav` | 1,5–34,8 s, met een overvloeier van 2 s zodat de loop naadloos herhaalt; 24 kHz, 31,3 s, op −20 dB (origineel stond net in het rood) | "Crowd Shouting" door freesound_community, via Pixabay (`sounds/pixaby content license/`). Pixabay Content License: geen naamsvermelding verplicht. Vervangt de eerdere loop van FlatHill. |
 | `cheer-big.mp3` | 5,0–9,8 s (de piek), uitfaden 1,6 s | "Crowd Cheering - Strong Cheering and Strong Rhythmic Cheering" door GregorQuendel, [Freesound 481782](https://freesound.org/people/GregorQuendel/sounds/481782/), **CC BY 4.0: naamsvermelding verplicht** (staat op het startscherm) |
 | `cheer-1.mp3` | 6,0–7,7 s | idem |
 | `cheer-2.mp3` | 16,2–17,9 s (ritmisch) | idem |
 | `cheer-3.mp3` | 21,0–22,7 s | idem |
 | `hit-1.wav` | Alleen de klap: vanaf 0,609 s, 0,22 s lang, genormaliseerd | "Punch #1" door lewisisminted, [Freesound 162370](https://freesound.org/people/lewisisminted/sounds/162370/), CC0 |
 | `hurt.wav` | Alleen het tweede geluid ("oof"): vanaf 2,462 s, 0,54 s lang; de piek zacht gecomprimeerd zodat hij even hard klinkt als de klap | "punchednoises" door shelbyshark, [Freesound 444703](https://freesound.org/people/shelbyshark/sounds/444703/). Licentie: controleer op de pagina. |
+| `boo.mp3` | Vanaf 0,109 s, 2,6 s lang, piek getemd (origineel 1,2) en op −12 dB, even luid als het grote gejuich. Alleen als je verliest. | "11575 male group booing" door Robinhood76, [Freesound 687017](https://freesound.org/people/Robinhood76/sounds/687017/), **CC BY 4.0: naamsvermelding verplicht** (staat op het startscherm) |
 
-De originelen staan in `sounds/` in de hoofdmap. Nog niet gevuld: `boo.mp3` en `block.wav` (die geluiden blijven stil).
+De originelen staan in `sounds/` in de hoofdmap. Nog niet gevuld: `block.wav` (dat geluid blijft stil).
 
 ## Welke bestanden het spel verwacht
 
