@@ -110,3 +110,17 @@ button:disabled{opacity:.4;cursor:default}
 .wares b{font-family:var(--f-display)}
 .wares span{color:var(--muted);font-size:14px;line-height:1.4}
 .wares .btn{flex:none;font-variant-numeric:tabular-nums}
+
+/* Proef: gladiatorgevecht */
+.app.fight{grid-template-rows:auto minmax(0,1fr)}
+.app.fight .goal-num{font-size:clamp(24px,6vw,34px)}
+.hp{flex:1 1 auto;max-width:340px;display:flex;flex-direction:column;gap:6px;align-self:center}
+.hp .label{display:flex;justify-content:space-between}
+#hpText{color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:.04em}
+.hp-bar{height:12px;border-radius:999px;background:var(--stone-2);border:1px solid var(--line);overflow:hidden}
+#hpFill{height:100%;background:linear-gradient(90deg,var(--laurel),#c9e07e);transform-origin:left center;transition:transform .25s ease-out}
+.hp-bar.low #hpFill{background:var(--blood)}
+.stage::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;box-shadow:inset 0 0 90px 20px rgba(212,70,59,.75)}
+.stage.hurt::after{animation:hurtFlash .45s ease-out}
+@keyframes hurtFlash{from{opacity:1}to{opacity:0}}
+@media (prefers-reduced-motion:reduce){.stage.hurt::after{animation:none}}

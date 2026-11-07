@@ -54,6 +54,32 @@ Tekens kies je niet meer met een knop: je vangt ze als munt. Wissen bestaat niet
 
 Moeilijkheid per ronde staat in `cfg(level)` in `game.js`: tijd, welke cijfers en tekens voorkomen, het bereik van het doelgetal, aantal termen, aantal munten en denarii, en grootte van de arena.
 
+## Proef: gladiatorgevecht (branch `gladiator-direction-tryout`)
+
+Op deze branch is de rekenmodus vervangen door gladiatorgevechten. `index.html` laadt `fight.js` in plaats van `game.js`; arena, Caesar en publiek worden hergebruikt.
+
+**Fase 1 (nu):** jij te voet met je vuisten tegen 1 slaaf; je begint met dezelfde aanval als een slaaf. De stok staat al in `WEAPONS` met een prijs en komt in fase 3 in de winkel. Je stuurt alleen; slaan gaat vanzelf als een tegenstander binnen bereik is. Een tegenstander kleurt rood als hij aanzet; stap weg voordat hij uithaalt. Ga je neer, dan probeer je hetzelfde gevecht opnieuw.
+
+| Wat | Waar in `fight.js` |
+|---|---|
+| Jouw leven, snelheid, onkwetsbaarheid na een treffer | `PLAYER` |
+| Wapens (schade, bereik, slagen per seconde, terugslag) | `WEAPONS` |
+| Tegenstanders (leven, schade, armor, snelheid, aanzet, herstel) | `FOES` |
+| De reeks gevechten | `FIGHTS` |
+| Raakgevoel (even stilstaan bij een treffer, schudden, flits) | `FEEL` |
+| Aftellen aan het begin (III, II, I, *Pugnate!*) | `INTRO` |
+| Grootte van het zandveld (kleiner = camera dichterbij) | `FIGHT_AREA` |
+
+Testen met meer tegenstanders: open `index.html?n=3` (of een ander aantal slaven).
+
+| Fase | Inhoud |
+|---|---|
+| 1 | Het gevoel: lopen, automatisch slaan, aanzet en ontwijken, leven, winnen en verliezen |
+| 2 | De reeks: 1, 2, 3 slaven; 1 en 3 gladiatoren; 10 slaven; 5 slaven + 5 gladiatoren; Caesars duim na afloop |
+| 3 | De winkel: denarii uit verslagen vijanden, stok, zwaard, boog, leren armor, lorica |
+| 4 | De strijdwagen: sneller, omverrijden, alleen met boog |
+| 5 | Later: magie, andere tegenstanders, graphics als assets |
+
 ## Arena aanpassen
 
 De arena wordt in code getekend, omdat de vorm per ronde en per schermformaat verandert. Alles wat stil staat (tribunes, zittend publiek, muur, vloer, mozaïek) wordt één keer naar een offscreen canvas getekend. Elk frame komen daar alleen het bewegende publiek, Caesar en de fakkels bij.
