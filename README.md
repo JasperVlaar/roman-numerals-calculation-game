@@ -58,7 +58,7 @@ Moeilijkheid per ronde staat in `cfg(level)` in `game.js`: tijd, welke cijfers e
 
 Op deze branch is de rekenmodus vervangen door gladiatorgevechten. `index.html` laadt `fight.js` in plaats van `game.js`; arena, Caesar en publiek worden hergebruikt.
 
-**Nu:** gevechten I tot III (1, 2 en 3 slaven), met je vuisten. Punten verdien je met XP: verslagen tegenstanders laten 5 blauwwitte bolletjes wegspatten. Raap ze op: na 6 seconden verdwijnen ze (de laatste 2 seconden knipperen ze), en na de laatste klap heb je nog 5 seconden (of minder als alles al opgeraapt is), daarna doven ze. Een niveau hoger (bij 4, 12, 24, 40 … XP in totaal) geeft 2 punten voor je stats. Je begint zonder punten. Verlies je, dan vervalt de XP uit dat gevecht. Slaan gaat vanzelf als een tegenstander binnen bereik is. Een tegenstander kleurt rood als hij aanzet; stap weg voordat hij uithaalt. Ga je neer, dan probeer je hetzelfde gevecht opnieuw en blijven je stats staan.
+**Nu:** vijf gevechten: I–III (1, 2 en 3 slaven), IV een tussenbaas (1 gladiator in leren harnas) en V een toernooi tot de dood (rondes: 2 slaven, 3 slaven, 1 gladiator). Je begint met je vuisten. Punten verdien je met XP: verslagen tegenstanders laten 5 blauwwitte bolletjes wegspatten. Raap ze op: na 6 seconden verdwijnen ze (de laatste 2 seconden knipperen ze), en na de laatste klap heb je nog 5 seconden (of minder als alles al opgeraapt is), daarna doven ze. Een niveau hoger (bij 4, 12, 24, 40 … XP in totaal) geeft 2 punten voor je stats. Je begint zonder punten. Verlies je, dan vervalt de XP uit dat gevecht. Slaan gaat vanzelf als een tegenstander binnen bereik is. Een tegenstander kleurt rood als hij aanzet; stap weg voordat hij uithaalt. Ga je neer, dan probeer je hetzelfde gevecht opnieuw en blijven je stats staan.
 
 | Stat | Per punt | Basis (0 punten, ook voor slaven) |
 |---|---|---|
@@ -78,7 +78,19 @@ Balans (gesimuleerd, 20 gevechten per regel, bot die elke 0,2 s reageert):
 
 Stilstaan zonder punten verliest altijd.
 
-**Geld en de stad:** elk gewonnen gevecht levert een vast bedrag op (I: 5, II: 8, III: 12 denarii). Verlies je, dan betaal je de helft van die beloning als boete, nooit meer dan je hebt. Na elk gevecht (gewonnen of verloren) ga je de stad in. Daar verdeel je ook je punten (knop rechtsboven). Na gevecht I heb je nog te weinig geld voor een wapen, maar je ziet wel wat er te koop is. Je kijkt de straat in met de arena in de verte. Links de wapensmid (*Faber*, open) en de harnasmaker (*Loricarius*), rechts de boogmaker (*Arcuarius*) en de stallen (*Stabulum*); die drie zijn nog dicht. Klik op een winkel om naar binnen te gaan, en klik op de arena voor je volgende gevecht (of je herkansing). Heb je dan nog punten over, dan krijg je eerst het perkament, met de keuze om terug de straat in te gaan. De straat is een tijdelijke schets in SVG (`town.js`) tot er een getekende achtergrond is.
+**Soorten gevechten:**
+
+| Soort | Beloning | Verlies |
+|---|---|---|
+| Gewoon gevecht | I 5, II 8, III 12 d | boete (helft van de beloning), opnieuw proberen |
+| Tussenbaas | IV 25 d | als gewoon gevecht |
+| Toernooi | V 60 d | rondes achter elkaar; tussen de rondes krijg je 25% van je leven terug. Ga je neer, dan beslist Caesar (`judge.js`). Kans op duim omhoog = 15% + 80% × (schade die je uitdeelde / al het leven van alle tegenstanders), hoogstens 95%. Omhoog: je leeft, toernooi en beloning weg, geen boete. Omlaag: dood, alles opnieuw vanaf gevecht I. |
+
+De gladiator heeft 16 leven, 3 schade en armor 1 (elke klap doet 1 minder), en laat 10 XP vallen.
+
+Gesimuleerd (bot, 30 per regel): tussenbaas met vuisten 0%, met stok en 3 kracht/3 vitaliteit 100%, met stok en 6 kracht 53%; toernooi met stok en 4/4 punten 63%, met gladius 100%. De bot ontwijkt beter dan een mens, dus echte winkansen liggen lager.
+
+**Geld en de stad:** elk gewonnen gevecht levert een vast bedrag op. Verlies je, dan betaal je de helft van die beloning als boete, nooit meer dan je hebt. Na elk gevecht (gewonnen of verloren) ga je de stad in. Daar verdeel je ook je punten (knop rechtsboven). Na gevecht I heb je nog te weinig geld voor een wapen, maar je ziet wel wat er te koop is. Je kijkt de straat in met de arena in de verte. Links de wapensmid (*Faber*, open) en de harnasmaker (*Loricarius*), rechts de boogmaker (*Arcuarius*) en de stallen (*Stabulum*); die drie zijn nog dicht. Klik op een winkel om naar binnen te gaan, en klik op de arena voor je volgende gevecht (of je herkansing). Heb je dan nog punten over, dan krijg je eerst het perkament, met de keuze om terug de straat in te gaan. De straat is een tijdelijke schets in SVG (`town.js`) tot er een getekende achtergrond is.
 
 | Wapen | Prijs | Schade | Bereik | Terugslag |
 |---|---|---|---|---|
@@ -95,7 +107,8 @@ Met de stok wordt gevecht III winbaar: gesimuleerd met 4 punten 20–27% winst, 
 | Tegenstanders (leven, schade, armor, snelheid, aanzet, herstel) | `FOES` |
 | Stats: wat een punt doet, punten per niveau | `STATS`, `STAT_RULES`, `POINTS` |
 | XP: drempels per niveau, bolletjes per tegenstander, oprapen, de 5 seconden aan het eind | `LEVELS`, `XP` |
-| De reeks gevechten en de beloning per gevecht | `FIGHTS` (`reward`) |
+| De reeks gevechten, soort (`kind`), beloning, rondes van een toernooi | `FIGHTS` |
+| Toernooi: leven terug tussen rondes, kans op Caesars genade | `TOURNAMENT` |
 | Boete bij verlies | `MONEY` |
 | De winkels in de straat (naam, open of dicht, wat ze verkopen) | `SHOPS` |
 | Tekening van de straat, plek van de winkels | `town.js` (`SPOTS`, `VP`) |

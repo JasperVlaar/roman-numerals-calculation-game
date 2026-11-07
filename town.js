@@ -189,24 +189,24 @@ const TOWN = (() => {
     const g = el('g', { class: 'hot arena-hot', tabindex: 0, role: 'button', 'data-id': 'arena' }, svg);
     el('rect', { class: 'hl', x: 312, y: 88, width: 336, height: 220, rx: 10 }, g);
     arena(g);
-    const next = nextFight();
-    const w = 250, h = 50, x = 480 - w / 2, y = 92;
-    el('rect', { x, y, width: w, height: h, rx: 6, fill: '#3a2a1e', stroke: '#d49a48', 'stroke-width': 2.2, class: 'sign' }, g);
+    const next = nextFight(), deadly = next.kind === 'tournament';
+    const w = 330, h = 50, x = 480 - w / 2, y = 92;
+    el('rect', { x, y, width: w, height: h, rx: 6, fill: deadly ? '#4a1512' : '#3a2a1e', stroke: deadly ? '#d4463b' : '#d49a48', 'stroke-width': 2.2, class: 'sign' }, g);
     const t1 = el('text', { x: 480, y: y + 22, 'text-anchor': 'middle', 'font-family': 'Cinzel, Georgia, serif', 'font-weight': 700, 'font-size': 18, 'letter-spacing': 3, fill: '#e2b35e' }, g);
     t1.textContent = 'ARENA';
     const t2 = el('text', { x: 480, y: y + 41, 'text-anchor': 'middle', 'font-family': 'Alegreya Sans, sans-serif', 'font-size': 13, fill: '#f5ead6' }, g);
     t2.textContent = next.label;
+    $('townHint').textContent = deadly
+      ? 'Let op: een toernooi gaat tot de dood. Ga je neer, dan beslist Caesar met zijn duim of je blijft leven.'
+      : 'Kies een winkel, of klik op de arena voor je volgende gevecht.';
     g.setAttribute('aria-label', `Naar de arena: ${next.label}`);
     el('title', {}, g).textContent = `Naar de arena: ${next.label}`;
   }
   // Wat er gebeurt als je de arena in loopt (zelfde regels als proceed() in fight.js).
   function nextFight() {
-    if (S.over !== 'won') return { label: `Gevecht ${toRoman(S.fight + 1)} opnieuw · tegen ${foeSummary()}` };
-    if (S.fight + 1 < FIGHTS.length) {
-      const f = FIGHTS[S.fight + 1].foes.map(([t, n]) => `${n} ${n > 1 ? FOES[t].plural : FOES[t].name}`).join(' en ');
-      return { label: `Gevecht ${toRoman(S.fight + 2)} · tegen ${f}` };
-    }
-    return { label: 'Opnieuw vanaf gevecht I' };
+    if (S.over !== 'won') return { label: describeFight(S.fight) + ' (opnieuw)', kind: fightDef().kind };
+    if (S.fight + 1 < FIGHTS.length) return { label: describeFight(S.fight + 1), kind: FIGHTS[S.fight + 1].kind };
+    return { label: 'Opnieuw vanaf gevecht I', kind: 'normal' };
   }
 
   function render() {
