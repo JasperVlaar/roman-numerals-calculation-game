@@ -58,7 +58,7 @@ Moeilijkheid per ronde staat in `cfg(level)` in `game.js`: tijd, welke cijfers e
 
 Op deze branch is de rekenmodus vervangen door gladiatorgevechten. `index.html` laadt `fight.js` in plaats van `game.js`; arena, Caesar en publiek worden hergebruikt.
 
-**Nu:** gevechten I tot III (1, 2 en 3 slaven), met je vuisten. Punten verdien je met XP: verslagen tegenstanders laten 5 blauwwitte bolletjes wegspatten. Raap ze op: na 6 seconden verdwijnen ze (de laatste 2 seconden knipperen ze), en na de laatste klap heb je nog 2 seconden, daarna doven ze. Een niveau hoger (bij 4, 12, 24, 40 … XP in totaal) geeft 2 punten voor je stats. Je begint zonder punten. Verlies je, dan vervalt de XP uit dat gevecht. Slaan gaat vanzelf als een tegenstander binnen bereik is. Een tegenstander kleurt rood als hij aanzet; stap weg voordat hij uithaalt. Ga je neer, dan probeer je hetzelfde gevecht opnieuw en blijven je stats staan.
+**Nu:** gevechten I tot III (1, 2 en 3 slaven), met je vuisten. Punten verdien je met XP: verslagen tegenstanders laten 5 blauwwitte bolletjes wegspatten. Raap ze op: na 6 seconden verdwijnen ze (de laatste 2 seconden knipperen ze), en na de laatste klap heb je nog 5 seconden (of minder als alles al opgeraapt is), daarna doven ze. Een niveau hoger (bij 4, 12, 24, 40 … XP in totaal) geeft 2 punten voor je stats. Je begint zonder punten. Verlies je, dan vervalt de XP uit dat gevecht. Slaan gaat vanzelf als een tegenstander binnen bereik is. Een tegenstander kleurt rood als hij aanzet; stap weg voordat hij uithaalt. Ga je neer, dan probeer je hetzelfde gevecht opnieuw en blijven je stats staan.
 
 | Stat | Per punt | Basis (0 punten, ook voor slaven) |
 |---|---|---|
@@ -84,7 +84,7 @@ Stilstaan zonder punten verliest altijd.
 | Wapens (schade, bereik, slagen per seconde, terugslag) | `WEAPONS` |
 | Tegenstanders (leven, schade, armor, snelheid, aanzet, herstel) | `FOES` |
 | Stats: wat een punt doet, punten per niveau | `STATS`, `STAT_RULES`, `POINTS` |
-| XP: drempels per niveau, bolletjes per tegenstander, oprapen, de 2 seconden aan het eind | `LEVELS`, `XP` |
+| XP: drempels per niveau, bolletjes per tegenstander, oprapen, de 5 seconden aan het eind | `LEVELS`, `XP` |
 | De reeks gevechten | `FIGHTS` |
 | Geluid: welke bestanden (`SOUNDS`) en hoe hard (`MIX`) | bovenaan `sound.js` |
 | Raakgevoel (even stilstaan bij een treffer, schudden, flits) | `FEEL` |

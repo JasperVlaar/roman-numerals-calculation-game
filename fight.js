@@ -28,7 +28,7 @@ const POINTS = { start: 0, perLevel: 2 };
 // XP-drempels (totaal) voor niveau II, III, IV, ... Gevecht I, II, III leveren 5, 10, 15 XP op.
 const LEVELS = [4, 12, 24, 40, 60, 85, 115];
 // life = na zoveel seconden verdwijnt een bolletje; de laatste 'fade' seconden knippert en vervaagt het.
-const XP = { life: 6, fade: 2, perFoe: { slave: 5 }, speed: [70, 150], friction: 3.5, settle: .3, pickup: 6, magnet: 26, pull: 160, collect: 2 };
+const XP = { life: 6, fade: 2, perFoe: { slave: 5 }, speed: [70, 150], friction: 3.5, settle: .3, pickup: 6, magnet: 26, pull: 160, collect: 5 };
 const levelOf = xp => 1 + LEVELS.filter(t => xp >= t).length;
 const hitChance = att => Math.min(STAT_RULES.hitMax, STAT_RULES.hitBase + STAT_RULES.hit * att);
 const blockChance = def => Math.min(STAT_RULES.blockMax, STAT_RULES.blockBase + STAT_RULES.block * def);
@@ -191,7 +191,7 @@ function float(x, y, text, color) { S.floats.push({ x, y, text, color, t: 1 }); 
 
 function update(dt) {
   if (S.over) { S.overT += dt; if (S.overT > (S.over === 'won' ? .7 : 1.1) && $('result').hidden) openResult(); }
-  if (S.collect > 0 && !S.over) {   // laatste 2 seconden om XP op te rapen
+  if (S.collect > 0 && !S.over) {   // laatste 5 seconden om XP op te rapen
     S.collect -= dt;
     if (!S.orbs.some(o => o.state === 'free')) S.collect = Math.min(S.collect, .25);   // alles opgeraapt: meteen door
     if (S.collect <= 0) { S.collect = 0; for (const o of S.orbs) if (o.state === 'free') o.state = 'gone'; endFight(true); }
@@ -512,7 +512,6 @@ function openStats(extra) {
   SFX.mood('calm');
   S.paused = true; S.points += extra; added = {};
   for (const k in STATS) added[k] = 0;
-  $('statsEyebrow').textContent = `Voor gevecht ${toRoman(S.fight + 1)} · tegen ${foeSummary()}`;
   renderStats(); $('stats').hidden = false;
 }
 function statEffect(k, n) {
@@ -522,7 +521,6 @@ function statEffect(k, n) {
            vitality: `${PLAYER.hp + STAT_RULES.hp * v.vitality} leven` }[k];
 }
 function renderStats() {
-  $('statsLeft').textContent = S.points ? toRoman(S.points) : 'geen';
   const list = $('statList'); list.innerHTML = '';
   for (const [k, d] of Object.entries(STATS)) {
     const li = document.createElement('li');
