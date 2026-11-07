@@ -42,11 +42,11 @@ Tekens kies je niet meer met een knop: je vangt ze als munt. Wissen bestaat niet
 | Onderdeel | Waarde |
 |---|---|
 | Tijd | 30 seconden per ronde (`time` in `cfg()`). Bij 0 oordeelt Caesar over wat je hebt; zonder som is het duim omlaag. |
-| Munten | Goud = cijfer, purper = teken, zilver = denarius |
+| Munten | Groot goud = cijfer, purper = teken, klein goud = denarius |
 | Vangen | Om en om: cijfer, teken, cijfer … Munten van het verkeerde soort zijn gedimd; daar rijd je doorheen. |
 | Tekens | Ronde I: + en −. Vanaf ronde II: + − ×. Van elk teken ligt er altijd minstens één munt in het veld. |
 | Rekenvolgorde | Van links naar rechts, dus X + V × II = 30. Tussenstanden mogen 0 (*nulla*) of negatief (−X) worden. |
-| Denarii | 4 + ronde (max 8) zilveren munten van 2 denarii. Ze tellen direct bij je beurs en komen niet terug. |
+| Denarii | 4 + ronde (max 8) kleine gouden munten van 2 denarii. Ze tellen direct bij je beurs en komen niet terug. |
 | Lorica (armor) | 20 denarii, blokkeert 3 valse cijfers |
 | Augur (power-up) | 12 denarii, licht de kortste route op (max. 4 cijfers) zonder volgorde of tekens te verraden |
 | Kans op vals cijfer | 10% in ronde I, +7% per ronde, max 40%. Een vals cijfer telt meteen mee met zijn echte waarde. |

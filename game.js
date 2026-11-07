@@ -210,7 +210,7 @@ function update(dt) {
       [e.vx, e.vy] = [e.vx * c - e.vy * s, e.vx * s + e.vy * c];
       e.x += e.vx * dt; e.y += e.vy * dt;
       contain(e, W.rx - 26, W.ry - 26, true);
-      if (catchable(e) && Math.hypot(e.x - car.x, e.y - car.y) < (e.kind === 'den' ? 36 : 42)) catchEnt(e);
+      if (catchable(e) && Math.hypot(e.x - car.x, e.y - car.y) < (e.kind === 'den' ? 34 : 42)) catchEnt(e);
     } else {
       e.t -= dt;
       if (e.state === 'reveal') {
@@ -262,7 +262,7 @@ function draw(now) {
   }
   ctx.restore();
 }
-// Munten: goud = cijfer, purper = teken, klein zilver = denarius. Wat je nu niet kunt vangen is gedimd.
+// Munten: goud = cijfer, purper = teken, klein goud = denarius. Wat je nu niet kunt vangen is gedimd.
 function drawCoin(e, now) {
   if (e.kind === 'den') return drawDenarius(e, now);
   const isOp = e.kind === 'op', can = e.state !== 'free' || catchable(e) || e.spawn > 0;
@@ -289,16 +289,30 @@ function drawCoin(e, now) {
   ctx.restore();
 }
 function drawDenarius(e, now) {
-  const r = 13 * (1 - e.spawn / .35 * .9), bob = Math.sin(now / 260 + e.x) * 1.5;
-  ctx.save(); ctx.translate(e.x, e.y + bob);
-  ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.arc(1.5, 3, r, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = C.silver; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = C['silver-edge']; ctx.lineWidth = 2; ctx.stroke();
-  ctx.fillStyle = C['coin-ink']; ctx.font = `700 ${r * 1.05}px Cinzel, Georgia, serif`;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('D', 0, 1);
-  const g = (now / 900 + e.x * .01) % 1;   // glinstering die over de munt trekt
-  ctx.globalAlpha = .55 * Math.sin(g * Math.PI); ctx.fillStyle = '#fff';
-  ctx.beginPath(); ctx.arc(-r * .45 + g * r * .9, -r * .35, r * .22, 0, Math.PI * 2); ctx.fill();
+  // Cartoonmuntje zoals in veel spellen: felgeel, dikke omtrek, gleufje in het midden, glans,
+  // draait om zijn as (met een donkere zijkant als hij smal staat) en fonkelt af en toe.
+  const r = 10 * (1 - e.spawn / .35 * .9), ph = now / 380 + e.x * .05, c = Math.cos(ph);
+  const w = Math.max(.14, Math.abs(c)), bob = Math.sin(now / 260 + e.x) * 1.4, line = '#7a3f0c';
+  ctx.save(); ctx.translate(e.x, e.y);
+  ctx.fillStyle = 'rgba(40,20,5,.25)'; ctx.beginPath(); ctx.ellipse(0, r + 3, r * .8 * (.6 + .4 * w), r * .28, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.translate(0, bob);
+  const side = (1 - w) * r * .38 * Math.sign(Math.sin(ph) || 1);   // dikte van de munt, zichtbaar als hij draait
+  ctx.lineWidth = 2.2; ctx.strokeStyle = line;
+  ctx.fillStyle = '#d98a14'; ctx.beginPath(); ctx.ellipse(side, 0, r * w, r, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.ellipse(0, 0, r * w, r, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = '#e39b1c'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.ellipse(0, 0, r * w * .68, r * .68, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = '#e39b1c'; ctx.beginPath(); ctx.roundRect(-r * .13 * w, -r * .42, r * .26 * w, r * .84, r * .13); ctx.fill();
+  if (w > .45) {   // glans linksboven
+    ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 1.8; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.ellipse(0, 0, r * w * .78, r * .78, 0, Math.PI * 1.08, Math.PI * 1.42); ctx.stroke(); ctx.lineCap = 'butt';
+  }
+  const tw = (now / 1100 + e.x * .013) % 1;   // fonkeling: kort sterretje rechtsboven
+  if (tw < .22) {
+    const k = Math.sin(tw / .22 * Math.PI) * r * .55, sx = r * .7, sy = -r * .75;
+    ctx.fillStyle = '#fff'; ctx.beginPath();
+    ctx.moveTo(sx, sy - k); ctx.lineTo(sx + k * .22, sy - k * .22); ctx.lineTo(sx + k, sy); ctx.lineTo(sx + k * .22, sy + k * .22);
+    ctx.lineTo(sx, sy + k); ctx.lineTo(sx - k * .22, sy + k * .22); ctx.lineTo(sx - k, sy); ctx.lineTo(sx - k * .22, sy - k * .22); ctx.fill();
+  }
   ctx.restore();
 }
 let last = performance.now();
