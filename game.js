@@ -76,7 +76,7 @@ function place(e) {
     const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * .82;
     const x = W.rx * r * Math.cos(a), y = W.ry * r * Math.sin(a);
     if (Math.hypot(x - car.x, y - car.y) < 110) continue;
-    if (S.ents.some(o => o !== e && Math.hypot(o.x - x, o.y - y) < 60)) continue;
+    if (S.ents.some(o => o !== e && Math.hypot(o.x - x, o.y - y) < 40)) continue;
     e.x = x; e.y = y; break;
   }
   const a = Math.random() * Math.PI * 2, sp = 18 + Math.random() * 26;
@@ -196,7 +196,7 @@ function update(dt) {
   const k = 1 - Math.exp(-dt * 5);
   car.vx += (tx - car.vx) * k; car.vy += (ty - car.vy) * k;
   car.x += car.vx * dt; car.y += car.vy * dt;
-  contain(car, W.rx - 40, W.ry - 40, false);
+  contain(car, W.rx - 32, W.ry - 32, false);
   const sp = Math.hypot(car.vx, car.vy);
   // De paarden draaien eerst, de wagen zwaait erachteraan.
   if (sp > 8) car.ha = lerpAngle(car.ha, Math.atan2(car.vy, car.vx), 1 - Math.exp(-dt * 14));
@@ -209,8 +209,8 @@ function update(dt) {
       const r = (Math.random() - .5) * dt * 1.6, c = Math.cos(r), s = Math.sin(r);
       [e.vx, e.vy] = [e.vx * c - e.vy * s, e.vx * s + e.vy * c];
       e.x += e.vx * dt; e.y += e.vy * dt;
-      contain(e, W.rx - 26, W.ry - 26, true);
-      if (catchable(e) && Math.hypot(e.x - car.x, e.y - car.y) < (e.kind === 'den' ? 34 : 42)) catchEnt(e);
+      contain(e, W.rx - 18, W.ry - 18, true);
+      if (catchable(e) && Math.hypot(e.x - car.x, e.y - car.y) < (e.kind === 'den' ? 28 : 33)) catchEnt(e);
     } else {
       e.t -= dt;
       if (e.state === 'reveal') {
@@ -266,7 +266,7 @@ function draw(now) {
 function drawCoin(e, now) {
   if (e.kind === 'den') return drawDenarius(e, now);
   const isOp = e.kind === 'op', can = e.state !== 'free' || catchable(e) || e.spawn > 0;
-  let r = (isOp ? 22 : 24) * (1 - e.spawn / .35 * .9), alpha = can ? 1 : .38;
+  let r = (isOp ? 11 : 12) * (1 - e.spawn / .35 * .9), alpha = can ? 1 : .38;
   let fill = isOp ? C.porphyry : C.coin, ink = isOp ? C.ink : C['coin-ink'], edge = isOp ? C.bronze : C['coin-edge'];
   if (e.state === 'reveal') { const on = Math.floor(now / 90) % 2 === 0; fill = on ? C.blood : C['blood-dark']; ink = C.ink; }
   if (e.state === 'blocked') { alpha = Math.max(0, e.t / .7); r *= 1 + (1 - alpha) * .5; fill = C.muted; }
@@ -291,7 +291,7 @@ function drawCoin(e, now) {
 function drawDenarius(e, now) {
   // Cartoonmuntje zoals in veel spellen: felgeel, dikke omtrek, gleufje in het midden, glans,
   // draait om zijn as (met een donkere zijkant als hij smal staat) en fonkelt af en toe.
-  const r = 10 * (1 - e.spawn / .35 * .9), ph = now / 380 + e.x * .05, c = Math.cos(ph);
+  const r = 8 * (1 - e.spawn / .35 * .9), ph = now / 380 + e.x * .05, c = Math.cos(ph);
   const w = Math.max(.14, Math.abs(c)), bob = Math.sin(now / 260 + e.x) * 1.4, line = '#7a3f0c';
   ctx.save(); ctx.translate(e.x, e.y);
   ctx.fillStyle = 'rgba(40,20,5,.25)'; ctx.beginPath(); ctx.ellipse(0, r + 3, r * .8 * (.6 + .4 * w), r * .28, 0, 0, Math.PI * 2); ctx.fill();

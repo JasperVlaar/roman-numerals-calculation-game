@@ -71,7 +71,7 @@ Paard en wagen zijn gewone SVG's, te bewerken in Inkscape of Figma. Ze zijn van 
 
 | Wat | Waar |
 |---|---|
-| Grootte van het hele span | `QUAD.scale` |
+| Grootte van het hele span | `QUAD.scale` (nu 0,92) |
 | Waar schoft, mond en handen van de menner zitten | `QUAD.horse.collar`, `QUAD.horse.mouth`, `QUAD.chariot.hands` (staat ook als commentaar in de SVG's) |
 | Plaats van de paarden naast elkaar | `QUAD.horses` |
 | Snelheid en reikwijdte van de galop | `QUAD.strides`, `QUAD.legs` |

@@ -5,7 +5,7 @@
    van het span, 1 eenheid = 1 SVG-eenheid. QUAD.scale maakt het geheel groter of kleiner. */
 
 const QUAD = {
-  scale: 1.15,
+  scale: .92,
   // Waar de SVG's liggen ten opzichte van het midden (linkerbovenhoek van de afbeelding).
   chariot: { src: 'assets/chariot.svg', w: 26, h: 32, x: -36, y: -16, hands: [[15.6, 12.8], [15.6, 19.2]] },
   horse:   { src: 'assets/horse.svg',   w: 54, h: 16, x: -10, y: -8, collar: 24, body: 15, mouth: [50, 8] },
