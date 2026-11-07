@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Roman Numerals</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Alegreya+Sans:wght@400;500;700&family=IM+Fell+English:ital@0;1&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -16,6 +16,7 @@
       <div><dt>Wapen</dt><dd id="weapon">Vuisten</dd></div>
       <div><dt>Denarii</dt><dd id="money">0</dd></div>
     </dl>
+    <button id="mute" class="mute" aria-pressed="true" title="Geluid aan of uit (M)">Geluid aan</button>
   </header>
   <div class="stage" id="stage">
     <canvas id="arena" aria-label="Arena met jou en je tegenstanders"></canvas>
@@ -30,10 +31,26 @@
       <li>Je loopt de arena in met lege handen, net als je tegenstander. Sturen doe je met de pijltjes of WASD, of door te slepen.</li>
       <li>Slaan gaat vanzelf: zodra een tegenstander dichtbij genoeg is, haal je uit.</li>
       <li>Kleurt een tegenstander rood, dan zet hij aan voor een klap. Stap op tijd weg.</li>
+      <li>Voor elk gevecht verdeel je punten over je stats. Na elke overwinning krijg je er nieuwe bij.</li>
       <li>Elk gevecht begint met aftellen. Kijk even rond: pas bij <em>Pugnate!</em> komen ze op je af.</li>
       <li>Versla iedereen. Ga je neer, dan mag je het gevecht opnieuw proberen.</li>
     </ul>
     <button id="startBtn" class="primary wide">Betreed de arena</button>
+    <p class="credits">Geluid: "Crowd Cheering - Strong Cheering and Strong Rhythmic Cheering" door <a href="https://freesound.org/people/GregorQuendel/sounds/481782/" target="_blank" rel="noopener">GregorQuendel</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>), ingekort; "Crowd Ambience" door <a href="https://freesound.org/people/FlatHill/sounds/324757/" target="_blank" rel="noopener">FlatHill</a>; "Punch #1" door <a href="https://freesound.org/people/lewisisminted/sounds/162370/" target="_blank" rel="noopener">lewisisminted</a> (CC0); "punchednoises" door <a href="https://freesound.org/people/shelbyshark/sounds/444703/" target="_blank" rel="noopener">shelbyshark</a>; alles via Freesound, ingekort.</p>
+  </div>
+</div>
+
+<div class="overlay scroll-bg" id="stats" hidden>
+  <div class="scroll">
+    <div class="rod" aria-hidden="true"></div>
+    <div class="parchment">
+      <p class="scroll-eyebrow" id="statsEyebrow">Voor gevecht I</p>
+      <h2>Verdeel je punten</h2>
+      <p class="scroll-note">Nog <b id="statsLeft">5</b> te verdelen. Wat eerder vastgezet is, blijft staan.</p>
+      <ul class="statlist" id="statList"></ul>
+      <button id="statsBtn" class="seal">Naar de arena</button>
+    </div>
+    <div class="rod" aria-hidden="true"></div>
   </div>
 </div>
 
@@ -113,6 +130,7 @@
 <script src="quadriga.js"></script>
 <script src="judge.js"></script>
 <!-- Op deze branch vervangt fight.js de rekenmodus (game.js). -->
+<script src="sound.js"></script>
 <script src="fight.js"></script>
 </body>
 </html>

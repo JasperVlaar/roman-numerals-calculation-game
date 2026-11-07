@@ -1,5 +1,6 @@
-/* ---------- Proef: gladiatorgevecht (fase 1) ----------
-   Jij te voet met een stok tegen een slaaf. Je stuurt alleen; slaan gaat vanzelf zodra een
+/* ---------- Proef: gladiatorgevecht ----------
+   Jij te voet met je vuisten tegen slaven. Voor elk gevecht verdeel je punten over vijf stats
+   (zoals in Swords and Sandals). Je stuurt alleen; slaan gaat vanzelf zodra een
    tegenstander binnen bereik is. Tegenstanders zetten eerst aan (ze kleuren rood en trekken hun
    arm terug) voordat ze uithalen: dat is je moment om weg te stappen.
    Dit bestand vervangt game.js op deze branch. arena.js, quadriga.js en judge.js blijven werken. */
@@ -11,7 +12,20 @@ const C = {}; ['night','porphyry','bronze','sand','sand-2','ink','muted','blood'
   .forEach(k => C[k] = css.getPropertyValue('--' + k).trim());
 
 /* ---------- Instellingen: hier balanceer je het spel ---------- */
+// Lage getallen, zoals een slaaf begint: 8 leven, 2 schade met je vuisten.
 const PLAYER = { hp: 8, speed: 85, radius: 10, accel: 12, invuln: .6, weapon: 'fists' };
+// Stats: wat één punt doet. Raken en blokken zijn kansen; tegenstanders gebruiken dezelfde formules.
+const STATS = {
+  strength: { name: 'Strength', nl: 'Kracht',     desc: '+1 schade per klap' },
+  agility:  { name: 'Agility',  nl: 'Behendigheid', desc: '+6 loopsnelheid (later: afstandswapens)' },
+  attack:   { name: 'Attack',   nl: 'Aanval',     desc: '+5% kans dat je klap raakt' },
+  defense:  { name: 'Defense',  nl: 'Verdediging', desc: '+6% kans dat je een klap blokt' },
+  vitality: { name: 'Vitality', nl: 'Vitaliteit',  desc: '+2 leven' }
+};
+const STAT_RULES = { dmg: 1, speed: 6, hitBase: .6, hit: .05, hitMax: .95, blockBase: .1, block: .06, blockMax: .75, hp: 2 };
+const POINTS = { start: 3, perWin: 3 };
+const hitChance = att => Math.min(STAT_RULES.hitMax, STAT_RULES.hitBase + STAT_RULES.hit * att);
+const blockChance = def => Math.min(STAT_RULES.blockMax, STAT_RULES.blockBase + STAT_RULES.block * def);
 // reach = hoe ver voorbij je eigen lijf je raakt; cooldown = seconden tussen twee slagen; price = in de winkel (fase 3).
 // Je begint met je vuisten, net als een slaaf: zelfde schade, zelfde bereik, ongeveer even vaak.
 const WEAPONS = {
@@ -20,13 +34,15 @@ const WEAPONS = {
 };
 // windup = hoe lang een tegenstander aanzet voor hij uithaalt; recover = even stilstaan erna.
 const FOES = {
-  slave: { name: 'slaaf', plural: 'slaven', hp: 14, dmg: 2, armor: 0, speed: 68, radius: 10, reach: 10, windup: .36, recover: .45, cooldown: 1.6, lunge: 9,
+  slave: { name: 'slaaf', plural: 'slaven', hp: 14, dmg: 2, armor: 0, attack: 0, defense: 0, speed: 68, radius: 10, reach: 10, windup: .36, recover: .45, cooldown: 1.6, lunge: 9,
            tunic: '#9c8a6c', hair: 'hair-2', skin: 'skin-2' }
 };
-// De gevechten. Fase 2 vult deze lijst aan (2 slaven, 3 slaven, gladiator, ...).
+// De gevechten. Later volgen gladiatoren, 10 slaven en het gemengde gevecht.
 // Testen met meer tegenstanders: zet ?n=3 achter de url.
 const FIGHTS = [
-  { foes: [['slave', 1]] }
+  { foes: [['slave', 1]] },
+  { foes: [['slave', 2]] },
+  { foes: [['slave', 3]] }
 ];
 const FEEL = { hitstop: .06, shake: 5, playerShake: 9, flash: .12 };
 // Aftellen aan het begin (III, II, I, Pugnate!): je kunt al lopen, tegenstanders wachten nog.
@@ -35,7 +51,7 @@ const INTRO = { step: .8, count: 3, shout: .7 };
 const FIGHT_AREA = 30000;
 
 /* ---------- Toestand ---------- */
-const S = { fight: 0, money: 0, foes: [], floats: [], dust: [], paused: true, over: null, overT: 0, freeze: 0, shake: 0, intro: 0, shout: 0 };
+const S = { fight: 0, money: 0, stats: { strength: 0, agility: 0, attack: 0, defense: 0, vitality: 0 }, points: 0, foes: [], floats: [], dust: [], paused: true, over: null, overT: 0, freeze: 0, shake: 0, intro: 0, shout: 0 };
 const W = { rx: 280, ry: 220, area: 66000 };
 const view = { cw: 1, ch: 1, dpr: 1, scale: 1 };
 const P = { x: 0, y: 0, vx: 0, vy: 0, face: -Math.PI / 2, hp: PLAYER.hp, cd: 0, swing: 0, swingDir: 1, hurt: 0, flash: 0, target: null, dead: false };
@@ -50,6 +66,14 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const TAU2 = Math.PI * 2;
 function lerpAngle(a, b, t) { const d = ((b - a + Math.PI * 3) % TAU2) - Math.PI; return a + d * t; }
 const testCount = +new URLSearchParams(location.search).get('n') || 0;
+// Afgeleide waarden van de speler: basis + stats.
+const me = {
+  get maxHp() { return PLAYER.hp + STAT_RULES.hp * S.stats.vitality; },
+  get speed() { return PLAYER.speed + STAT_RULES.speed * S.stats.agility; },
+  get dmg() { return WEAPONS[PLAYER.weapon].dmg + STAT_RULES.dmg * S.stats.strength; },
+  get hit() { return hitChance(S.stats.attack); },
+  get block() { return blockChance(S.stats.defense); }
+};
 
 /* ---------- Wereld ---------- */
 function fitWorld(reset) {
@@ -78,7 +102,7 @@ function contain(o, ex, ey) {
 function startFight() {
   const def = FIGHTS[Math.min(S.fight, FIGHTS.length - 1)];
   W.area = FIGHT_AREA; fitWorld(true);
-  Object.assign(P, { x: 0, y: W.ry * .45, vx: 0, vy: 0, face: -Math.PI / 2, hp: PLAYER.hp, cd: 0, swing: 0, hurt: 0, flash: 0, target: null, dead: false });
+  Object.assign(P, { x: 0, y: W.ry * .45, vx: 0, vy: 0, face: -Math.PI / 2, hp: me.maxHp, cd: 0, swing: 0, hurt: 0, flash: 0, target: null, dead: false });
   steer.active = false;
   S.foes = []; S.floats = []; S.dust = []; S.over = null; S.overT = 0; S.freeze = 0; S.shake = 0;
   S.intro = INTRO.step * INTRO.count; S.shout = 0;
@@ -106,11 +130,19 @@ function hitFoe(f, dmg, from) {
   f.vx += dx / l * kb; f.vy += dy / l * kb;
   S.freeze = FEEL.hitstop; S.shake = Math.max(S.shake, FEEL.shake);
   float(f.x, f.y - 18, '−' + real, C.ink);
+  SFX.hit(); SFX.cheer(f.hp <= 0 ? .75 : .35);   // het publiek juicht bij elke rake klap, harder als hij valt
   if (f.hp <= 0) {
     f.state = 'dead'; f.dead = 1; f.vx *= 1.6; f.vy *= 1.6;
     float(f.x, f.y - 30, 'Victus!', C.coin);
     if (S.foes.every(o => o.state === 'dead')) endFight(true);
   }
+}
+// Blokken: korte bronzen flits aan de kant van de aanvaller, geen schade.
+function blocked(def, att) {
+  def.block = .3; def.blockA = Math.atan2(att.y - def.y, att.x - def.x);
+  S.freeze = FEEL.hitstop * .6; S.shake = Math.max(S.shake, 2);
+  float(def.x, def.y - 20, 'geblokt', C.bronze);
+  SFX.block();
 }
 function hitPlayer(f) {
   if (P.hurt > 0 || P.dead) return;
@@ -120,6 +152,7 @@ function hitPlayer(f) {
   P.vx += dx / l * 170; P.vy += dy / l * 170;
   S.freeze = FEEL.hitstop * 1.4; S.shake = Math.max(S.shake, FEEL.playerShake);
   float(P.x, P.y - 20, '−' + real, C.blood);
+  SFX.hurt(); SFX.boo(.3);
   $('stage').classList.remove('hurt'); void $('stage').offsetWidth; $('stage').classList.add('hurt');
   updateUI();
   if (P.hp <= 0) { P.dead = true; endFight(false); }
@@ -128,6 +161,7 @@ function endFight(won) {
   if (S.over) return;
   S.over = won ? 'won' : 'lost'; S.overT = 0;
   won ? arenaCheer() : arenaJeer();
+  won ? SFX.cheer(1) : SFX.boo(1);
 }
 function float(x, y, text, color) { S.floats.push({ x, y, text, color, t: 1 }); }
 
@@ -144,10 +178,10 @@ function update(dt) {
     if (keys.has('ArrowRight') || keys.has('d')) dx++;
     if (keys.has('ArrowUp') || keys.has('w')) dy--;
     if (keys.has('ArrowDown') || keys.has('s')) dy++;
-    if (dx || dy) { const l = Math.hypot(dx, dy); tx = dx / l * PLAYER.speed; ty = dy / l * PLAYER.speed; steer.active = false; }
+    if (dx || dy) { const l = Math.hypot(dx, dy); tx = dx / l * me.speed; ty = dy / l * me.speed; steer.active = false; }
     else if (steer.active) {
       const ex = steer.x - P.x, ey = steer.y - P.y, d = Math.hypot(ex, ey);
-      if (d > 6) { const sp = Math.min(PLAYER.speed, d * 4); tx = ex / d * sp; ty = ey / d * sp; }
+      if (d > 6) { const sp = Math.min(me.speed, d * 4); tx = ex / d * sp; ty = ey / d * sp; }
       else if (!steer.down) steer.active = false;
     }
   }
@@ -161,12 +195,13 @@ function update(dt) {
   // Aftellen: jij kunt al lopen en kijken, maar er wordt nog niet geslagen.
   if (S.intro > 0) {
     S.intro -= dt;
-    if (S.intro <= 0) { S.shout = INTRO.shout; arenaCheer(); }
+    if (S.intro <= 0) { S.shout = INTRO.shout; arenaCheer(); SFX.cheer(.6); SFX.mood('fight'); }
     for (const f of S.foes) f.face = lerpAngle(f.face, Math.atan2(P.y - f.y, P.x - f.x), 1 - Math.exp(-dt * 6));
     return;
   }
   S.shout = Math.max(0, S.shout - dt);
   // Automatisch slaan: de dichtstbijzijnde levende tegenstander binnen bereik.
+  P.block = Math.max(0, (P.block || 0) - dt);
   P.cd = Math.max(0, P.cd - dt); P.swing = Math.max(0, P.swing - dt); P.hurt = Math.max(0, P.hurt - dt); P.flash = Math.max(0, P.flash - dt);
   let best = null, bd = Infinity;
   for (const f of S.foes) if (f.state !== 'dead') { const d = Math.hypot(f.x - P.x, f.y - P.y); if (d < bd) { bd = d; best = f; } }
@@ -176,12 +211,15 @@ function update(dt) {
   else if (sp > 20) P.face = lerpAngle(P.face, Math.atan2(P.vy, P.vx), 1 - Math.exp(-dt * 12));
   if (!P.dead && inReach && P.cd === 0) {
     P.cd = w.cooldown; P.swing = w.swing; P.swingDir *= -1;
-    hitFoe(best, w.dmg, P);
+    // Raakt de klap? Eerst je eigen raakkans, dan de blokkans van de tegenstander.
+    if (Math.random() >= me.hit) float(best.x, best.y - 18, 'mis', C.muted);
+    else if (Math.random() < blockChance(best.d.defense)) blocked(best, P);
+    else hitFoe(best, me.dmg, P);
   }
 
   // Tegenstanders: aanlopen, aanzetten, uithalen, herstellen.
   for (const f of S.foes) {
-    f.flash = Math.max(0, f.flash - dt); f.lunge = Math.max(0, f.lunge - dt * 5);
+    f.flash = Math.max(0, f.flash - dt); f.lunge = Math.max(0, f.lunge - dt * 5); f.block = Math.max(0, (f.block || 0) - dt);
     const fr = Math.exp(-dt * 7); f.vx *= fr; f.vy *= fr;   // knockback dooft uit
     if (f.state === 'dead') { f.dead = Math.max(0, f.dead - dt * .35); f.x += f.vx * dt; f.y += f.vy * dt; continue; }
     const ex = P.x - f.x, ey = P.y - f.y, d = Math.hypot(ex, ey) || 1, gap = d - f.d.radius - PLAYER.radius;
@@ -197,7 +235,10 @@ function update(dt) {
       if (f.t <= 0) {
         f.lunge = 1; f.state = 'recover'; f.t = f.d.recover; f.cd = f.d.cooldown;
         // Uithalen: raakt als je nog binnen bereik staat (met een klein beetje speling voor de uitval).
-        if (gap <= f.d.reach + f.d.lunge) hitPlayer(f); else float(f.x, f.y - 18, 'mis', C.muted);
+        if (gap > f.d.reach + f.d.lunge) float(P.x, P.y - 20, 'ontweken', C.laurel);
+        else if (Math.random() >= hitChance(f.d.attack)) float(f.x, f.y - 18, 'mis', C.muted);
+        else if (Math.random() < me.block) blocked(P, f);
+        else hitPlayer(f);
       }
     } else if (f.state === 'recover') { f.t -= dt; if (f.t <= 0) f.state = 'walk'; }
     f.x += (mx + f.vx) * dt; f.y += (my + f.vy) * dt;
@@ -236,6 +277,10 @@ function draw(now) {
   const ents = [...S.foes].sort((a, b) => (a.state === 'dead' ? -1 : 0) - (b.state === 'dead' ? -1 : 0));
   for (const f of ents) drawFoe(f, now);
   drawPlayer(now);
+  for (const o of [P, ...S.foes]) if (o.block > 0) {   // blok: bronzen boog aan de kant van de aanvaller
+    ctx.strokeStyle = `rgba(226,179,94,${o.block / .3})`; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(o.x, o.y, 15, o.blockA - .7, o.blockA + .7); ctx.stroke(); ctx.lineCap = 'butt';
+  }
   for (const f of S.foes) if (f.state !== 'dead' && f.hp < f.d.hp) drawBar(f.x, f.y - f.d.radius - 10, f.hp / f.d.hp);
 
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -363,26 +408,67 @@ function updateUI() {
   $('foeText').textContent = 'Tegen ' + foeSummary();
   $('money').textContent = S.money;
   $('weapon').textContent = WEAPONS[PLAYER.weapon].name;
-  $('hpText').textContent = `${P.hp} / ${PLAYER.hp}`;
-  $('hpFill').style.transform = `scaleX(${P.hp / PLAYER.hp})`;
-  $('hpBar').classList.toggle('low', P.hp / PLAYER.hp <= .3);
+  $('hpText').textContent = `${P.hp} / ${me.maxHp}`;
+  $('hpFill').style.transform = `scaleX(${P.hp / me.maxHp})`;
+  $('hpBar').classList.toggle('low', P.hp / me.maxHp <= .3);
 }
 function openResult() {
+  SFX.mood('calm');
   S.paused = true; keys.clear(); steer.down = false;
   const won = S.over === 'won';
   $('resultEyebrow').textContent = `Gevecht ${toRoman(S.fight + 1)}`;
   $('resultTitle').textContent = won ? 'Overwinning!' : 'Je ligt in het zand.';
   $('resultText').textContent = won
-    ? `Het publiek juicht. Je had nog ${P.hp} van de ${PLAYER.hp} leven over.`
-    : 'Het publiek joelt. Je mag het nog eens proberen, met dezelfde uitrusting.';
-  $('resultBtn').textContent = won ? (S.fight + 1 < FIGHTS.length ? 'Volgend gevecht' : 'Nog een keer') : 'Probeer opnieuw';
+    ? `Het publiek juicht. Je had nog ${P.hp} van de ${me.maxHp} leven over.` + (S.fight + 1 < FIGHTS.length ? ` Je krijgt ${POINTS.perWin} nieuwe punten.` : ' Je hebt alle gevechten van deze proef gewonnen!')
+    : 'Het publiek joelt. Je mag het nog eens proberen; je stats blijven zoals ze zijn.';
+  $('resultBtn').textContent = won ? (S.fight + 1 < FIGHTS.length ? 'Verdeel je punten' : 'Opnieuw vanaf gevecht I') : 'Probeer opnieuw';
   $('result').hidden = false; $('resultBtn').focus();
 }
 $('resultBtn').onclick = () => {
-  if (S.over === 'won' && S.fight + 1 < FIGHTS.length) S.fight++;
-  $('result').hidden = true; startFight(); S.paused = false;
+  $('result').hidden = true;
+  if (S.over !== 'won') { startFight(); S.paused = false; return; }          // verloren: zelfde gevecht, stats blijven
+  if (S.fight + 1 < FIGHTS.length) { S.fight++; openStats(POINTS.perWin); return; }
+  newRun();                                                                     // alles gewonnen: opnieuw beginnen
 };
-$('startBtn').onclick = () => { $('start').hidden = true; startFight(); S.paused = false; };
+function newRun() { S.fight = 0; for (const k in S.stats) S.stats[k] = 0; openStats(POINTS.start); }
+$('startBtn').onclick = () => { SFX.init(); $('start').hidden = true; newRun(); };
+// Geluid aan/uit: knop rechtsboven, of de toets M.
+function showMute() { const b = $('mute'); b.textContent = SFX.muted ? 'Geluid uit' : 'Geluid aan'; b.setAttribute('aria-pressed', String(!SFX.muted)); }
+$('mute').onclick = () => { SFX.init(); SFX.setMuted(!SFX.muted); showMute(); };
+showMute();
+
+/* ---------- Punten verdelen ---------- */
+let added = {};
+function openStats(extra) {
+  SFX.mood('calm');
+  S.paused = true; S.points += extra; added = {};
+  for (const k in STATS) added[k] = 0;
+  $('statsEyebrow').textContent = `Voor gevecht ${toRoman(S.fight + 1)} · tegen ${foeSummary()}`;
+  renderStats(); $('stats').hidden = false;
+}
+function statEffect(k, n) {
+  const v = { ...S.stats, [k]: n };
+  return { strength: `${WEAPONS[PLAYER.weapon].dmg + STAT_RULES.dmg * v.strength} schade`,
+           agility: `snelheid ${PLAYER.speed + STAT_RULES.speed * v.agility}`,
+           attack: `${Math.round(hitChance(v.attack) * 100)}% raak`,
+           defense: `${Math.round(blockChance(v.defense) * 100)}% blok`,
+           vitality: `${PLAYER.hp + STAT_RULES.hp * v.vitality} leven` }[k];
+}
+function renderStats() {
+  $('statsLeft').textContent = S.points ? toRoman(S.points) : 'geen';
+  const list = $('statList'); list.innerHTML = '';
+  for (const [k, d] of Object.entries(STATS)) {
+    const li = document.createElement('li');
+    li.innerHTML = `<div><b>${d.nl} <i>${d.name}</i></b><span>${d.desc}</span><span class="eff">${statEffect(k, S.stats[k])}</span></div>
+      <div class="stepper"><button aria-label="${d.nl} omlaag" ${added[k] ? '' : 'disabled'}>−</button><output aria-label="${S.stats[k]}">${S.stats[k] ? toRoman(S.stats[k]) : '–'}</output><button aria-label="${d.nl} omhoog" ${S.points ? '' : 'disabled'}>+</button></div>`;
+    const [minus, plus] = li.querySelectorAll('button');
+    minus.onclick = () => { added[k]--; S.stats[k]--; S.points++; renderStats(); };
+    plus.onclick = () => { added[k]++; S.stats[k]++; S.points--; renderStats(); };
+    list.appendChild(li);
+  }
+  $('statsBtn').textContent = S.points ? `Naar de arena (nog ${toRoman(S.points)} over)` : 'Naar de arena';
+}
+$('statsBtn').onclick = () => { $('stats').hidden = true; startFight(); S.paused = false; };
 
 function toWorld(ev) {
   const r = cvs.getBoundingClientRect();
@@ -392,10 +478,11 @@ function toWorld(ev) {
 cvs.addEventListener('pointerdown', ev => { if (S.paused) return; cvs.setPointerCapture(ev.pointerId); steer.down = steer.active = true; toWorld(ev); });
 cvs.addEventListener('pointermove', ev => { if (steer.down) toWorld(ev); });
 ['pointerup', 'pointercancel'].forEach(t => cvs.addEventListener(t, () => steer.down = false));
-const anyOverlay = () => !$('start').hidden || !$('result').hidden;
+const anyOverlay = () => !$('start').hidden || !$('result').hidden || !$('stats').hidden;
 addEventListener('keydown', ev => {
   if (anyOverlay()) return;
   const k = ev.key.length === 1 ? ev.key.toLowerCase() : ev.key;
+  if (k === 'm') { $('mute').click(); return; }
   if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','a','d','w','s'].includes(k)) { keys.add(k); ev.preventDefault(); }
 });
 addEventListener('keyup', ev => keys.delete(ev.key.length === 1 ? ev.key.toLowerCase() : ev.key));

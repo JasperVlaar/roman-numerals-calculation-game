@@ -58,17 +58,39 @@ Moeilijkheid per ronde staat in `cfg(level)` in `game.js`: tijd, welke cijfers e
 
 Op deze branch is de rekenmodus vervangen door gladiatorgevechten. `index.html` laadt `fight.js` in plaats van `game.js`; arena, Caesar en publiek worden hergebruikt.
 
-**Fase 1 (nu):** jij te voet met je vuisten tegen 1 slaaf; je begint met dezelfde aanval als een slaaf. De stok staat al in `WEAPONS` met een prijs en komt in fase 3 in de winkel. Je stuurt alleen; slaan gaat vanzelf als een tegenstander binnen bereik is. Een tegenstander kleurt rood als hij aanzet; stap weg voordat hij uithaalt. Ga je neer, dan probeer je hetzelfde gevecht opnieuw.
+**Nu:** gevechten I tot III (1, 2 en 3 slaven), met je vuisten. Voor elk gevecht verdeel je punten over vijf stats, zoals in *Swords and Sandals*: 3 aan het begin, +3 na elke overwinning. Slaan gaat vanzelf als een tegenstander binnen bereik is. Een tegenstander kleurt rood als hij aanzet; stap weg voordat hij uithaalt. Ga je neer, dan probeer je hetzelfde gevecht opnieuw en blijven je stats staan.
+
+| Stat | Per punt | Basis (0 punten, ook voor slaven) |
+|---|---|---|
+| Strength (Kracht) | +1 schade | Vuisten 2 |
+| Agility (Behendigheid) | +6 loopsnelheid (later ook afstandswapens) | 85 (slaaf 68) |
+| Attack (Aanval) | +5% kans dat je klap raakt (max 95%) | 60% |
+| Defense (Verdediging) | +6% kans dat je een klap blokt (max 75%) | 10% |
+| Vitality (Vitaliteit) | +2 leven | 8 (slaaf 14) |
+
+De getallen zijn bewust klein: je begint als een slaaf. Kracht is +1 per punt (in Swords and Sandals +2 op veel grotere getallen); daarom zijn er minder punten te verdelen.
+
+Balans (gesimuleerd, 20 gevechten per regel, bot die elke 0,2 s reageert):
+
+| Gevecht | Punten | Gespreide verdeling | Alles in één stat |
+|---|---|---|---|
+| I (1 slaaf) | 3 | ±95% winst | – |
+| II (2 slaven) | 6 | 60–70% | – |
+| III (3 slaven) | 9 | 45–55% | ±40% (alles kracht) |
 
 | Wat | Waar in `fight.js` |
 |---|---|
 | Jouw leven, snelheid, onkwetsbaarheid na een treffer | `PLAYER` |
 | Wapens (schade, bereik, slagen per seconde, terugslag) | `WEAPONS` |
 | Tegenstanders (leven, schade, armor, snelheid, aanzet, herstel) | `FOES` |
+| Stats: wat een punt doet, start- en winstpunten | `STATS`, `STAT_RULES`, `POINTS` |
 | De reeks gevechten | `FIGHTS` |
+| Geluid: welke bestanden (`SOUNDS`) en hoe hard (`MIX`) | bovenaan `sound.js` |
 | Raakgevoel (even stilstaan bij een treffer, schudden, flits) | `FEEL` |
 | Aftellen aan het begin (III, II, I, *Pugnate!*) | `INTRO` |
 | Grootte van het zandveld (kleiner = camera dichterbij) | `FIGHT_AREA` |
+
+Geluid: `sound.js` speelt echte opnames af uit `assets/sound/` (welke bestanden en waar je ze vindt: `assets/sound/LEESMIJ.md`). Het publiek roezemoest de hele tijd, juicht bij elke rake klap (groot gejuich als iemand valt, bij *Pugnate!* en als je wint) en joelt als jij geraakt wordt of verliest. Ontbreekt een bestand, dan blijft dat geluid stil. Aan/uit met de knop rechtsboven of de toets M.
 
 Testen met meer tegenstanders: open `index.html?n=3` (of een ander aantal slaven).
 

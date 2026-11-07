@@ -124,3 +124,49 @@ button:disabled{opacity:.4;cursor:default}
 .stage.hurt::after{animation:hurtFlash .45s ease-out}
 @keyframes hurtFlash{from{opacity:1}to{opacity:0}}
 @media (prefers-reduced-motion:reduce){.stage.hurt::after{animation:none}}
+/* Statsscherm: een perkamentrol op een donkere ondergrond */
+.scroll-bg{background:radial-gradient(ellipse at 50% 40%,#2c1c22 0%,#150d11 70%,#0c0709 100%);backdrop-filter:none}
+.scroll{width:min(470px,calc(100% - 30px));max-height:100%;display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 18px 30px rgba(0,0,0,.6))}
+.rod{width:calc(100% + 28px);height:18px;flex:none;border-radius:9px;position:relative;z-index:1;
+  background:linear-gradient(180deg,#8a5a2e 0%,#c48a4e 30%,#6e4220 70%,#4a2a12 100%)}
+.rod::before,.rod::after{content:"";position:absolute;top:-4px;width:20px;height:26px;border-radius:7px;
+  background:radial-gradient(circle at 40% 35%,#f0c56a,#b8823c 55%,#6e4a1c)}
+.rod::before{left:-8px}.rod::after{right:-8px}
+.parchment{width:100%;min-height:0;overflow:auto;margin:-6px 0;padding:30px 28px 26px;color:#3b2414;font-family:"IM Fell English",Georgia,serif;
+  display:flex;flex-direction:column;gap:12px;
+  background:
+    radial-gradient(ellipse at 50% 50%,rgba(255,250,230,0) 55%,rgba(140,90,40,.38) 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .3 0 0 0 0 .12 0 0 0 .18 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    linear-gradient(180deg,#e9d6a8,#e3cc96 50%,#dcc085);
+  box-shadow:inset 0 0 0 1px rgba(110,70,30,.25),inset 0 10px 18px -10px rgba(80,45,15,.5),inset 0 -10px 18px -10px rgba(80,45,15,.5)}
+.parchment h2{margin:0;font-family:var(--f-display);font-weight:900;font-size:28px;color:#4a2a14;text-align:center;letter-spacing:.04em}
+.scroll-eyebrow{margin:0;text-align:center;font-family:var(--f-display);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#7a4a24}
+.scroll-note{margin:0;text-align:center;font-size:17px;font-style:italic;color:#5a3a20}
+.scroll-note b{font-family:var(--f-display);font-style:normal;color:#8e1f1a}
+.parchment .statlist{gap:0;border-top:1px solid rgba(90,55,25,.35)}
+.parchment .statlist li{background:none;border:0;border-radius:0;padding:10px 2px;border-bottom:1px solid rgba(90,55,25,.35)}
+.parchment .statlist b{font-family:var(--f-display);font-size:17px;color:#3b2414}
+.parchment .statlist b i{font-family:"IM Fell English",Georgia,serif;font-weight:400;font-size:14px;color:#7a5a3a}
+.parchment .statlist span{color:#5a3a20;font-size:15px}
+.parchment .statlist .eff{color:#8e1f1a;font-family:var(--f-display);font-size:14px}
+.parchment .stepper button{width:34px;height:34px;border-radius:50%;border:1.5px solid #5a3a20;background:rgba(255,245,220,.35);color:#3b2414;font-family:var(--f-display);font-size:18px;line-height:1}
+.parchment .stepper button:not(:disabled):hover{background:rgba(255,245,220,.7)}
+.parchment .stepper button:disabled{opacity:.25}
+.parchment .stepper output{min-width:3.2ch;font-size:20px;color:#3b2414}
+.seal{align-self:center;margin-top:6px;padding:12px 26px;border:0;border-radius:999px;color:#f6e6c8;font-family:var(--f-display);font-weight:700;font-size:16px;letter-spacing:.06em;
+  background:radial-gradient(circle at 35% 30%,#c4382c,#8e1f1a 60%,#5e1210);box-shadow:0 3px 0 #4a0e0c,0 6px 14px rgba(60,10,8,.45),inset 0 0 0 2px rgba(255,200,170,.15)}
+.seal:hover{filter:brightness(1.08)}
+.seal:active{transform:translateY(2px);box-shadow:0 1px 0 #4a0e0c,0 3px 8px rgba(60,10,8,.45)}
+.statlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.statlist li{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--stone-2)}
+.statlist li>div:first-child{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.statlist b{font-family:var(--f-display)}
+.statlist span{color:var(--muted);font-size:13px;line-height:1.35}
+.statlist .eff{color:var(--bronze);font-weight:700;font-variant-numeric:tabular-nums}
+.stepper{display:flex;align-items:center;gap:6px;flex:none}
+.stepper button{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--stone);font-family:var(--f-display);font-size:20px;font-weight:700}
+.stepper output{min-width:2ch;text-align:center;font-family:var(--f-display);font-weight:900;font-size:20px;font-variant-numeric:tabular-nums}
+.mute{align-self:center;flex:none;height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--stone);color:var(--muted);font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+.mute[aria-pressed="true"]{color:var(--ink)}
+.credits{margin:0;font-size:11.5px;line-height:1.45;color:var(--muted);text-align:center}
+.credits a{color:inherit}
