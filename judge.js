@@ -9,16 +9,16 @@ const JUDGE = {
   think: 2200,      // ms vanaf de start tot het oordeel valt
   snap: 440,        // ms: duim slaat om
   detail: 800,      // ms na het oordeel: uitslag en knop verschijnen
-  // Twijfel: hoeken (graden) waar de duim langs gaat. -90 is opzij (hand in het verlengde van de arm), 0 omhoog, -180 omlaag.
-  waver: [-90, -64, -98, -124, -88, -70, -110, -96, -80, -95, -86, -90],
+  // Twijfel: hoeken (graden) waar de duim langs gaat. 90 is opzij met de duim naar binnen (naar Caesar), 0 omhoog, 180 omlaag.
+  waver: [90, 64, 98, 124, 88, 70, 110, 96, 80, 95, 86, 90],
   // De hand als afbeelding, in pixels van die afbeelding:
-  // pivot = de pols (daar draait de hand om en daar sluit de arm aan), tip = top van de duim (daar komen de deeltjes vandaan).
+  // pivot = midden van de vuist (daar draait de hand om; de arm eindigt daar, achter de vuist), tip = top van de duim (daar komen de deeltjes vandaan).
   // scale = scène-eenheden per pixel. Ontbreekt het bestand, dan valt het spel terug op de getekende hand.
-  hand: { src: 'assets/recraft free plan/hand.png', w: 562, h: 815, pivot: [460, 740], tip: [280, 8], scale: .18 },
+  hand: { src: 'assets/recraft free plan/hand.png', w: 562, h: 815, pivot: [285, 560], tip: [268, 7], scale: .2 },
   // De onderarm als afbeelding, in pixels van die afbeelding: wrist = midden van de pols, sleeve = midden van het
-  // mouwuiteinde. from/to = waar die twee in de scène moeten komen (bij de pols van de hand en bij Caesars schouder).
-  arm: { src: 'assets/recraft free plan/arm.png', wrist: [208.5, 521.7], sleeve: [593, 182], from: [176, 182], to: [250, 163] },
-  handAt: [175, 182],          // waar de pols in de scène zit (viewBox 480 × 320); de hand draait hieromheen
+  // mouwuiteinde. from/to = waar die twee in de scène moeten komen (achter het midden van de vuist en bij Caesars schouder).
+  arm: { src: 'assets/recraft free plan/arm.png', wrist: [208.5, 521.7], sleeve: [593, 182], from: [154, 188], to: [250, 163] },
+  handAt: [150, 190],          // midden van de vuist in de scène (viewBox 480 × 320); de hand draait hieromheen en bedekt zo altijd het einde van de arm
   shadowOffset: [5, 9],          // waar het midden van de vuist in de scène staat (viewBox 480 × 320)
   tipUp: [137, 70], tipDown: [163, 310]   // worden hieronder uit hand berekend
 };
@@ -88,15 +88,15 @@ function fillSceneCrowd() {
 function judgeStart() {
   fillSceneCrowd();
   const scene = $('scene');
-  handSet(rot(-90));
+  handSet(rot(90));
   scene.classList.remove('cheer', 'jeer');
   $('burst').replaceChildren();
   AR.judging = 'thinking';
   if (reduceMotion()) return;
   handAnimate([
-    { transform: 'translate(40px, 90px) scale(.7) ' + rot(-90), opacity: 0 },
-    { transform: 'translate(-4px, -6px) scale(1.03) ' + rot(-90), opacity: 1, offset: .7 },
-    { transform: 'translate(0, 0) scale(1) ' + rot(-90), opacity: 1 }
+    { transform: 'translate(40px, 90px) scale(.7) ' + rot(90), opacity: 0 },
+    { transform: 'translate(-4px, -6px) scale(1.03) ' + rot(90), opacity: 1, offset: .7 },
+    { transform: 'translate(0, 0) scale(1) ' + rot(90), opacity: 1 }
   ], { duration: JUDGE.rise, easing: 'cubic-bezier(.2,.8,.3,1)' });
   // Twijfelen: steeds sneller en kleiner, met een paar plagerige uitschieters naar boven en beneden.
   const w = JUDGE.waver, n = w.length - 1;
@@ -105,14 +105,14 @@ function judgeStart() {
 }
 
 function judgeVerdict(ok) {
-  const end = ok ? 0 : -180, over = ok ? 16 : -196;
+  const end = ok ? 0 : 180, over = ok ? -16 : 196;
   handSet(rot(end));
   AR.judging = ok ? 'up' : 'down';
   ok ? arenaCheer() : arenaJeer();
   if (reduceMotion()) return;
   handAnimate([
-    { transform: rot(-90) },
-    { transform: rot(-90 + (ok ? -10 : 10)), offset: .25 },          // even aanzetten
+    { transform: rot(90) },
+    { transform: rot(90 + (ok ? 10 : -10)), offset: .25 },          // even aanzetten
     { transform: rot(over), offset: .7, easing: 'ease-out' },
     { transform: rot(end) }
   ], { duration: JUDGE.snap, easing: 'cubic-bezier(.6,0,.3,1)' });

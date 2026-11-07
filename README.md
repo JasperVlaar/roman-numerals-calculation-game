@@ -80,22 +80,19 @@ Paard en wagen zijn gewone SVG's, te bewerken in Inkscape of Figma. Ze zijn van 
 
 ## Caesars oordeel aanpassen
 
-Het oordeel is een scène van voren: Caesar zit onscherp op zijn troon onder de tent in de keizersloge, met wachters, fakkels en publiek erachter. Zijn hand staat scherp op de voorgrond. Zijn onderarm wijst naar de kijker, dus het draaien van de hand is ook echt het draaien van zijn pols.
+Het oordeel is een scène van voren: Caesar zit onscherp op zijn troon onder de tent in de keizersloge, met wachters, fakkels en publiek erachter. Zijn hand staat groot en scherp op de voorgrond; de onderarm loopt naar zijn schouder en wordt daarheen onscherp.
 
 | Wat | Waar |
 |---|---|
-| De scène en de hand | Inline SVG `#scene` in `index.html`. De achtergrond zit in `#sceneBg` (onscherp via filter `#dof`), de hand in `#hand`. |
-| De hand als afbeelding | `assets/recraft free plan/hand.png`: een opgeschoonde, bijgesneden, gespiegelde (pols rechtsonder) en warmer gekleurde versie van een Recraft-asset, met een zachte schaduw onderaan de vuist ingebakken. Positie, draaipunt (midden van de vuist), duimtop en schaal staan in `JUDGE.hand` in `judge.js`. Vervang het bestand en pas die getallen aan om een andere hand te proberen. Ontbreekt het bestand, dan tekent het spel de oude SVG-hand (`#handDrawn`). De slagschaduw (`#handShadow`) is een wazige kopie die met de hand meedraait en steeds naar rechtsonder valt. |
-| De onderarm als afbeelding | `assets/recraft free plan/arm.png` (opgeschoond, bijgesneden, warmer gekleurd). Staat stil terwijl de hand draait en wordt naar Caesar toe onscherp. Afgesneden bij de armband, zodat de hand er in elke stand uit lijkt te komen. Pols- en mouwpunt in de afbeelding en hun plek in de scène staan in `JUDGE.arm`; judge.js rekent hoek en schaal zelf uit. |
-| Hoe onscherp de achtergrond is | `stdDeviation` van filter `#dof` in `index.html` |
-| Hoe onscherp Caesars hoofd is | `stdDeviation` van filter `#dofFace` (iets scherper dan de rest, zodat zijn gezicht leesbaar blijft) |
-| Huidtinten van de hand | Gradiënten `#gRoll`, `#gThumb` en `#gBack` in `index.html` |
-| Hoe lang Caesar twijfelt | `JUDGE.think` (ms) in `judge.js` |
-| Hoe de duim heen en weer gaat | `JUDGE.waver`: hoeken in graden, -90 is opzij (hand in het verlengde van de arm), 0 omhoog, -180 omlaag. De hand draait om de pols (`JUDGE.handAt`), zodat hij altijd aan de arm vast blijft. |
-| Snelheid van het omslaan | `JUDGE.snap` |
-| Wanneer uitslag en knop verschijnen | `JUDGE.detail` |
-| Juichen of joelen in de scène | CSS-animaties `crowdJump` en `crowdShake` in `style.css` |
-| Juichen of joelen in de arena | `arenaCheer()` en `arenaJeer()` in `arena.js` |
+| De hand | `assets/recraft free plan/hand.png`: opgeschoond, bijgesneden en warmer gekleurd, met een zachte schaduw onderaan de vuist; niet gespiegeld, dus een rechterhand. Draaipunt (midden van de vuist), duimtop en schaal staan in `JUDGE.hand`. |
+| De onderarm | `assets/recraft free plan/arm.png`, afgesneden bij de armband. Eindigt achter het midden van de vuist, zodat de hand het uiteinde in elke stand bedekt. Staat stil terwijl de hand draait. Pols- en mouwpunt en hun plek in de scène staan in `JUDGE.arm`; judge.js rekent hoek en schaal zelf uit. |
+| Hoe de duim heen en weer gaat | `JUDGE.waver`: hoeken in graden, 90 is opzij met de duim naar binnen (naar Caesar), 0 omhoog, 180 omlaag. De hand draait om het midden van de vuist (`JUDGE.handAt`). |
+| Slagschaduw | `#handShadow`: een wazige kopie die meedraait en steeds naar rechtsonder valt |
+| Timing | `JUDGE.think`, `JUDGE.snap`, `JUDGE.detail` (ms) |
+| Hoe onscherp de achtergrond en Caesars hoofd zijn | `stdDeviation` van filters `#dof` en `#dofFace` in `index.html` |
+| Juichen of joelen | CSS-animaties `crowdJump` en `crowdShake` (scène), `arenaCheer()` en `arenaJeer()` (arena) |
+
+`limb.png` (arm en hand in één, van opzij) is geprobeerd en weer teruggedraaid; het bestand staat nog in de map. Ontbreken `hand.png` of `arm.png`, dan tekent het spel de oude SVG-hand en -arm.
 
 Met *verminderde beweging* aan in het besturingssysteem slaat het spel de animaties over en toont het direct de uitslag.
 
