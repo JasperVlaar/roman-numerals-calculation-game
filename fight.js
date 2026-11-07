@@ -17,18 +17,18 @@ const PLAYER = { hp: 8, speed: 85, radius: 10, accel: 12, invuln: .6, weapon: 'f
 // Stats: wat één punt doet. Raken en blokken zijn kansen; tegenstanders gebruiken dezelfde formules.
 const STATS = {
   strength: { name: 'Strength', nl: 'Kracht',     desc: '+0,5 schade per klap' },
-  agility:  { name: 'Agility',  nl: 'Behendigheid', desc: '+6 loopsnelheid (later: afstandswapens)' },
-  vitality: { name: 'Vitality', nl: 'Vitaliteit',  desc: '+2 leven' }
+  agility:  { name: 'Agility',  nl: 'Behendigheid', desc: '+3 loopsnelheid (later: afstandswapens)' },
+  vitality: { name: 'Vitality', nl: 'Vitaliteit',  desc: '+1 leven' }
 };
 // Attack en Defense (raak- en blokkans) staan voorlopig uit: elke klap binnen bereik raakt.
 // Terugzetten: hitBase .6 en blockBase .1, en de twee stats weer in STATS en S.stats.
-const STAT_RULES = { dmg: .5, speed: 6, hitBase: 1, hit: .05, hitMax: 1, blockBase: 0, block: .06, blockMax: .75, hp: 2 };
+const STAT_RULES = { dmg: .5, speed: 3, hitBase: 1, hit: .05, hitMax: 1, blockBase: 0, block: .06, blockMax: .75, hp: 1 };
 // Punten verdien je met XP: verslagen tegenstanders laten blauwwitte bolletjes vallen. Een niveau omhoog = POINTS.perLevel punten.
 const POINTS = { start: 0, perLevel: 2 };
 // XP-drempels (totaal) voor niveau II, III, IV, ... Gevecht I, II, III leveren 5, 10, 15 XP op.
-const LEVELS = [4, 12, 24, 40, 60, 85, 115];
+const LEVELS = [4, 12, 24, 40, 60, 85, 115, 150, 190, 235, 285, 340, 400];
 // life = na zoveel seconden verdwijnt een bolletje; de laatste 'fade' seconden knippert en vervaagt het.
-const XP = { life: 6, fade: 2, perFoe: { slave: 5, gladiator: 10 }, speed: [70, 150], friction: 3.5, settle: .3, pickup: 6, magnet: 26, pull: 160, collect: 5 };
+const XP = { life: 6, fade: 2, perFoe: { slave: 5, archer: 5, gladiator: 10, gladiatorStick: 12, gladiatorSword: 15, champion: 25 }, speed: [70, 150], friction: 3.5, settle: .3, pickup: 6, magnet: 26, pull: 160, collect: 5 };
 const levelOf = xp => 1 + LEVELS.filter(t => xp >= t).length;
 const hitChance = att => Math.min(STAT_RULES.hitMax, STAT_RULES.hitBase + STAT_RULES.hit * att);
 const blockChance = def => Math.min(STAT_RULES.blockMax, STAT_RULES.blockBase + STAT_RULES.block * def);
@@ -45,25 +45,55 @@ const FOES = {
            tunic: '#9c8a6c', hair: 'hair-2', skin: 'skin-2' },
   // Gladiator in leren harnas: armor 1 = elke klap doet 1 minder. Sneller en harder dan een slaaf, zet korter aan.
   gladiator: { name: 'gladiator', plural: 'gladiatoren', hp: 16, dmg: 3, armor: 1, attack: 0, defense: 0, speed: 74, radius: 11, reach: 12, windup: .32, recover: .4, cooldown: 1.4, lunge: 10,
-           tunic: '#7a5230', belt: '#3b2a1e', hair: 'bronze', skin: 'skin-3' }
+           tunic: '#7a5230', belt: '#3b2a1e', hair: 'bronze', skin: 'skin-3' },
+  // Gladiator met stok: langer bereik en zijn klap duwt je ver weg (knock).
+  gladiatorStick: { name: 'gladiator met stok', plural: 'gladiatoren met stok', hp: 22, dmg: 3, armor: 1, attack: 0, defense: 0, speed: 72, radius: 11, reach: 16, windup: .4, recover: .45, cooldown: 1.7, lunge: 10, knock: 140, weapon: 'stick',
+           tunic: '#7a5230', belt: '#3b2a1e', hair: 'bronze', skin: 'skin-3' },
+  // Gladiator met gladius: kort zwaard, raakt hard (4) en zet snel aan. Pas in toernooi II.
+  gladiatorSword: { name: 'gladiator met gladius', plural: 'gladiatoren met gladius', hp: 20, dmg: 4, armor: 1, attack: 0, defense: 0, speed: 74, radius: 11, reach: 15, windup: .34, recover: .4, cooldown: 1.5, lunge: 11, knock: 60, weapon: 'sword',
+           tunic: '#7a5230', belt: '#d49a48', hair: 'bronze', skin: 'skin-3' },
+  // Boogschutter: houdt afstand en schiet. Hij richt eerst (een rode lijn naar je toe, windup seconden), dan vliegt de pijl
+  // naar waar je op dat moment stond: blijf bewegen. Kom je te dichtbij (flee), dan loopt hij weg.
+  archer: { name: 'boogschutter', plural: 'boogschutters', hp: 10, dmg: 2, armor: 0, attack: 0, defense: 0, speed: 60, radius: 10, reach: 0, windup: .7, recover: .35, cooldown: 2.6, lunge: 0,
+           ranged: { min: 90, max: 180, flee: 60, arrow: 240, life: 1.4 },
+           tunic: '#5f6d45', belt: '#3b2a1e', hair: 'hair-1', skin: 'skin' },
+  // Kampioen: de eindbaas van een toernooi. Groter, harder, zware armor; veel sterker dan alles daarvoor.
+  champion: { name: 'kampioen', plural: 'kampioenen', hp: 28, dmg: 3, armor: 2, attack: 0, defense: 0, speed: 74, radius: 13, reach: 14, windup: .34, recover: .35, cooldown: 1.5, lunge: 12,
+           tunic: '#5c5a62', belt: '#d49a48', hair: 'bronze', skin: 'skin-2' }   // grijs = ijzeren harnas
 };
-// De gevechten. Later volgen gladiatoren, 10 slaven en het gemengde gevecht.
+// De reeks: steeds 5 gevechten en dan een toernooi (5-1-5-1). Pas als je het toernooi wint, komen de volgende 5 gevechten vrij.
+// Het toernooi mag je ook eerder kiezen (en dan merken hoe snel je het verliest). Win je het eerder, dan sla je de rest van die 5 over.
 // Testen met meer tegenstanders: zet ?n=3 achter de url.
-// reward = denarii als je wint. Verlies je een gewoon gevecht of tussenbaas, dan betaal je MONEY.lossShare van die beloning (nooit onder 0).
-// kind: 'normal', 'boss' (tussenbaas: zwaarder, meer geld) of 'tournament' (rondes achter elkaar, tot de dood: zie TOURNAMENT).
-const FIGHTS = [
-  { kind: 'normal', foes: [['slave', 1]], reward: 5 },
-  { kind: 'normal', foes: [['slave', 2]], reward: 8 },
-  { kind: 'normal', foes: [['slave', 3]], reward: 12 },
-  { kind: 'boss', foes: [['gladiator', 1]], reward: 25 },
-  { kind: 'tournament', rounds: [[['slave', 2]], [['slave', 3]], [['gladiator', 1]]], reward: 60 }
+// reward = denarii als je wint. Verlies je een gevecht, dan betaal je MONEY.lossShare van die beloning (nooit onder 0).
+// kind: 'normal', 'boss' (tussenbaas: zwaarder, meer geld) of 'tournament' (rondes achter elkaar, tot de dood; de laatste ronde is de eindbaas).
+const STAGES = [
+  { fights: [
+      { kind: 'normal', foes: [['slave', 1]], reward: 5 },
+      { kind: 'normal', foes: [['slave', 2]], reward: 8 },
+      { kind: 'normal', foes: [['slave', 2], ['archer', 1]], reward: 12 },
+      { kind: 'normal', foes: [['gladiator', 1], ['archer', 1], ['slave', 1]], reward: 18 },
+      { kind: 'boss', foes: [['gladiatorStick', 1]], reward: 25 } ],
+    tourney: { kind: 'tournament', rounds: [[['slave', 2]], [['slave', 1], ['archer', 2]], [['champion', 1]]], reward: 60 } },
+  { fights: [
+      { kind: 'normal', foes: [['gladiator', 2]], reward: 20 },
+      { kind: 'normal', foes: [['archer', 3]], reward: 22 },
+      { kind: 'normal', foes: [['slave', 10]], reward: 25 },
+      { kind: 'normal', foes: [['gladiatorStick', 1], ['archer', 2]], reward: 30 },
+      { kind: 'boss', foes: [['gladiatorStick', 2]], reward: 40 } ],
+    tourney: { kind: 'tournament', rounds: [[['gladiator', 1], ['archer', 2]], [['gladiatorSword', 1], ['slave', 2]], [['champion', 2]]], reward: 120 } }
 ];
 const KINDS = { normal: 'Gevecht', boss: 'Tussenbaas', tournament: 'Toernooi' };
-// Toernooi: tussen de rondes krijg je heal × je maximale leven terug. Ga je neer, dan beslist Caesar.
+// Tussen de rondes krijg je heal × je maximale leven terug. Ga je neer, dan beslist Caesar.
 // Kans op duim omhoog = mercyBase + mercyFavor × (schade die je uitdeelde / alle leven van alle tegenstanders), hoogstens mercyMax.
-// Duim omhoog: je leeft, maar het toernooi en de beloning zijn weg (geen boete). Duim omlaag: dood, alles opnieuw vanaf gevecht I.
+// Duim omhoog: je leeft, maar het toernooi en de beloning zijn weg (geen boete); je mag het opnieuw proberen. Duim omlaag: dood, alles opnieuw vanaf gevecht I.
 const TOURNAMENT = { heal: .25, mercyBase: .15, mercyFavor: .8, mercyMax: .95 };
-const fightDef = () => FIGHTS[Math.min(S.fight, FIGHTS.length - 1)];
+// Waar je bent: S.stage (welk blok), S.inStage (zoveel gevechten van dat blok gewonnen), S.finished (alle toernooien gewonnen).
+const stageOf = () => STAGES[Math.min(S.stage, STAGES.length - 1)];
+const fightIdx = () => S.finished ? stageOf().fights.length - 1 : Math.min(S.inStage, stageOf().fights.length - 1);
+const fightNumber = () => STAGES.slice(0, Math.min(S.stage, STAGES.length - 1)).reduce((n, st) => n + st.fights.length, 0) + fightIdx() + 1;
+const fightOpen = () => S.finished || S.inStage < stageOf().fights.length;   // na 5 gevechten: eerst het toernooi
+const fightDef = () => S.mode === 'tournament' ? stageOf().tourney : stageOf().fights[fightIdx()];
+const fightTitle = () => S.mode === 'tournament' ? `Toernooi ${toRoman(Math.min(S.stage, STAGES.length - 1) + 1)}` : `Gevecht ${toRoman(fightNumber())}`;
 const roundsOf = def => def.rounds || [def.foes];
 const listSummary = list => list.map(([t, n]) => `${n} ${n > 1 ? FOES[t].plural : FOES[t].name}`).join(' en ');
 // Na elk gevecht ga je de stad in; terug naar de arena door op de arena te klikken.
@@ -82,7 +112,7 @@ const INTRO = { step: .8, count: 3, shout: .7 };
 const FIGHT_AREA = 30000;
 
 /* ---------- Toestand ---------- */
-const S = { fight: 0, round: 0, dealt: 0, poolHp: 0, money: 0, delta: 0, owned: ['fists'], townSeen: false, xp: 0, xpStart: 0, pointsStart: 0, orbs: [], collect: 0, gained: 0, levelUps: 0, stats: { strength: 0, agility: 0, vitality: 0 }, points: 0, foes: [], floats: [], dust: [], paused: true, over: null, overT: 0, freeze: 0, shake: 0, intro: 0, shout: 0 };
+const S = { arrows: [], mode: 'fight', stage: 0, inStage: 0, finished: false, round: 0, dealt: 0, poolHp: 0, money: 0, delta: 0, owned: ['fists'], townSeen: false, xp: 0, xpStart: 0, pointsStart: 0, orbs: [], collect: 0, gained: 0, levelUps: 0, stats: { strength: 0, agility: 0, vitality: 0 }, points: 0, foes: [], floats: [], dust: [], paused: true, over: null, overT: 0, freeze: 0, shake: 0, intro: 0, shout: 0 };
 const W = { rx: 280, ry: 220, area: 66000 };
 const view = { cw: 1, ch: 1, dpr: 1, scale: 1 };
 const P = { x: 0, y: 0, vx: 0, vy: 0, face: -Math.PI / 2, hp: PLAYER.hp, cd: 0, swing: 0, swingDir: 1, hurt: 0, flash: 0, target: null, dead: false };
@@ -137,7 +167,7 @@ function startFight() {
   W.area = FIGHT_AREA; fitWorld(true);
   Object.assign(P, { x: 0, y: W.ry * .45, vx: 0, vy: 0, face: -Math.PI / 2, hp: me.maxHp, cd: 0, swing: 0, hurt: 0, flash: 0, target: null, dead: false });
   steer.active = false;
-  S.foes = []; S.floats = []; S.dust = []; S.over = null; S.overT = 0; S.freeze = 0; S.shake = 0;
+  S.foes = []; S.floats = []; S.dust = []; S.arrows = []; S.over = null; S.overT = 0; S.freeze = 0; S.shake = 0;
   S.intro = INTRO.step * INTRO.count; S.shout = 0;
   S.orbs = []; S.collect = 0; S.gained = 0; S.levelUps = 0; S.xpStart = S.xp; S.pointsStart = S.points;
   S.round = 0; S.dealt = 0;
@@ -161,7 +191,7 @@ function nextRound() {
   S.round++;
   const heal = Math.min(me.maxHp - P.hp, Math.ceil(me.maxHp * TOURNAMENT.heal));
   P.hp += heal; P.hurt = 0;
-  S.orbs = []; S.collect = 0; S.floats = [];
+  S.orbs = []; S.collect = 0; S.floats = []; S.arrows = [];
   S.intro = INTRO.step * INTRO.count; S.shout = 0;
   SFX.mood('calm'); arenaCheer(); SFX.cheer(.8);
   spawnRound();
@@ -202,7 +232,8 @@ function hitPlayer(f) {
   const real = Math.max(0, f.d.dmg);
   P.hp = Math.max(0, P.hp - real); P.hurt = PLAYER.invuln; P.flash = FEEL.flash;
   const dx = P.x - f.x, dy = P.y - f.y, l = Math.hypot(dx, dy) || 1;
-  P.vx += dx / l * 170; P.vy += dy / l * 170;
+  const push = 170 + (f.d.knock || 0);
+  P.vx += dx / l * push; P.vy += dy / l * push;
   S.freeze = FEEL.hitstop * 1.4; S.shake = Math.max(S.shake, FEEL.playerShake);
   float(P.x, P.y - 20, real ? '−' + fmt(real) : '0', C.blood);
   SFX.hurt();
@@ -311,6 +342,31 @@ function update(dt) {
     const ex = P.x - f.x, ey = P.y - f.y, d = Math.hypot(ex, ey) || 1, gap = d - f.d.radius - PLAYER.radius;
     f.cd = Math.max(0, f.cd - dt);
     let mx = 0, my = 0;
+    const R = f.d.ranged;
+    if (R) {
+      // Boogschutter: afstand houden, richten, schieten.
+      f.face = lerpAngle(f.face, Math.atan2(ey, ex), 1 - Math.exp(-dt * (f.state === 'windup' ? 3 : 8)));
+      if (f.state === 'walk') {
+        let dir = 0;
+        if (d < R.flee + f.d.radius) dir = -1;          // te dichtbij: weglopen
+        else if (d > R.max) dir = 1;                     // te ver: dichterbij
+        const side = Math.sin(performance.now() / 900 + f.wob) > 0 ? 1 : -1;   // anders langzaam opzij stappen
+        if (dir) { mx = ex / d * f.d.speed * dir; my = ey / d * f.d.speed * dir; }
+        else { mx = -ey / d * f.d.speed * .35 * side; my = ex / d * f.d.speed * .35 * side; }
+        if (!P.dead && f.cd === 0 && d >= R.flee && d <= R.max + 30) { f.state = 'windup'; f.t = f.d.windup; }
+      } else if (f.state === 'windup') {
+        f.t -= dt;
+        if (d < R.flee * .6) { f.state = 'walk'; f.cd = .4; }   // je staat er bovenop: hij breekt af
+        else if (f.t <= 0) {
+          const a = Math.atan2(ey, ex);
+          S.arrows.push({ x: f.x + Math.cos(a) * (f.d.radius + 4), y: f.y + Math.sin(a) * (f.d.radius + 4), vx: Math.cos(a) * R.arrow, vy: Math.sin(a) * R.arrow, t: 0, life: R.life, dmg: f.d.dmg, stuck: 0 });
+          f.state = 'recover'; f.t = f.d.recover; f.cd = f.d.cooldown;
+        }
+      } else if (f.state === 'recover') { f.t -= dt; if (f.t <= 0) f.state = 'walk'; }
+      f.x += (mx + f.vx) * dt; f.y += (my + f.vy) * dt;
+      contain(f, W.rx - f.d.radius - 4, W.ry - f.d.radius - 4);
+      continue;
+    }
     if (f.state === 'walk') {
       f.face = lerpAngle(f.face, Math.atan2(ey, ex), 1 - Math.exp(-dt * 8));
       if (gap > f.d.reach * .6) { const wob = Math.sin(performance.now() / 300 + f.wob) * .25; mx = Math.cos(f.face + wob) * f.d.speed; my = Math.sin(f.face + wob) * f.d.speed; }
@@ -337,6 +393,16 @@ function update(dt) {
     const ddx = b.x - a.x, ddy = b.y - a.y, dd = Math.hypot(ddx, ddy) || .01, o = ra + rb - dd;
     if (o > 0) { const ux = ddx / dd * o / 2, uy = ddy / dd * o / 2; a.x -= ux; a.y -= uy; b.x += ux; b.y += uy; }
   }
+  // Pijlen: vliegen rechtdoor; raken ze je niet, dan blijven ze even in het zand steken.
+  for (const a of S.arrows) {
+    if (a.stuck) { a.stuck -= dt; if (a.stuck <= 0) a.stuck = -1; continue; }
+    a.t += dt; a.x += a.vx * dt; a.y += a.vy * dt;
+    if (!P.dead && P.hurt <= 0 && Math.hypot(a.x - P.x, a.y - P.y) < PLAYER.radius + 2) {
+      hitPlayer({ x: a.x - a.vx * .05, y: a.y - a.vy * .05, d: { dmg: a.dmg } }); a.stuck = -1; continue;
+    }
+    if (a.t > a.life || (a.x / W.rx) ** 2 + (a.y / W.ry) ** 2 > 1) a.stuck = 1.5;
+  }
+  S.arrows = S.arrows.filter(a => a.stuck >= 0);
   for (const o of S.orbs) {
     if (o.state === 'taken') continue;
     o.t += dt; const fr = Math.exp(-dt * XP.friction); o.vx *= fr; o.vy *= fr;
@@ -374,6 +440,7 @@ function draw(now) {
   const ents = [...S.foes].sort((a, b) => (a.state === 'dead' ? -1 : 0) - (b.state === 'dead' ? -1 : 0));
   drawOrbs(now);
   for (const f of ents) drawFoe(f, now);
+  drawArrows();
   drawPlayer(now);
   for (const o of [P, ...S.foes]) if (o.block > 0) {   // blok: bronzen boog aan de kant van de aanvaller
     ctx.strokeStyle = `rgba(226,179,94,${o.block / .3})`; ctx.lineWidth = 4; ctx.lineCap = 'round';
@@ -489,10 +556,25 @@ function drawPlayer(now) {
   });
   ctx.globalAlpha = 1;
 }
+function drawArrows() {
+  ctx.lineCap = 'round';
+  for (const a of S.arrows) {
+    const ang = Math.atan2(a.vy, a.vx), c = Math.cos(ang), s = Math.sin(ang);
+    ctx.globalAlpha = a.stuck ? Math.min(1, a.stuck) * .7 : 1;
+    const len = a.stuck ? 8 : 13;   // in het zand: half erin
+    ctx.strokeStyle = '#6b4526'; ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.moveTo(a.x - c * len, a.y - s * len); ctx.lineTo(a.x, a.y); ctx.stroke();
+    ctx.strokeStyle = '#ece3cf'; ctx.lineWidth = 2.4;   // veren
+    ctx.beginPath(); ctx.moveTo(a.x - c * len, a.y - s * len); ctx.lineTo(a.x - c * (len - 3), a.y - s * (len - 3)); ctx.stroke();
+    if (!a.stuck) { ctx.fillStyle = C.iron; ctx.beginPath(); ctx.moveTo(a.x + c * 3, a.y + s * 3); ctx.lineTo(a.x - s * 2, a.y + c * 2); ctx.lineTo(a.x + s * 2, a.y - c * 2); ctx.fill(); }
+  }
+  ctx.globalAlpha = 1; ctx.lineCap = 'butt';
+}
 function drawFoe(f, now) {
   const d = f.d;
   if (f.state === 'dead') { drawFallen(f, d.radius, d.tunic, C[d.skin], f.dead); return; }
   const wind = f.state === 'windup' ? 1 - f.t / d.windup : 0;
+  if (d.ranged) { drawArcher(f, wind); return; }
   // Aanzet: rode gloed en arm naar achteren; uitval: arm en lijf naar voren.
   if (wind > 0) {
     ctx.fillStyle = `rgba(212,70,59,${.15 + .3 * wind})`;
@@ -502,11 +584,48 @@ function drawFoe(f, now) {
   drawBody(f, d.radius, tunic, C[d.skin], C[d.hair], {
     flash: f.flash, belt: d.belt, armR: -5 * wind + 9 * f.lunge, forward: 5 * f.lunge, lean: -.25 * wind
   });
-  if (f.lunge > .3) {   // vuistslag
+  if (d.weapon) {   // stok of gladius: naar achteren bij het aanzetten, zwaai naar voren bij de uitval
+    const ang = wind > 0 ? .55 + .7 * wind : f.lunge > 0 ? 1.25 - 2.3 * (1 - f.lunge) : .55, len = d.radius + d.reach;
+    ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.face);
+    const hx = d.radius * .35, hy = d.radius * .78, ex = Math.cos(ang) * len, ey = Math.sin(ang) * len;
+    ctx.lineCap = 'round';
+    if (d.weapon === 'sword') {
+      const dx = ex - hx, dy = ey - hy, l = Math.hypot(dx, dy) || 1, ux = dx / l, uy = dy / l, gx = hx + ux * 5, gy = hy + uy * 5;
+      ctx.strokeStyle = '#3b2a1e'; ctx.lineWidth = 4.2; ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(ex, ey); ctx.stroke();
+      ctx.strokeStyle = '#e4e0d4'; ctx.lineWidth = 2.6; ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(ex, ey); ctx.stroke();
+      ctx.strokeStyle = C.bronze; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(hx - ux * 2, hy - uy * 2); ctx.lineTo(gx, gy); ctx.stroke();
+      ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(gx - uy * 4, gy + ux * 4); ctx.lineTo(gx + uy * 4, gy - ux * 4); ctx.stroke();
+    } else {
+      ctx.strokeStyle = '#6b4526'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(ex, ey); ctx.stroke();
+    }
+    if (f.lunge > .3) { ctx.strokeStyle = `rgba(212,70,59,${f.lunge * .7})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, 0, len * .9, -1, 1.2); ctx.stroke(); }
+    ctx.lineCap = 'butt'; ctx.restore();
+  } else if (f.lunge > .3) {   // vuistslag
     ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.face);
     ctx.strokeStyle = `rgba(212,70,59,${f.lunge * .7})`; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.arc(0, 0, d.radius + d.reach + 4, -.5, .5); ctx.stroke(); ctx.restore();
   }
+}
+// Boogschutter: boog voor het lijf; bij het richten een rode stippellijn naar je toe die steeds feller wordt.
+function drawArcher(f, wind) {
+  const d = f.d, r = d.radius;
+  if (wind > 0) {
+    const reach = d.ranged.arrow * d.ranged.life * .5;
+    ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.face);
+    ctx.strokeStyle = `rgba(212,70,59,${.15 + .55 * wind})`; ctx.lineWidth = 1.5 + wind; ctx.setLineDash([6, 6]);
+    ctx.beginPath(); ctx.moveTo(r + 6, 0); ctx.lineTo(reach, 0); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+  }
+  drawBody(f, r, wind > 0 ? mix(d.tunic, C.blood, .4 * wind) : d.tunic, C[d.skin], C[d.hair], { flash: f.flash, belt: d.belt, armR: 4, armL: 4 });
+  ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.face);
+  const bx = r + 3, pull = 6 * wind;
+  ctx.strokeStyle = '#5a3a26'; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(bx - 6, 0, 9, -1.1, 1.1); ctx.stroke();   // boog
+  const tx = bx - 6 + Math.cos(1.1) * 9, ty = Math.sin(1.1) * 9;
+  ctx.strokeStyle = 'rgba(245,234,214,.8)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(tx, -ty); ctx.lineTo(tx - pull, 0); ctx.lineTo(tx, ty); ctx.stroke();   // pees
+  if (wind > 0) { ctx.strokeStyle = '#6b4526'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(tx - pull, 0); ctx.lineTo(bx + 6, 0); ctx.stroke(); }
+  ctx.lineCap = 'butt'; ctx.restore();
 }
 function drawFallen(o, r, tunic, skin, a) {
   ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, a * 1.4)); ctx.translate(o.x, o.y); ctx.rotate(o.face + Math.PI / 2);
@@ -528,15 +647,8 @@ function loop(now) {
 function foeSummary() {
   return listSummary(testCount ? [['slave', testCount]] : roundsOf(fightDef())[S.round] || []);
 }
-// Korte omschrijving van een gevecht, voor het bord bij de arena in de stad.
-function describeFight(i) {
-  const def = FIGHTS[i], n = toRoman(i + 1);
-  if (def.kind === 'tournament') return `Gevecht ${n} · toernooi tot de dood, ${toRoman(def.rounds.length)} rondes`;
-  if (def.kind === 'boss') return `Gevecht ${n} · tussenbaas: ${listSummary(def.foes)}`;
-  return `Gevecht ${n} · tegen ${listSummary(def.foes)}`;
-}
 function updateUI() {
-  $('fightNo').textContent = toRoman(S.fight + 1);
+  $('fightTitle').textContent = fightTitle();
   const def = fightDef(), rounds = roundsOf(def).length;
   $('foeText').textContent = def.kind === 'tournament'
     ? `Toernooi · ronde ${toRoman(S.round + 1)} van ${toRoman(rounds)} · tegen ${foeSummary()}`
@@ -556,14 +668,13 @@ function openResult() {
   S.paused = true; keys.clear(); steer.down = false;
   const won = S.over === 'won', def = fightDef();
   if (!won && def.kind === 'tournament') { openMercy(); return; }
-  $('resultEyebrow').textContent = `Gevecht ${toRoman(S.fight + 1)}`;
+  $('resultEyebrow').textContent = fightTitle();
   $('resultTitle').textContent = won ? 'Overwinning!' : 'Je ligt in het zand.';
-  const total = S.orbs.length, last = S.fight + 1 >= FIGHTS.length;
+  const total = S.orbs.length;
   $('resultText').textContent = won
     ? `Je had nog ${P.hp} van de ${me.maxHp} leven over en raapte ${S.gained} van de ${total} XP op. `
       + (S.levelUps ? `Niveau ${toRoman(levelOf(S.xp))}: je hebt ${S.points} ${S.points === 1 ? 'punt' : 'punten'} te verdelen.` : `Nog ${LEVELS[levelOf(S.xp) - 1] - S.xp} XP tot het volgende niveau.`)
       + (def.kind === 'tournament' ? ` Je overleefde alle ${toRoman(def.rounds.length)} rondes van het toernooi.` : '')
-      + (last ? ' Je hebt alle gevechten van deze proef gewonnen!' : '')
     : 'Het publiek joelt. Je mag het nog eens proberen. De XP uit dit gevecht is weg; je stats blijven zoals ze waren.';
   $('resultMoney').textContent = won ? `+${denarii(S.delta)}` : S.delta ? `Boete: ${denarii(-S.delta)}` : 'Geen denarii om te verliezen';
   $('resultMoney').classList.toggle('loss', !won);
@@ -604,20 +715,25 @@ $('judgeBtn').onclick = () => {
   $('judge').hidden = true; judgeEnd();
   if ($('judgeBtn').dataset.ok) openTown(); else newRun();
 };
-// Klik op de arena: heb je nog punten, dan eerst het perkament; anders meteen het gevecht.
-function proceed() {
+// Na een gewonnen gevecht schuift de reeks op (bij het openen van de stad). Verloren: alles blijft staan.
+function settle() {
+  if (S.over !== 'won') return;
+  if (S.mode === 'tournament') {
+    if (S.stage + 1 >= STAGES.length) S.finished = true;    // laatste toernooi: daarna blijft het laatste gevecht als herhaling
+    else { S.stage++; S.inStage = 0; }                       // de volgende 5 gevechten komen vrij
+  } else if (!S.finished) S.inStage = Math.min(S.inStage + 1, stageOf().fights.length);
+  S.over = 'done';
+}
+// In de arena gekozen: 'fight' of 'tournament'. Heb je nog punten, dan eerst het perkament.
+function chooseArena(mode) {
+  S.mode = mode;
   if (S.points) { openStats('arena'); return; }
   enterArena();
 }
-function enterArena() {
-  if (S.over === 'won') {
-    if (S.fight + 1 >= FIGHTS.length) { newRun(); return; }   // alles gewonnen: opnieuw beginnen
-    S.fight++;
-  }                                                           // verloren: zelfde gevecht, stats blijven
-  startFight(); S.paused = false;
-}
+function enterArena() { startFight(); S.paused = false; }
 function newRun() {
-  S.fight = 0; S.xp = 0; S.points = POINTS.start; for (const k in S.stats) S.stats[k] = 0;
+  S.mode = 'fight'; S.stage = 0; S.inStage = 0; S.finished = false;
+  S.xp = 0; S.points = POINTS.start; for (const k in S.stats) S.stats[k] = 0;
   S.money = 0; S.delta = 0; S.owned = ['fists']; S.townSeen = false; PLAYER.weapon = 'fists'; S.over = null;
   startFight(); S.paused = false;
 }
@@ -670,7 +786,7 @@ function toWorld(ev) {
 cvs.addEventListener('pointerdown', ev => { if (S.paused) return; cvs.setPointerCapture(ev.pointerId); steer.down = steer.active = true; toWorld(ev); });
 cvs.addEventListener('pointermove', ev => { if (steer.down) toWorld(ev); });
 ['pointerup', 'pointercancel'].forEach(t => cvs.addEventListener(t, () => steer.down = false));
-const anyOverlay = () => ['start', 'result', 'stats', 'town', 'shop', 'judge'].some(id => !$(id).hidden);
+const anyOverlay = () => ['start', 'result', 'stats', 'town', 'shop', 'pick', 'judge'].some(id => !$(id).hidden);
 addEventListener('keydown', ev => {
   if (anyOverlay()) return;
   const k = ev.key.length === 1 ? ev.key.toLowerCase() : ev.key;

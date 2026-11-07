@@ -211,3 +211,31 @@ button:disabled{opacity:.4;cursor:default}
 .scroll-link{align-self:center;border:0;background:none;color:#5a3a20;font-family:"IM Fell English",Georgia,serif;font-size:16px;font-style:italic;text-decoration:underline;text-underline-offset:3px;padding:4px 8px}
 .scroll-link:hover{color:#3b2414}
 #stats{z-index:25}   /* ook boven de stad */
+
+/* Keuze in de arena: gevecht of toernooi (town.js) */
+#pick{z-index:26}
+.choices{display:flex;flex-direction:column;gap:10px}
+.choice{display:flex;flex-direction:column;align-items:flex-start;gap:3px;width:100%;padding:14px 16px;text-align:left;border-radius:14px;border:1px solid var(--line);background:var(--stone-2);color:var(--ink);cursor:pointer;transition:border-color .15s,background .15s}
+.choice b{font-family:var(--f-display);font-size:18px;color:var(--bronze)}
+.choice span{color:var(--muted);font-size:14px;line-height:1.4}
+.choice:not(:disabled):hover,.choice:not(:disabled):focus-visible{border-color:var(--bronze);background:#3d2c37}
+.choice.boss b{color:var(--coin)}
+.choice.deadly{border-color:rgba(212,70,59,.55);background:linear-gradient(180deg,#3a1a1e,#2a1418)}
+.choice.deadly b{color:#e8695e}
+.choice.deadly:not(:disabled):hover,.choice.deadly:not(:disabled):focus-visible{border-color:var(--blood);background:#4a1c20}
+.choice.locked{opacity:1;cursor:not-allowed;filter:grayscale(.75) brightness(.8)}
+.choice em{margin-top:4px;font-style:normal;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.pips{display:inline-flex;gap:4px;margin-left:6px;vertical-align:middle}
+.pips i{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--muted)}
+.pips i.on{background:var(--bronze);border-color:var(--bronze)}
+.choice strong{color:#e8695e;font-weight:600}
+
+/* Testmenu (dev.js) */
+#dev{z-index:40}
+.panel.dev{width:min(520px,100%)}
+.panel.dev label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.panel.dev select,.panel.dev input{height:40px;padding:0 10px;border-radius:10px;border:1px solid var(--line);background:var(--stone-2);color:var(--ink);font:inherit;font-size:15px}
+.dev-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.dev-row{display:flex;gap:8px;flex-wrap:wrap}
+.dev-row .btn{flex:1 1 120px;color:var(--ink)}
+.panel.dev .btn.wide{color:var(--muted)}

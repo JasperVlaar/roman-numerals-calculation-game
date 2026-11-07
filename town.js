@@ -189,24 +189,78 @@ const TOWN = (() => {
     const g = el('g', { class: 'hot arena-hot', tabindex: 0, role: 'button', 'data-id': 'arena' }, svg);
     el('rect', { class: 'hl', x: 312, y: 88, width: 336, height: 220, rx: 10 }, g);
     arena(g);
-    const next = nextFight(), deadly = next.kind === 'tournament';
+    const due = !fightOpen();   // 5 gevechten gehad: nu moet het toernooi
     const w = 330, h = 50, x = 480 - w / 2, y = 92;
-    el('rect', { x, y, width: w, height: h, rx: 6, fill: deadly ? '#4a1512' : '#3a2a1e', stroke: deadly ? '#d4463b' : '#d49a48', 'stroke-width': 2.2, class: 'sign' }, g);
+    el('rect', { x, y, width: w, height: h, rx: 6, fill: due ? '#4a1512' : '#3a2a1e', stroke: due ? '#d4463b' : '#d49a48', 'stroke-width': 2.2, class: 'sign' }, g);
     const t1 = el('text', { x: 480, y: y + 22, 'text-anchor': 'middle', 'font-family': 'Cinzel, Georgia, serif', 'font-weight': 700, 'font-size': 18, 'letter-spacing': 3, fill: '#e2b35e' }, g);
     t1.textContent = 'ARENA';
     const t2 = el('text', { x: 480, y: y + 41, 'text-anchor': 'middle', 'font-family': 'Alegreya Sans, sans-serif', 'font-size': 13, fill: '#f5ead6' }, g);
-    t2.textContent = next.label;
-    $('townHint').textContent = deadly
-      ? 'Let op: een toernooi gaat tot de dood. Ga je neer, dan beslist Caesar met zijn duim of je blijft leven.'
-      : 'Kies een winkel, of klik op de arena voor je volgende gevecht.';
-    g.setAttribute('aria-label', `Naar de arena: ${next.label}`);
-    el('title', {}, g).textContent = `Naar de arena: ${next.label}`;
+    const sub = due ? `Toernooi ${toRoman(S.stage + 1)} wacht op je` : fightLabel();
+    t2.textContent = sub;
+    g.setAttribute('aria-label', `Naar de arena: ${sub}`);
+    el('title', {}, g).textContent = `Naar de arena: ${sub}`;
+    $('townHint').textContent = due
+      ? 'Je hebt je vijf gevechten gehad: nu het toernooi. Het gaat tot de dood; ga je neer, dan beslist Caesar met zijn duim.'
+      : 'Kies een winkel, of klik op de arena voor je volgende gevecht (of waag je al aan het toernooi).';
   }
-  // Wat er gebeurt als je de arena in loopt (zelfde regels als proceed() in fight.js).
-  function nextFight() {
-    if (S.over !== 'won') return { label: describeFight(S.fight) + ' (opnieuw)', kind: fightDef().kind };
-    if (S.fight + 1 < FIGHTS.length) return { label: describeFight(S.fight + 1), kind: FIGHTS[S.fight + 1].kind };
-    return { label: 'Opnieuw vanaf gevecht I', kind: 'normal' };
+  // Het eerstvolgende gewone gevecht (of de herkansing).
+  function fightLabel() {
+    const retry = S.over === 'lost' && S.mode === 'fight';
+    return `Gevecht ${toRoman(fightNumber())}${retry ? ' (opnieuw)' : S.finished ? ' (herhaling)' : ''}`;
+  }
+  // Voortgang in dit blok: één bolletje per gewonnen gevecht.
+  function pips() {
+    const n = stageOf().fights.length;
+    return `<span class="pips">${Array.from({ length: n }, (_, i) => `<i class="${S.finished || i < S.inStage ? 'on' : ''}"></i>`).join('')}</span>`;
+  }
+
+  /* ---------- De keuze in de arena ---------- */
+  function openPick() {
+    const box = $('choices'); box.innerHTML = '';
+    const st = stageOf(), n = st.fights.length;
+    // Gewoon gevecht
+    if (fightOpen()) {
+      const f = st.fights[fightIdx()], fine = Math.round(f.reward * MONEY.lossShare);
+      box.appendChild(card({
+        title: `${fightLabel()}${f.kind === 'boss' ? ' · tussenbaas' : ''}`,
+        lines: [`Tegen ${listSummary(f.foes)}`, `Winst ${f.reward} d · verlies ${fine} d boete ${pips()}`],
+        cls: f.kind === 'boss' ? 'boss' : '', go: () => go('fight')
+      }));
+    } else {
+      box.appendChild(card({
+        title: `Gevecht ${toRoman(fightNumber() + 1)}`,
+        lines: [`Je hebt alle ${n} gevechten van deze reeks gehad ${pips()}`, 'Win eerst het toernooi: daarna komen de volgende vijf.'],
+        locked: true
+      }));
+    }
+    // Toernooi
+    if (S.finished) {
+      box.appendChild(card({ title: 'Toernooi', lines: ['Je hebt alle toernooien van deze proef gewonnen.'], locked: true }));
+    } else {
+      const t = st.tourney, boss = t.rounds[t.rounds.length - 1];
+      const retry = S.over === 'lost' && S.mode === 'tournament', early = S.inStage < n;
+      box.appendChild(card({
+        title: `Toernooi ${toRoman(S.stage + 1)}${retry ? ' (opnieuw)' : ''}`,
+        lines: [`Tot de dood · ${toRoman(t.rounds.length)} rondes · eindbaas: ${listSummary(boss)}`,
+                `Winst ${t.reward} d · verlies: Caesar beslist`,
+                ...(early ? [`<strong>Vroeg:</strong> je hebt pas ${S.inStage} van de ${n} gevechten gehad. Je mag het proberen, maar het is zwaar.`] : [])],
+        cls: 'deadly', go: () => go('tournament')
+      }));
+    }
+    $('pick').hidden = false;
+    const first = box.querySelector('button:not(:disabled)'); if (first) first.focus();
+  }
+  function card({ title, lines, cls = '', locked = false, go }) {
+    const b = document.createElement('button');
+    b.className = `choice ${cls}${locked ? ' locked' : ''}`; b.disabled = locked;
+    b.innerHTML = `<b>${title}</b>${lines.map(l => `<span>${l}</span>`).join('')}${locked ? '<em>Nog niet beschikbaar</em>' : ''}`;
+    if (go) b.onclick = go;
+    return b;
+  }
+  $('pickBack').onclick = () => { $('pick').hidden = true; };
+  function go(mode) {
+    $('pick').hidden = true; $('town').hidden = true; $('shop').hidden = true;
+    SFX.mood('calm'); chooseArena(mode);
   }
 
   function render() {
@@ -218,7 +272,7 @@ const TOWN = (() => {
     for (const id of ['armorer', 'stable', 'smith', 'bowyer']) shop(svg, id);   // achterste eerst
     el('rect', { width: VB.w, height: VB.h, fill: 'url(#tVignette)', 'pointer-events': 'none' }, svg);
     svg.querySelectorAll('.hot:not(.closed)').forEach(g => {
-      const go = () => g.dataset.id === 'arena' ? leave() : openShop(g.dataset.id);
+      const go = () => g.dataset.id === 'arena' ? openPick() : openShop(g.dataset.id);
       g.addEventListener('click', go);
       g.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); go(); } });
     });
@@ -268,14 +322,9 @@ const TOWN = (() => {
 
   /* ---------- In en uit ---------- */
   function open() {
-    SFX.mood('town');
+    SFX.mood('town'); settle();
     render(); $('town').hidden = false; S.townSeen = true;
   }
-  function leave() {
-    if ($('town').hidden) return;
-    $('town').hidden = true; $('shop').hidden = true;
-    SFX.mood('calm'); proceed();
-  }
-  return { open, leave, render, purse };
+  return { open, render, purse };
 })();
 function openTown() { TOWN.open(); }
