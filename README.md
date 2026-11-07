@@ -78,6 +78,16 @@ Balans (gesimuleerd, 20 gevechten per regel, bot die elke 0,2 s reageert):
 
 Stilstaan zonder punten verliest altijd.
 
+**Geld en de stad:** elk gewonnen gevecht levert een vast bedrag op (I: 5, II: 8, III: 12 denarii). Verlies je, dan betaal je de helft van die beloning als boete, nooit meer dan je hebt. Na elk gevecht (gewonnen of verloren) ga je de stad in. Daar verdeel je ook je punten (knop rechtsboven). Na gevecht I heb je nog te weinig geld voor een wapen, maar je ziet wel wat er te koop is. Je kijkt de straat in met de arena in de verte. Links de wapensmid (*Faber*, open) en de harnasmaker (*Loricarius*), rechts de boogmaker (*Arcuarius*) en de stallen (*Stabulum*); die drie zijn nog dicht. Klik op een winkel om naar binnen te gaan, en klik op de arena voor je volgende gevecht (of je herkansing). Heb je dan nog punten over, dan krijg je eerst het perkament, met de keuze om terug de straat in te gaan. De straat is een tijdelijke schets in SVG (`town.js`) tot er een getekende achtergrond is.
+
+| Wapen | Prijs | Schade | Bereik | Terugslag |
+|---|---|---|---|---|
+| Vuisten | – | 2 | 10 | nee |
+| Stok | 12 d | 3 | 13 | ja |
+| Gladius | 40 d | 5 | 15 | ja |
+
+Met de stok wordt gevecht III winbaar: gesimuleerd met 4 punten 20–27% winst, tegen 3–7% met je vuisten (gladius: ±37%).
+
 | Wat | Waar in `fight.js` |
 |---|---|
 | Jouw leven, snelheid, onkwetsbaarheid na een treffer | `PLAYER` |
@@ -85,7 +95,10 @@ Stilstaan zonder punten verliest altijd.
 | Tegenstanders (leven, schade, armor, snelheid, aanzet, herstel) | `FOES` |
 | Stats: wat een punt doet, punten per niveau | `STATS`, `STAT_RULES`, `POINTS` |
 | XP: drempels per niveau, bolletjes per tegenstander, oprapen, de 5 seconden aan het eind | `LEVELS`, `XP` |
-| De reeks gevechten | `FIGHTS` |
+| De reeks gevechten en de beloning per gevecht | `FIGHTS` (`reward`) |
+| Boete bij verlies | `MONEY` |
+| De winkels in de straat (naam, open of dicht, wat ze verkopen) | `SHOPS` |
+| Tekening van de straat, plek van de winkels | `town.js` (`SPOTS`, `VP`) |
 | Geluid: welke bestanden (`SOUNDS`) en hoe hard (`MIX`) | bovenaan `sound.js` |
 | Raakgevoel (even stilstaan bij een treffer, schudden, flits) | `FEEL` |
 | Aftellen aan het begin (III, II, I, *Pugnate!*) | `INTRO` |
@@ -99,7 +112,7 @@ Testen met meer tegenstanders: open `index.html?n=3` (of een ander aantal slaven
 |---|---|
 | 1 | Het gevoel: lopen, automatisch slaan, aanzet en ontwijken, leven, winnen en verliezen |
 | 2 | De reeks: 1, 2, 3 slaven; 1 en 3 gladiatoren; 10 slaven; 5 slaven + 5 gladiatoren; Caesars duim na afloop |
-| 3 | De winkel: denarii uit verslagen vijanden, stok, zwaard, boog, leren armor, lorica |
+| 3 | De stad: beloning per gevecht en boete bij verlies, straat met vier winkels, wapensmid open (stok, gladius). Later: harnasmaker, boogmaker, stallen; tussenbazen en toernooien tot de dood met Caesars duim |
 | 4 | De strijdwagen: sneller, omverrijden, alleen met boog |
 | 5 | Later: magie, andere tegenstanders, graphics als assets |
 

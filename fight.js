@@ -32,11 +32,12 @@ const XP = { life: 6, fade: 2, perFoe: { slave: 5 }, speed: [70, 150], friction:
 const levelOf = xp => 1 + LEVELS.filter(t => xp >= t).length;
 const hitChance = att => Math.min(STAT_RULES.hitMax, STAT_RULES.hitBase + STAT_RULES.hit * att);
 const blockChance = def => Math.min(STAT_RULES.blockMax, STAT_RULES.blockBase + STAT_RULES.block * def);
-// reach = hoe ver voorbij je eigen lijf je raakt; cooldown = seconden tussen twee slagen; price = in de winkel (fase 3).
+// reach = hoe ver voorbij je eigen lijf je raakt; cooldown = seconden tussen twee slagen; price = in denarii bij de wapensmid.
 // Je begint met je vuisten, net als een slaaf: zelfde schade, zelfde bereik, ongeveer even vaak.
 const WEAPONS = {
   fists: { name: 'Vuisten', kind: 'fists', dmg: 2, reach: 10, cooldown: 2, swing: .22, knock: 0, price: 0 },   // vuisten duwen niet terug
-  stick: { name: 'Stok', kind: 'stick', dmg: 3, reach: 13, cooldown: 2, swing: .22, knock: 85, price: 15 }
+  stick: { name: 'Stok', kind: 'stick', dmg: 3, reach: 13, cooldown: 2, swing: .22, knock: 85, price: 12 },
+  gladius: { name: 'Gladius', kind: 'sword', dmg: 5, reach: 15, cooldown: 2, swing: .2, knock: 60, price: 40 }
 };
 // windup = hoe lang een tegenstander aanzet voor hij uithaalt; recover = even stilstaan erna.
 const FOES = {
@@ -45,11 +46,21 @@ const FOES = {
 };
 // De gevechten. Later volgen gladiatoren, 10 slaven en het gemengde gevecht.
 // Testen met meer tegenstanders: zet ?n=3 achter de url.
+// reward = denarii als je wint. Verlies je, dan betaal je MONEY.lossShare van die beloning (nooit onder 0).
 const FIGHTS = [
-  { foes: [['slave', 1]] },
-  { foes: [['slave', 2]] },
-  { foes: [['slave', 3]] }
+  { foes: [['slave', 1]], reward: 5 },
+  { foes: [['slave', 2]], reward: 8 },
+  { foes: [['slave', 3]], reward: 12 }
 ];
+// Na elk gevecht ga je de stad in; terug naar de arena door op de arena te klikken.
+const MONEY = { lossShare: .5 };
+// De winkels in de straat. Alleen de wapensmid is al open; wares = sleutels uit WEAPONS.
+const SHOPS = {
+  smith:   { nl: 'Wapensmid',   la: 'Faber',     open: true,  wares: ['stick', 'gladius'] },
+  armorer: { nl: 'Harnasmaker', la: 'Loricarius', open: false, wares: [] },
+  bowyer:  { nl: 'Boogmaker',   la: 'Arcuarius', open: false, wares: [] },
+  stable:  { nl: 'Stallen',     la: 'Stabulum',  open: false, wares: [] }
+};
 const FEEL = { hitstop: .06, shake: 5, playerShake: 9, flash: .12 };
 // Aftellen aan het begin (III, II, I, Pugnate!): je kunt al lopen, tegenstanders wachten nog.
 const INTRO = { step: .8, count: 3, shout: .7 };
@@ -57,7 +68,7 @@ const INTRO = { step: .8, count: 3, shout: .7 };
 const FIGHT_AREA = 30000;
 
 /* ---------- Toestand ---------- */
-const S = { fight: 0, money: 0, xp: 0, xpStart: 0, pointsStart: 0, orbs: [], collect: 0, gained: 0, levelUps: 0, stats: { strength: 0, agility: 0, vitality: 0 }, points: 0, foes: [], floats: [], dust: [], paused: true, over: null, overT: 0, freeze: 0, shake: 0, intro: 0, shout: 0 };
+const S = { fight: 0, money: 0, delta: 0, owned: ['fists'], townSeen: false, xp: 0, xpStart: 0, pointsStart: 0, orbs: [], collect: 0, gained: 0, levelUps: 0, stats: { strength: 0, agility: 0, vitality: 0 }, points: 0, foes: [], floats: [], dust: [], paused: true, over: null, overT: 0, freeze: 0, shake: 0, intro: 0, shout: 0 };
 const W = { rx: 280, ry: 220, area: 66000 };
 const view = { cw: 1, ch: 1, dpr: 1, scale: 1 };
 const P = { x: 0, y: 0, vx: 0, vy: 0, face: -Math.PI / 2, hp: PLAYER.hp, cd: 0, swing: 0, swingDir: 1, hurt: 0, flash: 0, target: null, dead: false };
@@ -68,6 +79,7 @@ const keys = new Set();
 const ROMAN = [[1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],[100,'C'],[90,'XC'],[50,'L'],[40,'XL'],[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']];
 function toRoman(n) { if (n <= 0) return 'nulla'; let s = ''; for (const [v, r] of ROMAN) while (n >= v) { s += r; n -= v; } return s; }
 const pick = a => a[Math.floor(Math.random() * a.length)];
+const denarii = n => `${n} ${n === 1 ? 'denarius' : 'denarii'}`;
 const fmt = n => n.toLocaleString('nl-NL', { maximumFractionDigits: 1 });   // 2,5 in plaats van 2.5
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const TAU2 = Math.PI * 2;
@@ -168,7 +180,15 @@ function hitPlayer(f) {
 function endFight(won) {
   if (S.over) return;
   S.over = won ? 'won' : 'lost'; S.overT = 0;
-  if (!won) { arenaJeer(); SFX.boo(1); S.xp = S.xpStart; S.points = S.pointsStart; }   // verloren: XP en punten uit dit gevecht vervallen
+  const reward = FIGHTS[Math.min(S.fight, FIGHTS.length - 1)].reward || 0;
+  if (won) {
+    S.delta = reward; S.money += reward;
+  } else {
+    arenaJeer(); SFX.boo(1); S.xp = S.xpStart; S.points = S.pointsStart;   // verloren: XP en punten uit dit gevecht vervallen
+    const fine = Math.min(S.money, Math.round(reward * MONEY.lossShare));  // en je betaalt een boete
+    S.delta = -fine; S.money -= fine;
+  }
+  updateUI();
 }
 /* XP: bolletjes spatten weg uit een verslagen tegenstander en blijven op het zand liggen. */
 function dropXp(f) {
@@ -403,7 +423,7 @@ function drawPlayer(now) {
     });
     ctx.globalAlpha = 1; return;
   }
-  // Stok: rust schuin naar voren; bij een slag zwaait hij in een boog langs de voorkant.
+  // Stok of zwaard: rust schuin naar voren; bij een slag zwaait hij in een boog langs de voorkant.
   const ang = sw >= 0 ? P.swingDir * (-1.1 + 2.2 * sw) : .55;
   const len = PLAYER.radius + w.reach + 2;
   drawBody(P, PLAYER.radius, C.blood, C.skin, C['hair-1'], {
@@ -415,9 +435,19 @@ function drawPlayer(now) {
         ctx.beginPath(); ctx.arc(0, 0, len * .85, Math.min(a0, a1), Math.max(a0, a1)); ctx.stroke(); ctx.lineCap = 'butt';
       }
       const hx = r * .35 + (sw >= 0 ? 3 : 0), hy = r * .78;
-      ctx.strokeStyle = '#6b4526'; ctx.lineWidth = 3; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(hx - Math.cos(ang) * 4, hy - Math.sin(ang) * 4);
-      ctx.lineTo(Math.cos(ang) * len, Math.sin(ang) * len + (sw >= 0 ? 0 : hy * .4)); ctx.stroke(); ctx.lineCap = 'butt';
+      const ex = Math.cos(ang) * len, ey = Math.sin(ang) * len + (sw >= 0 ? 0 : hy * .4);
+      ctx.lineCap = 'round';
+      if (w.kind === 'sword') {   // gladius: kort lemmet, bronzen gevest en dwarsstuk
+        const dx = ex - hx, dy = ey - hy, l = Math.hypot(dx, dy) || 1, ux = dx / l, uy = dy / l, gx = hx + ux * 5, gy = hy + uy * 5;
+        ctx.strokeStyle = '#3b2a1e'; ctx.lineWidth = 4.2; ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(ex, ey); ctx.stroke();
+        ctx.strokeStyle = '#e4e0d4'; ctx.lineWidth = 2.6; ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(ex, ey); ctx.stroke();
+        ctx.strokeStyle = C.bronze; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(hx - ux * 2, hy - uy * 2); ctx.lineTo(gx, gy); ctx.stroke();
+        ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(gx - uy * 4, gy + ux * 4); ctx.lineTo(gx + uy * 4, gy - ux * 4); ctx.stroke();
+      } else {
+        ctx.strokeStyle = '#6b4526'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(hx - Math.cos(ang) * 4, hy - Math.sin(ang) * 4); ctx.lineTo(ex, ey); ctx.stroke();
+      }
+      ctx.lineCap = 'butt';
     }
   });
   ctx.globalAlpha = 1;
@@ -487,18 +517,30 @@ function openResult() {
       + (S.levelUps ? `Niveau ${toRoman(levelOf(S.xp))}: je hebt ${S.points} ${S.points === 1 ? 'punt' : 'punten'} te verdelen.` : `Nog ${LEVELS[levelOf(S.xp) - 1] - S.xp} XP tot het volgende niveau.`)
       + (last ? ' Je hebt alle gevechten van deze proef gewonnen!' : '')
     : 'Het publiek joelt. Je mag het nog eens proberen. De XP uit dit gevecht is weg; je stats blijven zoals ze waren.';
-  $('resultBtn').textContent = won ? (last ? 'Opnieuw vanaf gevecht I' : S.points ? 'Verdeel je punten' : 'Volgend gevecht') : 'Probeer opnieuw';
+  $('resultMoney').textContent = won ? `+${denarii(S.delta)}` : S.delta ? `Boete: ${denarii(-S.delta)}` : 'Geen denarii om te verliezen';
+  $('resultMoney').classList.toggle('loss', !won);
+  $('resultBtn').textContent = 'Naar de stad';
+  $('townNote').hidden = S.townSeen;   // de eerste keer: zeg wat je in de stad kunt
   $('result').hidden = false; $('resultBtn').focus();
 }
-$('resultBtn').onclick = () => {
-  $('result').hidden = true;
-  if (S.over !== 'won') { startFight(); S.paused = false; return; }          // verloren: zelfde gevecht, stats blijven
-  if (S.fight + 1 < FIGHTS.length) { S.fight++; if (S.points) openStats(0); else { startFight(); S.paused = false; } return; }
-  newRun();                                                                     // alles gewonnen: opnieuw beginnen
-};
+// Na de uitslag ga je altijd de stad in. Terug naar de arena: klik in de stad op de arena.
+$('resultBtn').onclick = () => { $('result').hidden = true; openTown(); };
+// Klik op de arena: heb je nog punten, dan eerst het perkament; anders meteen het gevecht.
+function proceed() {
+  if (S.points) { openStats('arena'); return; }
+  enterArena();
+}
+function enterArena() {
+  if (S.over === 'won') {
+    if (S.fight + 1 >= FIGHTS.length) { newRun(); return; }   // alles gewonnen: opnieuw beginnen
+    S.fight++;
+  }                                                           // verloren: zelfde gevecht, stats blijven
+  startFight(); S.paused = false;
+}
 function newRun() {
   S.fight = 0; S.xp = 0; S.points = POINTS.start; for (const k in S.stats) S.stats[k] = 0;
-  if (S.points) openStats(0); else { startFight(); S.paused = false; }
+  S.money = 0; S.delta = 0; S.owned = ['fists']; S.townSeen = false; PLAYER.weapon = 'fists'; S.over = null;
+  startFight(); S.paused = false;
 }
 $('startBtn').onclick = () => { SFX.init(); $('start').hidden = true; newRun(); };
 // Geluid aan/uit: knop rechtsboven, of de toets M.
@@ -507,12 +549,13 @@ $('mute').onclick = () => { SFX.init(); SFX.setMuted(!SFX.muted); showMute(); };
 showMute();
 
 /* ---------- Punten verdelen ---------- */
-let added = {};
-function openStats(extra) {
-  SFX.mood('calm');
-  S.paused = true; S.points += extra; added = {};
+// mode 'town' = vanuit de straat (Klaar = terug de straat in); 'arena' = op weg naar het gevecht.
+let added = {}, statsMode = 'town';
+function openStats(mode = 'town') {
+  S.paused = true; added = {}; statsMode = mode;
   for (const k in STATS) added[k] = 0;
-  renderStats(); $('stats').hidden = false;
+  $('statsBack').hidden = mode !== 'arena';
+  renderStats(); $('stats').hidden = false; $('statsBtn').focus();
 }
 function statEffect(k, n) {
   const v = { ...S.stats, [k]: n };
@@ -531,9 +574,14 @@ function renderStats() {
     plus.onclick = () => { added[k]++; S.stats[k]++; S.points--; renderStats(); };
     list.appendChild(li);
   }
-  $('statsBtn').textContent = S.points ? `Naar de arena (nog ${toRoman(S.points)} over)` : 'Naar de arena';
+  const left = S.points ? ` (nog ${toRoman(S.points)} over)` : '';
+  $('statsBtn').textContent = (statsMode === 'arena' ? 'Naar de arena' : 'Klaar') + left;
 }
-$('statsBtn').onclick = () => { $('stats').hidden = true; startFight(); S.paused = false; };
+$('statsBtn').onclick = () => {
+  $('stats').hidden = true;
+  if (statsMode === 'arena') enterArena(); else TOWN.purse();
+};
+$('statsBack').onclick = () => { $('stats').hidden = true; openTown(); };
 
 function toWorld(ev) {
   const r = cvs.getBoundingClientRect();
@@ -543,7 +591,7 @@ function toWorld(ev) {
 cvs.addEventListener('pointerdown', ev => { if (S.paused) return; cvs.setPointerCapture(ev.pointerId); steer.down = steer.active = true; toWorld(ev); });
 cvs.addEventListener('pointermove', ev => { if (steer.down) toWorld(ev); });
 ['pointerup', 'pointercancel'].forEach(t => cvs.addEventListener(t, () => steer.down = false));
-const anyOverlay = () => !$('start').hidden || !$('result').hidden || !$('stats').hidden;
+const anyOverlay = () => ['start', 'result', 'stats', 'town', 'shop'].some(id => !$(id).hidden);
 addEventListener('keydown', ev => {
   if (anyOverlay()) return;
   const k = ev.key.length === 1 ? ev.key.toLowerCase() : ev.key;

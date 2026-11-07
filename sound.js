@@ -3,7 +3,7 @@
    en in assets/sound/LEESMIJ.md. Ontbreekt een bestand, dan blijft dat geluid gewoon stil.
    Werkt ook als je index.html direct opent (zonder server): we gebruiken <audio>, geen fetch.
    Gebruik: SFX.init() na een klik (browsers starten geluid pas na een handeling van de speler),
-   daarna SFX.cheer(0..1), SFX.boo(0..1), SFX.hit(), SFX.hurt(), SFX.block(), SFX.mood('fight'|'calm'). */
+   daarna SFX.cheer(0..1), SFX.boo(0..1), SFX.hit(), SFX.hurt(), SFX.block(), SFX.mood('fight'|'calm'|'town'). */
 
 const SFX = (() => {
   // Bestanden per soort geluid. Bij meer bestanden kiest het spel er telkens willekeurig één,
@@ -18,7 +18,7 @@ const SFX = (() => {
     block:    ['assets/sound/block.wav']                          // een klap wordt geblokt
   };
   // Volumes (0 tot 1). Pas hier aan als iets te hard of te zacht is.
-  const MIX = { crowd: { calm: .25, fight: .42 }, cheer: .7, cheerBig: .9, boo: .7, hit: .6, hurt: .7, block: .5 };
+  const MIX = { crowd: { calm: .25, fight: .42, town: .1 }, cheer: .7, cheerBig: .9, boo: .7, hit: .6, hurt: .7, block: .5 };
   const MAX_AT_ONCE = 2;   // zoveel juich- of joelgeluiden tegelijk; daarna faadt de oudste snel weg
   const GAP = { cheer: .35, cheerBig: 1.5, boo: 1.5 };   // seconden: niet opnieuw starten binnen deze tijd
 

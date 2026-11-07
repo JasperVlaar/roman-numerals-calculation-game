@@ -48,6 +48,7 @@
       <h2>Verdeel je punten</h2>
       <ul class="statlist" id="statList"></ul>
       <button id="statsBtn" class="seal">Naar de arena</button>
+      <button id="statsBack" class="scroll-link" hidden>Terug naar de straat</button>
     </div>
     <div class="rod" aria-hidden="true"></div>
   </div>
@@ -58,7 +59,9 @@
     <p class="eyebrow" id="resultEyebrow">Gevecht I</p>
     <h2 id="resultTitle">Overwinning!</h2>
     <p id="resultText" class="muted"></p>
-    <button id="resultBtn" class="primary wide">Volgend gevecht</button>
+    <p id="resultMoney" class="purse-delta">+5 denarii</p>
+    <p id="townNote" class="town-note" hidden>Na elk gevecht ga je de stad in. Daar verdeel je je punten en koop je wapens. Klik op de arena als je klaar bent voor het volgende gevecht.</p>
+    <button id="resultBtn" class="primary wide">Naar de stad</button>
   </div>
 </div>
 
@@ -112,16 +115,26 @@
   </div>
 </div>
 
+<!-- De stad: de straat met winkels en de arena in de verte. Getekend door town.js. -->
+<div class="overlay town-bg" id="town" hidden>
+  <div class="town">
+    <header class="town-bar">
+      <p class="eyebrow">De stad</p>
+      <p class="town-purse">Denarii <b id="townMoney">0</b> <span aria-hidden="true">·</span> Wapen <b id="townWeapon">Vuisten</b></p>
+      <button id="townStats" class="town-stats">Je stats</button>
+    </header>
+    <div class="town-art" id="townArt"></div>
+    <p class="town-hint">Kies een winkel, of klik op de arena voor je volgende gevecht.</p>
+  </div>
+</div>
+
 <div class="overlay" id="shop" hidden>
-  <div class="panel">
-    <p class="eyebrow">De wapensmid</p>
-    <h2>Je hebt <span id="shopMoney">0</span> denarii</h2>
-    <ul class="wares">
-      <li><div><b>Lorica segmentata</b><span>Blokkeert de volgende 3 valse cijfers.</span></div><button id="buyArmor" class="btn">20 d</button></li>
-      <li><div><b>Augur</b><span>Laat de cijfers oplichten die je het snelst naar het doel brengen. Volgorde en operator verraadt hij niet.</span></div><button id="buyAugur" class="btn">12 d</button></li>
-    </ul>
+  <div class="panel shop">
+    <p class="eyebrow" id="shopEyebrow">Faber · Wapensmid</p>
+    <h2>Je hebt <span id="shopMoney">0 denarii</span></h2>
+    <ul class="wares" id="wares"></ul>
     <p class="muted small" id="shopNote"></p>
-    <button id="shopNext" class="primary wide">Volgende ronde</button>
+    <button id="shopBack" class="primary wide">Terug naar de straat</button>
   </div>
 </div>
 
@@ -131,5 +144,6 @@
 <!-- Op deze branch vervangt fight.js de rekenmodus (game.js). -->
 <script src="sound.js"></script>
 <script src="fight.js"></script>
+<script src="town.js"></script>
 </body>
 </html>
