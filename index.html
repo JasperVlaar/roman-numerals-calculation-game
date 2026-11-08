@@ -10,11 +10,14 @@
 <body>
 <div class="app fight">
   <header class="hud gutter">
-    <div class="goal"><span class="label" id="foeText">Tegen 1 slaaf</span><span class="goal-num">Gevecht <span id="fightNo">I</span></span></div>
+    <div class="goal"><span class="label" id="foeText">Tegen 1 slaaf</span><span class="goal-num" id="fightTitle">Gevecht I</span></div>
     <div class="hp"><span class="label">Leven <span id="hpText">8 / 8</span></span><div class="hp-bar" id="hpBar"><div id="hpFill"></div></div>
       <span class="label"><span id="lvlText">Niveau I</span> <span id="xpText">0 / 4 XP</span></span><div class="xp-bar"><div id="xpFill"></div></div></div>
     <dl class="stats">
-      <div><dt>Wapen</dt><dd id="weapon">Vuisten</dd></div>
+      <div class="slots"><dt>Wapens <small>(1, 2)</small></dt><dd>
+        <button id="slot_melee" class="slot on" title="Melee-wapen (toets 1)"><b>1</b><span>Vuisten</span></button>
+        <button id="slot_ranged" class="slot" title="Boog (toets 2)" disabled><b>2</b><span>—</span></button></dd></div>
+      <div><dt>Armor</dt><dd id="armor">0</dd></div>
       <div><dt>Denarii</dt><dd id="money">0</dd></div>
     </dl>
     <button id="mute" class="mute" aria-pressed="true" title="Geluid aan of uit (M)">Geluid aan</button>
@@ -26,18 +29,14 @@
 
 <div class="overlay" id="start">
   <div class="panel">
-    <p class="eyebrow">Proef: gladiatorgevecht</p>
     <h1>De arena</h1>
-    <ul class="rules">
-      <li>Je loopt de arena in met lege handen, net als je tegenstander. Sturen doe je met de pijltjes of WASD, of door te slepen.</li>
-      <li>Slaan gaat vanzelf: zodra een tegenstander dichtbij genoeg is, haal je uit.</li>
-      <li>Kleurt een tegenstander rood, dan zet hij aan voor een klap. Stap op tijd weg.</li>
-      <li>Verslagen tegenstanders laten blauwe XP-bolletjes vallen. Raap ze op: genoeg XP brengt je een niveau hoger, en dat geeft punten voor je stats. Na de laatste klap heb je nog 2 seconden.</li>
-      <li>Elk gevecht begint met aftellen. Kijk even rond: pas bij <em>Pugnate!</em> komen ze op je af.</li>
-      <li>Versla iedereen. Ga je neer, dan mag je het gevecht opnieuw proberen.</li>
+    <ul class="keys">
+      <li><kbd>WASD</kbd> / <kbd>←↑→↓</kbd> / slepen</li>
+      <li><kbd>1</kbd> <kbd>2</kbd> wapen</li>
+      <li><kbd>M</kbd> geluid</li>
     </ul>
     <button id="startBtn" class="primary wide">Betreed de arena</button>
-    <p class="credits">Geluid: "Crowd Cheering - Strong Cheering and Strong Rhythmic Cheering" door <a href="https://freesound.org/people/GregorQuendel/sounds/481782/" target="_blank" rel="noopener">GregorQuendel</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>), ingekort; "Crowd Shouting" door freesound_community (via Pixabay); "Punch #1" door <a href="https://freesound.org/people/lewisisminted/sounds/162370/" target="_blank" rel="noopener">lewisisminted</a> (CC0); "punchednoises" door <a href="https://freesound.org/people/shelbyshark/sounds/444703/" target="_blank" rel="noopener">shelbyshark</a>; "11575 male group booing" door <a href="https://freesound.org/people/Robinhood76/sounds/687017/" target="_blank" rel="noopener">Robinhood76</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>); alles via Freesound, ingekort.</p>
+    <p class="credits">Geluid: "Crowd Cheering - Strong Cheering and Strong Rhythmic Cheering" door <a href="https://freesound.org/people/GregorQuendel/sounds/481782/" target="_blank" rel="noopener">GregorQuendel</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>), ingekort; "Crowd Shouting" door freesound_community (via Pixabay); "Punch #1" door <a href="https://freesound.org/people/lewisisminted/sounds/162370/" target="_blank" rel="noopener">lewisisminted</a> (CC0); "punchednoises" door <a href="https://freesound.org/people/shelbyshark/sounds/444703/" target="_blank" rel="noopener">shelbyshark</a>; "11575 male group booing" door <a href="https://freesound.org/people/Robinhood76/sounds/687017/" target="_blank" rel="noopener">Robinhood76</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>); en via Freesound ook: "punch_02" door thefsoundman, "whoosh" door qubodup, "cat meow" door philsapphire, "cat purr" door trautwein, "birds singing 03" door dcpoke, "blacksmith workshop" door thefilmbakery, "knife carve wood" door timocoetzee200014, "footstep on wood foley" door martian, "horse" door 3bagbrew en "horse clip-clopping downhill" door swiftoid; alles ingekort en bewerkt.</p>
   </div>
 </div>
 
@@ -45,11 +44,10 @@
   <div class="scroll">
     <div class="rod" aria-hidden="true"></div>
     <div class="parchment">
-      <p class="scroll-eyebrow" id="statsEyebrow">Voor gevecht I</p>
-      <h2>Verdeel je punten</h2>
-      <p class="scroll-note">Nog <b id="statsLeft">5</b> te verdelen. Wat eerder vastgezet is, blijft staan.</p>
+      <h2 id="statsTitle"></h2>
       <ul class="statlist" id="statList"></ul>
       <button id="statsBtn" class="seal">Naar de arena</button>
+      <button id="statsBack" class="scroll-link" hidden>Terug</button>
     </div>
     <div class="rod" aria-hidden="true"></div>
   </div>
@@ -58,9 +56,11 @@
 <div class="overlay" id="result" hidden>
   <div class="panel judge">
     <p class="eyebrow" id="resultEyebrow">Gevecht I</p>
-    <h2 id="resultTitle">Overwinning!</h2>
-    <p id="resultText" class="muted"></p>
-    <button id="resultBtn" class="primary wide">Volgend gevecht</button>
+    <h2 id="resultTitle">Overwinning</h2>
+    <p id="resultText" hidden></p>
+    <p id="resultMoney" class="purse-delta"></p>
+    <p id="townNote" hidden></p>
+    <button id="resultBtn" class="primary wide">Verder</button>
   </div>
 </div>
 
@@ -114,16 +114,33 @@
   </div>
 </div>
 
+<!-- De stad: de straat met winkels en de arena in de verte. Getekend door town.js. -->
+<div class="overlay town-bg" id="town" hidden>
+  <div class="town">
+    <header class="town-bar">
+      <p class="town-purse"><b id="townMoney">0</b> d<span id="townWeapon" hidden></span></p>
+      <button id="townStats" class="town-stats">Je stats</button>
+    </header>
+    <div class="town-art" id="townArt"></div>
+    <p id="townHint" hidden></p>
+  </div>
+</div>
+
+<!-- In de arena kiezen: het volgende gevecht (hooguit 5 per blok, zie STAGES) of het toernooi. -->
+<div class="overlay" id="pick" hidden>
+  <div class="panel pick">
+    <div class="choices" id="choices"></div>
+    <button id="pickBack" class="btn wide">Terug</button>
+  </div>
+</div>
+
 <div class="overlay" id="shop" hidden>
-  <div class="panel">
-    <p class="eyebrow">De wapensmid</p>
-    <h2>Je hebt <span id="shopMoney">0</span> denarii</h2>
-    <ul class="wares">
-      <li><div><b>Lorica segmentata</b><span>Blokkeert de volgende 3 valse cijfers.</span></div><button id="buyArmor" class="btn">20 d</button></li>
-      <li><div><b>Augur</b><span>Laat de cijfers oplichten die je het snelst naar het doel brengen. Volgorde en operator verraadt hij niet.</span></div><button id="buyAugur" class="btn">12 d</button></li>
-    </ul>
-    <p class="muted small" id="shopNote"></p>
-    <button id="shopNext" class="primary wide">Volgende ronde</button>
+  <div class="panel shop">
+    <p class="eyebrow" id="shopEyebrow">Wapensmid</p>
+    <h2 id="shopMoney">0 d</h2>
+    <ul class="wares" id="wares"></ul>
+    <p id="shopNote" hidden></p>
+    <button id="shopBack" class="primary wide">Terug</button>
   </div>
 </div>
 
@@ -133,5 +150,7 @@
 <!-- Op deze branch vervangt fight.js de rekenmodus (game.js). -->
 <script src="sound.js"></script>
 <script src="fight.js"></script>
+<script src="town.js"></script>
+<script src="dev.js"></script>
 </body>
 </html>
