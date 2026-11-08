@@ -48,3 +48,23 @@ Vermijd BBC Sound Effects als je het spel ooit wilt verkopen: die licentie is al
 - **Loop:** knip het publiek zo dat begin en eind even hard zijn, anders hoor je een sprong bij het herhalen. `.ogg` of `.wav` herhaalt naadlozer dan `.mp3`.
 - **Inkorten:** veel opnames hebben stilte aan het begin. Knip die eraf (bijvoorbeeld in Audacity), anders komt het gejuich te laat.
 - **Controleren:** open de browserconsole en typ `SFX.found()`. Dan zie je per soort hoeveel bestanden het spel gevonden heeft.
+
+
+## De straat en extra geluiden (toegevoegd)
+
+Alle bronnen uit `sounds/Creative Commons/`; bewerkt met ffmpeg (ingekort, mono, op gelijk niveau gebracht, pieken zacht afgerond).
+
+| Bestand | Uit | Gebruik |
+|---|---|---|
+| `hit-2.wav` | "punch_02" door thefsoundman (118513), stilte eraf, −17 dB zoals hit-1 | wisselt af met hit-1 bij elke klap |
+| `whoosh.wav` | "whoosh" door qubodup (60013) | zwiep van de stok |
+| `meow.wav` | "cat meow" door philsapphire (256452) | de kat in de straat |
+| `purr-loop.wav` | "cat purr" door trautwein (260881), 2–15 s, overvloeier 1,5 s | de kat spint als je hem aait |
+| `birds-loop.wav` | "birds singing 03" door dcpoke (387978), overvloeier 2 s | continu op straat |
+| `smithy.mp3` | "blacksmith workshop" door thefilmbakery (137836), de stukken 3–22 s en 113–127 s (daar wordt gehamerd) | wapensmid: zacht op straat, hard binnen |
+| `carve.mp3` | "knife carve wood" door timocoetzee200014 (594298) | boogmaker, met pauzes |
+| `footsteps.mp3` | "footstep on wood foley" door martian (19292) | alleen binnen bij de harnasmaker |
+| `horse.mp3` | "horse" door 3bagbrew (59569), eerste 6,5 s | stallen, af en toe; zacht op straat |
+| `clopping.mp3` | "horse clip-clopping downhill" door swiftoid (182504), 3–25 s, langzaam in en uit | komt elke 20–45 s langs op straat |
+
+Licenties: deze map heet "Creative Commons"; controleer per geluid op Freesound of het CC0 of CC BY is. De makers staan voor de zekerheid allemaal in de vermelding op het startscherm.

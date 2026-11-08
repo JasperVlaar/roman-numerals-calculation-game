@@ -167,6 +167,10 @@ Met de stok wordt gevecht III winbaar: gesimuleerd met 4 punten 20–27% winst, 
 | Aftellen aan het begin (III, II, I, *Pugnate!*) | `INTRO` |
 | Grootte van het zandveld (kleiner = camera dichterbij) | `FIGHT_AREA` |
 
+**Pijlen:** koop je bij de boogmaker voor 2 d per stuk ("+N" vult je koker aan). Zonder pijlkoker neem je er 5 mee, met de *pharetra* (30 d) 15. Elke pijl gaat op; is je koker leeg, dan zie je "geen pijlen" en moet je naar je melee-wapen (1). In de HUD staat bij vak 2 hoeveel je er nog hebt. Instellingen: `AMMO`.
+
+**De straat klinkt:** vogeltjes continu; de smidse, de boogmaker (hout snijden) en de stallen (paard) spelen af en toe een stukje, met pauzes ertussen, en tegelijk mag; elke 20–45 s komt er een paard langs. Ga je een winkel in, dan klinkt die werkplaats hard en de rest gedempt; de voetstappen van de harnasmaker hoor je alleen binnen. Een dichte winkel is stil. Instellingen: `AMB` bovenaan `sound.js` (volume op straat en binnen, hoe lang, hoe lang stil). Rechts op straat zit een kat: klik erop en hij rolt op zijn rug en spint; een paar seconden later komt hij weer overeind.
+
 Geluid: `sound.js` speelt echte opnames af uit `assets/sound/` (welke bestanden en waar je ze vindt: `assets/sound/LEESMIJ.md`). Het publiek roezemoest de hele tijd, juicht bij elke rake klap (groot gejuich als iemand valt, bij *Pugnate!* en als je wint) en joelt als je verliest. Ontbreekt een bestand, dan blijft dat geluid stil. Aan/uit met de knop rechtsboven of de toets M.
 
 Testen met meer tegenstanders: open `index.html?n=3` (of een ander aantal slaven).

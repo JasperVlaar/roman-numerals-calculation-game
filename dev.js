@@ -36,6 +36,7 @@
         <label>Wapen (1)<select id="devWeapon">${weapons}</select></label>
         <label>Boog (2)<select id="devBow">${bows}</select></label>
         ${Object.entries(SLOTS).map(([slot, nl]) => `<label>${nl}<select id="dev_gear_${slot}"><option value="">geen</option>${Object.entries(GEAR).filter(([, g]) => g.slot === slot).map(([k, g]) => `<option value="${k}">${g.name}</option>`).join('')}</select></label>`).join('')}
+        <label>Pijlen<input type="number" min="0" max="15" step="1" id="devAmmo" value="0"></label>
         <label>Denarii<input type="number" min="0" max="9999" step="1" id="devMoney" value="0"></label>
       </div>
       <p class="muted small" id="devNote"></p>
@@ -72,7 +73,7 @@
     // Wat je kunt kopen, goedkoopste eerst; een winkel telt pas mee als hij op dat moment open is.
     const done = history(), priceOf = k => (GEAR[k] || WEAPONS[k]).price;
     const shopAt = k => Object.values(SHOPS).find(sh => sh.wares.includes(k));
-    let wish = Object.values(SHOPS).flatMap(sh => sh.wares).sort((a, b) => priceOf(a) - priceOf(b));
+    let wish = Object.values(SHOPS).flatMap(sh => sh.wares).filter(k => k !== 'arrows').sort((a, b) => priceOf(a) - priceOf(b));
     let xp = 0, money = 0, spent = 0, tourneys = 0; const bought = [], owned = ['fists'], gear = { body: '', head: '', shield: '', mount: '' };
     for (const def of done) {
       xp += xpOf(def); money += def.reward || 0;
@@ -93,6 +94,7 @@
     for (let i = 0; i < pts; i++) v[keys[Math.floor(Math.random() * keys.length)]]++;
     for (const k of keys) $('dev_' + k).value = v[k];
     $('devWeapon').value = weapon; $('devBow').value = bow; $('devMoney').value = money;
+    $('devAmmo').value = bow ? (gear.quiver ? GEAR[gear.quiver].capacity : AMMO.base) : 0;   // pijlen: koker vol (niet meegeteld in het geld)
     for (const slot of Object.keys(SLOTS)) $('dev_gear_' + slot).value = gear[slot];
     plan = { xp, pts, bought: done.length, sig: JSON.stringify(v) + weapon + money };
     $('devNote').textContent = `${done.length} ${done.length === 1 ? 'gevecht' : 'gevechten'} gewonnen, alle XP opgeraapt: ${xp} XP, niveau ${toRoman(level)}, ${pts} punten (willekeurig verdeeld). `
@@ -123,6 +125,7 @@
     }
     if (!bw) S.gear.mount = null;   // strijdwagen alleen met een boog
     syncWeapon();
+    S.ammo = Math.max(0, Math.min(me.ammoMax, Math.round(+$('devAmmo').value || 0)));
     S.money = Math.max(0, Math.round(+$('devMoney').value || 0));
     S.points = 0; S.townSeen = true; S.over = null; S.delta = 0;
     // XP: na 'Willekeurig' (en niets daarna aangepast) de echte XP; anders het begin van het niveau dat bij de punten hoort.

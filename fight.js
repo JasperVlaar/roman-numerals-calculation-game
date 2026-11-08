@@ -124,18 +124,21 @@ const MONEY = { lossShare: .5 };
 // armor = elke klap doet zoveel minder (maar altijd minstens 1); speed = loopsnelheid erbij of eraf;
 // knock = hoe ver je wordt weggeduwd (× dit getal); front = schild: pijlen van voren houdt het tegen, klappen van voren doen 1 minder.
 const GEAR = {
-  leather: { slot: 'body',   name: 'Leren harnas',      price: 35,  armor: 1, desc: 'armor 1: elke klap 1 minder' },
-  galea:   { slot: 'head',   name: 'Galea',             price: 30,  knock: .5, desc: 'je wordt half zo ver weggeduwd' },
-  scutum:  { slot: 'shield', name: 'Scutum',            price: 50,  front: 1, desc: 'pijlen van voren houdt hij tegen; klappen van voren 1 minder' },
-  lorica:  { slot: 'body',   name: 'Lorica segmentata', price: 120, armor: 2, speed: -8, desc: 'armor 2, maar −8 loopsnelheid' },
-  chariot: { slot: 'mount',  name: 'Paard en strijdwagen', price: 250, needsBow: true, desc: 'veel sneller en je rijdt tegenstanders omver; stilstaan kan niet; je rijdt als je de boog vasthoudt (vak 2), met je melee-wapen sta je naast de wagen' }
+  leather: { slot: 'body',   name: 'Leren harnas',      price: 35,  armor: 1, short: 'armor 1', desc: 'armor 1: elke klap 1 minder' },
+  galea:   { slot: 'head',   name: 'Galea',             price: 30,  knock: .5, short: '−50% wegduwen', desc: 'je wordt half zo ver weggeduwd' },
+  scutum:  { slot: 'shield', name: 'Scutum',            price: 50,  front: 1, short: 'van voren −1 · pijlen 0', desc: 'pijlen van voren houdt hij tegen; klappen van voren 1 minder' },
+  lorica:  { slot: 'body',   name: 'Lorica segmentata', price: 120, armor: 2, speed: -8, short: 'armor 2 · −8 snelheid', desc: 'armor 2, maar −8 loopsnelheid' },
+  quiver:  { slot: 'quiver', name: 'Pijlkoker', price: 30, capacity: 15, short: '15 pijlen', desc: '15 pijlen mee in plaats van 5' },
+  chariot: { slot: 'mount',  name: 'Strijdwagen', price: 250, needsBow: true, short: 'met boog (2)', desc: 'veel sneller en je rijdt tegenstanders omver; stilstaan kan niet; je rijdt als je de boog vasthoudt (vak 2), met je melee-wapen sta je naast de wagen' }
 };
-const SLOTS = { body: 'Harnas', head: 'Helm', shield: 'Schild', mount: 'Rijdier' };
+const SLOTS = { body: 'Harnas', head: 'Helm', shield: 'Schild', quiver: 'Pijlkoker', mount: 'Rijdier' };
+// Pijlen koop je bij de boogmaker: price denarii per stuk. Zonder pijlkoker kun je er base meenemen.
+const AMMO = { base: 5, price: 2 };
 // De winkels in de straat. after = open na zoveel gewonnen toernooien (0 = vanaf het begin); wares = sleutels uit WEAPONS of GEAR.
 const SHOPS = {
   smith:   { nl: 'Wapensmid',   la: 'Faber',      after: 0, wares: ['stick', 'gladius', 'hasta'] },
   armorer: { nl: 'Harnasmaker', la: 'Loricarius', after: 0, wares: ['leather', 'galea', 'scutum', 'lorica'] },
-  bowyer:  { nl: 'Boogmaker',   la: 'Arcuarius',  after: 1, wares: ['bow', 'composite'] },
+  bowyer:  { nl: 'Boogmaker',   la: 'Arcuarius',  after: 1, wares: ['arrows', 'bow', 'composite', 'quiver'] },
   stable:  { nl: 'Stallen',     la: 'Stabulum',   after: 2, wares: ['chariot'] }
 };
 const shopOpen = id => SHOPS[id].wares.length > 0 && (S.finished ? STAGES.length : S.stage) >= SHOPS[id].after;
@@ -146,7 +149,7 @@ const INTRO = { step: .8, count: 3, shout: .7 };
 const FIGHT_AREA = 30000;
 
 /* ---------- Toestand ---------- */
-const S = { melee: 'fists', ranged: null, active: 'melee', switching: 0, switchTo: null, arrows: [], mode: 'fight', stage: 0, inStage: 0, finished: false, round: 0, dealt: 0, poolHp: 0, money: 0, delta: 0, owned: ['fists'], gear: { body: null, head: null, shield: null, mount: null }, townSeen: false, xp: 0, xpStart: 0, pointsStart: 0, orbs: [], collect: 0, gained: 0, levelUps: 0, stats: { strength: 0, agility: 0, vitality: 0 }, points: 0, foes: [], floats: [], dust: [], paused: true, over: null, overT: 0, freeze: 0, shake: 0, intro: 0, shout: 0 };
+const S = { ammo: 0, melee: 'fists', ranged: null, active: 'melee', switching: 0, switchTo: null, arrows: [], mode: 'fight', stage: 0, inStage: 0, finished: false, round: 0, dealt: 0, poolHp: 0, money: 0, delta: 0, owned: ['fists'], gear: { body: null, head: null, shield: null, mount: null, quiver: null }, townSeen: false, xp: 0, xpStart: 0, pointsStart: 0, orbs: [], collect: 0, gained: 0, levelUps: 0, stats: { strength: 0, agility: 0, vitality: 0 }, points: 0, foes: [], floats: [], dust: [], paused: true, over: null, overT: 0, freeze: 0, shake: 0, intro: 0, shout: 0 };
 const W = { rx: 280, ry: 220, area: 66000 };
 const view = { cw: 1, ch: 1, dpr: 1, scale: 1 };
 const P = { x: 0, y: 0, vx: 0, vy: 0, face: -Math.PI / 2, hp: PLAYER.hp, cd: 0, swing: 0, swingDir: 1, hurt: 0, flash: 0, target: null, dead: false };
@@ -193,6 +196,7 @@ const me = {
   get speed() { return (PLAYER.speed + STAT_RULES.speed * S.stats.agility + gearSum('speed')) * (S.active === 'ranged' && S.ranged ? ARMS.speedMul : 1); },
   get armor() { return gearSum('armor'); },
   get riding() { return S.gear.mount === 'chariot' && S.active === 'ranged' && !!S.ranged; },   // op de wagen alleen met de boog in je handen
+  get ammoMax() { return S.gear.quiver ? GEAR[S.gear.quiver].capacity : AMMO.base; },
   get shield() { return !!S.gear.shield && S.active === 'melee'; },
   get shootCd() { const w = WEAPONS[PLAYER.weapon]; return w.cooldown * Math.max(STAT_RULES.shootMin, 1 - STAT_RULES.shoot * S.stats.agility); },
   get knock() { return Object.values(S.gear).reduce((k, g) => k * (g && GEAR[g].knock || 1), 1); },
@@ -258,7 +262,7 @@ function nextRound() {
   S.intro = INTRO.step * INTRO.count; S.shout = 0;
   SFX.mood('calm'); arenaCheer(); SFX.cheer(.8);
   spawnRound();
-  if (heal) float(P.x, P.y - 30, `+${heal} leven`, C.laurel);
+  void heal;
 }
 function mkFoe(type, x, y) {
   const d = FOES[type];
@@ -301,7 +305,7 @@ function hitPlayer(f) {
   const front = me.shield && toward < Math.PI / 3 ? GEAR[S.gear.shield].front : 0;
   if (front && f.arrow) {   // pijl op het schild
     P.block = .3; P.blockA = Math.atan2(f.y - P.y, f.x - P.x);
-    float(P.x, P.y - 20, 'schild', C.bronze); SFX.block(); return;
+    SFX.block(); return;
   }
   const real = Math.max(1, f.d.dmg - me.armor - front);   // harnas en schild: altijd minstens 1
   P.hp = Math.max(0, P.hp - real); P.hurt = PLAYER.invuln; P.flash = FEEL.flash;
@@ -342,7 +346,7 @@ function gainXp(o) {
   const before = levelOf(S.xp - 1), after = levelOf(S.xp);
   if (after > before) {
     S.points += POINTS.perLevel; S.levelUps++;
-    float(P.x, P.y - 34, `Niveau ${toRoman(after)}!`, '#bfe3ff'); SFX.cheer(.5);
+    SFX.cheer(.5);
   }
   updateUI();
 }
@@ -426,16 +430,19 @@ function update(dt) {
   const inRange = bow && best && bd <= w.range;
   if (inReach || inRange) P.face = lerpAngle(P.face, Math.atan2(best.y - P.y, best.x - P.x), 1 - Math.exp(-dt * 20));
   else if (sp > 20) P.face = lerpAngle(P.face, Math.atan2(P.vy, P.vx), 1 - Math.exp(-dt * 12));
-  P.punch = Math.max(0, (P.punch || 0) - dt);
+  P.punch = Math.max(0, (P.punch || 0) - dt); P.noAmmo = Math.max(0, (P.noAmmo || 0) - dt);
   if (S.switching > 0) {   // wisselen van wapen: even niets
+  } else if (bow && !P.dead && P.cd === 0 && best && inRange && S.ammo <= 0) {
+    if (!(P.noAmmo > 0)) { P.noAmmo = 2.5; const b = $('slot_ranged'); b.classList.remove('empty'); void b.offsetWidth; b.classList.add('empty'); }   // koker leeg: vak 2 knippert rood
   } else if (bow && !P.dead && P.cd === 0 && best && inRange) {
     // Schieten: richt een tikje voor (waar hij heen loopt), de pijl vliegt rechtdoor.
     const t = bd / w.arrow, ax = best.x + (best.state === 'walk' ? Math.cos(best.face) * best.d.speed * t * .6 : 0), ay = best.y + (best.state === 'walk' ? Math.sin(best.face) * best.d.speed * t * .6 : 0);
     const a = Math.atan2(ay - P.y, ax - P.x);
     S.arrows.push({ x: P.x + Math.cos(a) * (PLAYER.radius + 4), y: P.y + Math.sin(a) * (PLAYER.radius + 4), vx: Math.cos(a) * w.arrow, vy: Math.sin(a) * w.arrow, t: 0, life: w.range / w.arrow * 1.15, dmg: w.dmg, stuck: 0, mine: true });
-    P.cd = me.shootCd; P.swing = w.swing;
+    P.cd = me.shootCd; P.swing = w.swing; S.ammo--; updateUI();
   } else if (!bow && !P.dead && inReach && P.cd === 0) {
     P.cd = w.cooldown; P.swing = w.swing; P.swingDir *= -1;
+    if (w.kind === 'stick') SFX.whoosh();
     // Raakt de klap? Eerst je eigen raakkans, dan de blokkans van de tegenstander.
     if (Math.random() >= me.hit) { /* mis */ }
     else if (Math.random() < blockChance(best.d.defense)) blocked(best, P);
@@ -840,13 +847,11 @@ function foeSummary() {
 function updateUI() {
   $('fightTitle').textContent = fightTitle();
   const def = fightDef(), rounds = roundsOf(def).length;
-  $('foeText').textContent = def.kind === 'tournament'
-    ? `Toernooi · ronde ${toRoman(S.round + 1)} van ${toRoman(rounds)} · tegen ${foeSummary()}`
-    : (def.kind === 'boss' ? 'Tussenbaas · tegen ' : 'Tegen ') + foeSummary();
+  $('foeText').textContent = def.kind === 'tournament' ? `Ronde ${toRoman(S.round + 1)}/${toRoman(rounds)}` : '';
   $('money').textContent = S.money;
   for (const slot of ['melee', 'ranged']) {
     const b = $('slot_' + slot), key = S[slot];
-    b.querySelector('span').textContent = key ? WEAPONS[key].name : '—';
+    b.querySelector('span').textContent = key ? WEAPONS[key].name + (slot === 'ranged' ? ` · ${S.ammo}/${me.ammoMax}` : '') : '—';
     b.disabled = !key; b.classList.toggle('on', S.active === slot && !S.switching); b.classList.toggle('to', S.switching > 0 && S.switchTo === slot);
   }
   $('armor').textContent = me.armor;
@@ -864,17 +869,16 @@ function openResult() {
   const won = S.over === 'won', def = fightDef();
   if (!won && def.kind === 'tournament') { openMercy(); return; }
   $('resultEyebrow').textContent = fightTitle();
-  $('resultTitle').textContent = won ? 'Overwinning!' : 'Je ligt in het zand.';
+  $('resultTitle').textContent = won ? 'Overwinning' : 'Verloren';
   const total = S.orbs.length;
   $('resultText').textContent = won
     ? `Je had nog ${P.hp} van de ${me.maxHp} leven over en raapte ${S.gained} van de ${total} XP op. `
       + (S.levelUps ? `Niveau ${toRoman(levelOf(S.xp))}: je hebt ${S.points} ${S.points === 1 ? 'punt' : 'punten'} te verdelen.` : `Nog ${LEVELS[levelOf(S.xp) - 1] - S.xp} XP tot het volgende niveau.`)
       + (def.kind === 'tournament' ? ` Je overleefde alle ${toRoman(def.rounds.length)} rondes van het toernooi.` : '')
     : 'Het publiek joelt. Je mag het nog eens proberen. De XP uit dit gevecht is weg; je stats blijven zoals ze waren.';
-  $('resultMoney').textContent = won ? `+${denarii(S.delta)}` : S.delta ? `Boete: ${denarii(-S.delta)}` : 'Geen denarii om te verliezen';
+  $('resultMoney').textContent = won ? `+${S.delta} d` : S.delta ? `−${-S.delta} d` : '';
   $('resultMoney').classList.toggle('loss', !won);
-  $('resultBtn').textContent = S.points ? 'Verdeel je punten' : 'Naar de stad';
-  $('townNote').hidden = S.townSeen;   // de eerste keer: zeg wat je in de stad kunt
+  $('resultBtn').textContent = 'Verder';
   $('result').hidden = false; $('resultBtn').focus();
 }
 // Na de uitslag ga je altijd de stad in. Terug naar de arena: klik in de stad op de arena.
@@ -890,18 +894,18 @@ function openMercy() {
   const ok = Math.random() < chance;
   S.spared = ok;
   const d = $('judgeDetail'), b = $('judgeBtn');
-  d.innerHTML = `<dt>Ronde</dt><dd>${toRoman(S.round + 1)} van ${toRoman(def.rounds.length)}</dd>
+  d.hidden = true; d.innerHTML = `<dt>Ronde</dt><dd>${toRoman(S.round + 1)} van ${toRoman(def.rounds.length)}</dd>
     <dt>Schade uitgedeeld</dt><dd>${fmt(S.dealt)} van ${S.poolHp}</dd>
     <dt>Gunst van het publiek</dt><dd>${Math.round(chance * 100)}%</dd>
     <dt>Uitslag</dt><dd class="${ok ? 'good' : 'bad'}">${ok ? 'Je leeft. Het toernooi is voorbij, geen beloning.' : 'Mors. Je begint opnieuw bij gevecht I.'}</dd>`;
-  b.textContent = ok ? 'Naar de stad' : 'Opnieuw beginnen'; b.dataset.ok = ok ? '1' : '';
-  for (const el of [d, b]) { el.hidden = false; el.style.visibility = 'hidden'; }
-  $('judgeTitle').textContent = 'Caesar overweegt…';
+  b.textContent = ok ? 'Verder' : 'Opnieuw'; b.dataset.ok = ok ? '1' : '';
+  b.hidden = false; b.style.visibility = 'hidden';
+  $('judgeTitle').textContent = '';
   $('judge').hidden = false;
   judgeStart();
   mercyTimers.forEach(clearTimeout);
   mercyTimers = [
-    setTimeout(() => { $('judgeTitle').textContent = ok ? 'Duim omhoog!' : 'Duim omlaag.'; judgeVerdict(ok); ok ? SFX.cheer(1) : SFX.boo(1); }, JUDGE.think),
+    setTimeout(() => { judgeVerdict(ok); ok ? SFX.cheer(1) : SFX.boo(1); }, JUDGE.think),
     setTimeout(() => {
       for (const el of [d, b]) { el.style.visibility = ''; el.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'ease-out' }); }
       b.focus();
@@ -931,7 +935,7 @@ function enterArena() { startFight(); S.paused = false; }
 function newRun() {
   S.mode = 'fight'; S.stage = 0; S.inStage = 0; S.finished = false;
   S.xp = 0; S.points = POINTS.start; for (const k in S.stats) S.stats[k] = 0;
-  S.money = 0; S.delta = 0; S.owned = ['fists']; S.gear = { body: null, head: null, shield: null, mount: null }; S.townSeen = false; S.melee = 'fists'; S.ranged = null; S.active = 'melee'; S.switching = 0; PLAYER.weapon = 'fists'; S.over = null;
+  S.money = 0; S.delta = 0; S.owned = ['fists']; S.gear = { body: null, head: null, shield: null, mount: null, quiver: null }; S.townSeen = false; S.ammo = 0; S.melee = 'fists'; S.ranged = null; S.active = 'melee'; S.switching = 0; PLAYER.weapon = 'fists'; S.over = null;
   startFight(); S.paused = false;
 }
 $('startBtn').onclick = () => { SFX.init(); $('start').hidden = true; newRun(); };
@@ -953,7 +957,7 @@ function openStats(mode = 'town') {
 }
 function statEffect(k, n) {
   const v = { ...S.stats, [k]: n };
-  return { strength: `${fmt(WEAPONS[S.melee].dmg + STAT_RULES.dmg * v.strength)} schade met ${WEAPONS[S.melee].name.toLowerCase()}`,
+  return { strength: `${fmt(WEAPONS[S.melee].dmg + STAT_RULES.dmg * v.strength)} schade`,
            agility: `snelheid ${PLAYER.speed + STAT_RULES.speed * v.agility}`,
            vitality: `${PLAYER.hp + STAT_RULES.hp * v.vitality} leven` }[k];
 }
@@ -961,15 +965,15 @@ function renderStats() {
   const list = $('statList'); list.innerHTML = '';
   for (const [k, d] of Object.entries(STATS)) {
     const li = document.createElement('li');
-    li.innerHTML = `<div><b>${d.nl} <i>${d.name}</i></b><span>${d.desc}</span><span class="eff">${statEffect(k, S.stats[k])}</span></div>
+    li.innerHTML = `<div><b>${d.nl}</b><span class="eff">${statEffect(k, S.stats[k])}</span></div>
       <div class="stepper"><button aria-label="${d.nl} omlaag" ${added[k] ? '' : 'disabled'}>−</button><output aria-label="${S.stats[k]}">${S.stats[k] ? toRoman(S.stats[k]) : '–'}</output><button aria-label="${d.nl} omhoog" ${S.points ? '' : 'disabled'}>+</button></div>`;
     const [minus, plus] = li.querySelectorAll('button');
     minus.onclick = () => { added[k]--; S.stats[k]--; S.points++; renderStats(); };
     plus.onclick = () => { added[k]++; S.stats[k]++; S.points--; renderStats(); };
     list.appendChild(li);
   }
-  const left = S.points ? ` (nog ${toRoman(S.points)} over)` : '';
-  $('statsBtn').textContent = ({ arena: 'Naar de arena', toTown: 'Naar de stad' }[statsMode] || 'Klaar') + left;
+  $('statsBtn').textContent = statsMode === 'arena' ? 'Naar de arena' : 'Verder';
+  $('statsTitle').textContent = S.points ? toRoman(S.points) : '';
 }
 $('statsBtn').onclick = () => {
   $('stats').hidden = true;

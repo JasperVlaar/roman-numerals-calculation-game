@@ -29,19 +29,14 @@
 
 <div class="overlay" id="start">
   <div class="panel">
-    <p class="eyebrow">Proef: gladiatorgevecht</p>
     <h1>De arena</h1>
-    <ul class="rules">
-      <li>Je loopt de arena in met lege handen, net als je tegenstander. Sturen doe je met de pijltjes of WASD, of door te slepen.</li>
-      <li>Slaan gaat vanzelf: zodra een tegenstander dichtbij genoeg is, haal je uit.</li>
-      <li>Kleurt een tegenstander rood, dan zet hij aan voor een klap. Stap op tijd weg.</li>
-      <li>Verslagen tegenstanders laten blauwe XP-bolletjes vallen. Raap ze op: genoeg XP brengt je een niveau hoger, en dat geeft punten voor je stats. Na de laatste klap heb je nog 5 seconden.</li>
-      <li>Elk gevecht begint met aftellen. Kijk even rond: pas bij <em>Pugnate!</em> komen ze op je af.</li>
-      <li>Versla iedereen. Ga je neer, dan mag je het gevecht opnieuw proberen, maar het kost je denarii.</li>
-      <li>Na elke vijf gevechten volgt een toernooi: meer geld, maar het gaat tot de dood. Ga je neer, dan beslist Caesar met zijn duim; hoe beter je vocht, hoe milder het publiek. Pas als je het toernooi wint, komen de volgende vijf gevechten. Je mag het toernooi ook eerder proberen.</li>
+    <ul class="keys">
+      <li><kbd>WASD</kbd> / <kbd>←↑→↓</kbd> / slepen</li>
+      <li><kbd>1</kbd> <kbd>2</kbd> wapen</li>
+      <li><kbd>M</kbd> geluid</li>
     </ul>
     <button id="startBtn" class="primary wide">Betreed de arena</button>
-    <p class="credits">Geluid: "Crowd Cheering - Strong Cheering and Strong Rhythmic Cheering" door <a href="https://freesound.org/people/GregorQuendel/sounds/481782/" target="_blank" rel="noopener">GregorQuendel</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>), ingekort; "Crowd Shouting" door freesound_community (via Pixabay); "Punch #1" door <a href="https://freesound.org/people/lewisisminted/sounds/162370/" target="_blank" rel="noopener">lewisisminted</a> (CC0); "punchednoises" door <a href="https://freesound.org/people/shelbyshark/sounds/444703/" target="_blank" rel="noopener">shelbyshark</a>; "11575 male group booing" door <a href="https://freesound.org/people/Robinhood76/sounds/687017/" target="_blank" rel="noopener">Robinhood76</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>); alles via Freesound, ingekort.</p>
+    <p class="credits">Geluid: "Crowd Cheering - Strong Cheering and Strong Rhythmic Cheering" door <a href="https://freesound.org/people/GregorQuendel/sounds/481782/" target="_blank" rel="noopener">GregorQuendel</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>), ingekort; "Crowd Shouting" door freesound_community (via Pixabay); "Punch #1" door <a href="https://freesound.org/people/lewisisminted/sounds/162370/" target="_blank" rel="noopener">lewisisminted</a> (CC0); "punchednoises" door <a href="https://freesound.org/people/shelbyshark/sounds/444703/" target="_blank" rel="noopener">shelbyshark</a>; "11575 male group booing" door <a href="https://freesound.org/people/Robinhood76/sounds/687017/" target="_blank" rel="noopener">Robinhood76</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>); en via Freesound ook: "punch_02" door thefsoundman, "whoosh" door qubodup, "cat meow" door philsapphire, "cat purr" door trautwein, "birds singing 03" door dcpoke, "blacksmith workshop" door thefilmbakery, "knife carve wood" door timocoetzee200014, "footstep on wood foley" door martian, "horse" door 3bagbrew en "horse clip-clopping downhill" door swiftoid; alles ingekort en bewerkt.</p>
   </div>
 </div>
 
@@ -49,10 +44,10 @@
   <div class="scroll">
     <div class="rod" aria-hidden="true"></div>
     <div class="parchment">
-      <h2>Verdeel je punten</h2>
+      <h2 id="statsTitle"></h2>
       <ul class="statlist" id="statList"></ul>
       <button id="statsBtn" class="seal">Naar de arena</button>
-      <button id="statsBack" class="scroll-link" hidden>Terug naar de straat</button>
+      <button id="statsBack" class="scroll-link" hidden>Terug</button>
     </div>
     <div class="rod" aria-hidden="true"></div>
   </div>
@@ -61,11 +56,11 @@
 <div class="overlay" id="result" hidden>
   <div class="panel judge">
     <p class="eyebrow" id="resultEyebrow">Gevecht I</p>
-    <h2 id="resultTitle">Overwinning!</h2>
-    <p id="resultText" class="muted"></p>
-    <p id="resultMoney" class="purse-delta">+5 denarii</p>
-    <p id="townNote" class="town-note" hidden>Na elk gevecht ga je de stad in. Daar verdeel je je punten en koop je wapens. Klik op de arena als je klaar bent voor het volgende gevecht.</p>
-    <button id="resultBtn" class="primary wide">Naar de stad</button>
+    <h2 id="resultTitle">Overwinning</h2>
+    <p id="resultText" hidden></p>
+    <p id="resultMoney" class="purse-delta"></p>
+    <p id="townNote" hidden></p>
+    <button id="resultBtn" class="primary wide">Verder</button>
   </div>
 </div>
 
@@ -123,32 +118,29 @@
 <div class="overlay town-bg" id="town" hidden>
   <div class="town">
     <header class="town-bar">
-      <p class="eyebrow">De stad</p>
-      <p class="town-purse">Denarii <b id="townMoney">0</b> <span aria-hidden="true">·</span> Uitrusting <b id="townWeapon">Vuisten</b></p>
+      <p class="town-purse"><b id="townMoney">0</b> d<span id="townWeapon" hidden></span></p>
       <button id="townStats" class="town-stats">Je stats</button>
     </header>
     <div class="town-art" id="townArt"></div>
-    <p class="town-hint" id="townHint">Kies een winkel, of klik op de arena voor je volgende gevecht.</p>
+    <p id="townHint" hidden></p>
   </div>
 </div>
 
 <!-- In de arena kiezen: het volgende gevecht (hooguit 5 per blok, zie STAGES) of het toernooi. -->
 <div class="overlay" id="pick" hidden>
   <div class="panel pick">
-    <p class="eyebrow">De arena</p>
-    <h2>Wat wordt het?</h2>
     <div class="choices" id="choices"></div>
-    <button id="pickBack" class="btn wide">Terug naar de straat</button>
+    <button id="pickBack" class="btn wide">Terug</button>
   </div>
 </div>
 
 <div class="overlay" id="shop" hidden>
   <div class="panel shop">
-    <p class="eyebrow" id="shopEyebrow">Faber · Wapensmid</p>
-    <h2>Je hebt <span id="shopMoney">0 denarii</span></h2>
+    <p class="eyebrow" id="shopEyebrow">Wapensmid</p>
+    <h2 id="shopMoney">0 d</h2>
     <ul class="wares" id="wares"></ul>
-    <p class="muted small" id="shopNote"></p>
-    <button id="shopBack" class="primary wide">Terug naar de straat</button>
+    <p id="shopNote" hidden></p>
+    <button id="shopBack" class="primary wide">Terug</button>
   </div>
 </div>
 

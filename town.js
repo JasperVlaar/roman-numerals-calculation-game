@@ -147,9 +147,10 @@ const TOWN = (() => {
     el('line', { x1: x + w - 12 * s, y1: y - 4 * s, x2: x + w - 12 * s, y2: y, stroke: '#3b3034', 'stroke-width': 1.5 }, g);
     el('rect', { x, y, width: w, height: h, rx: 4 * s, fill: open ? '#3a2a1e' : '#2e2420', stroke: open ? '#d49a48' : '#6d6458', 'stroke-width': 2.2 * s, class: 'sign' }, g);
     const t1 = el('text', { x: ax, y: y + h * .45, 'text-anchor': 'middle', 'font-family': 'Cinzel, Georgia, serif', 'font-weight': 700, 'font-size': 19 * s, 'letter-spacing': 2 * s, fill: open ? '#e2b35e' : '#8d8172' }, g);
-    t1.textContent = def.la.toUpperCase();
+    t1.textContent = def.nl.toUpperCase();
     const t2 = el('text', { x: ax, y: y + h * .8, 'text-anchor': 'middle', 'font-family': 'Alegreya Sans, sans-serif', 'font-size': 13 * s, fill: open ? '#f5ead6' : '#8d8172' }, g);
-    t2.textContent = open ? def.nl : def.after ? `${def.nl} · na toernooi ${toRoman(def.after)}` : `${def.nl} · binnenkort`;
+    t2.textContent = open ? '' : def.after ? `na toernooi ${toRoman(def.after)}` : '';
+    if (open) t1.setAttribute('y', y + h * .62);   // één regel: midden op het bord
     // klikvlak: gevel, luifel en bord samen
     const hit = el('polygon', { class: 'hl', points: poly([pt(side, sp.x0, 0), pt(side, sp.x1, 0), out(side, sp.x1, .54, 70), [side < 0 ? x + w : x, y], [side < 0 ? x : x + w, y], pt(side, sp.x0, .66)]) }, g);
     g.insertBefore(hit, g.firstChild);
@@ -229,18 +230,13 @@ const TOWN = (() => {
     el('rect', { class: 'hl', x: 312, y: 88, width: 336, height: 220, rx: 10 }, g);
     arena(g);
     const due = !fightOpen();   // 5 gevechten gehad: nu moet het toernooi
-    const w = 330, h = 50, x = 480 - w / 2, y = 92;
+    const w = 170, h = 50, x = 480 - w / 2, y = 92;
     el('rect', { x, y, width: w, height: h, rx: 6, fill: due ? '#4a1512' : '#3a2a1e', stroke: due ? '#d4463b' : '#d49a48', 'stroke-width': 2.2, class: 'sign' }, g);
-    const t1 = el('text', { x: 480, y: y + 22, 'text-anchor': 'middle', 'font-family': 'Cinzel, Georgia, serif', 'font-weight': 700, 'font-size': 18, 'letter-spacing': 3, fill: '#e2b35e' }, g);
+    const t1 = el('text', { x: 480, y: y + 32, 'text-anchor': 'middle', 'font-family': 'Cinzel, Georgia, serif', 'font-weight': 700, 'font-size': 20, 'letter-spacing': 4, fill: '#e2b35e' }, g);
     t1.textContent = 'ARENA';
-    const t2 = el('text', { x: 480, y: y + 41, 'text-anchor': 'middle', 'font-family': 'Alegreya Sans, sans-serif', 'font-size': 13, fill: '#f5ead6' }, g);
-    const sub = due ? `Toernooi ${toRoman(S.stage + 1)} wacht op je` : fightLabel();
-    t2.textContent = sub;
+    const sub = due ? `Toernooi ${toRoman(S.stage + 1)}` : fightLabel();
     g.setAttribute('aria-label', `Naar de arena: ${sub}`);
-    el('title', {}, g).textContent = `Naar de arena: ${sub}`;
-    $('townHint').textContent = due
-      ? 'Je hebt je vijf gevechten gehad: nu het toernooi. Het gaat tot de dood; ga je neer, dan beslist Caesar met zijn duim.'
-      : 'Kies een winkel, of klik op de arena voor je volgende gevecht (of waag je al aan het toernooi).';
+    el('title', {}, g).textContent = sub;
   }
   // Het eerstvolgende gewone gevecht (of de herkansing).
   function fightLabel() {
@@ -261,28 +257,26 @@ const TOWN = (() => {
     if (fightOpen()) {
       const f = st.fights[fightIdx()], fine = Math.round(f.reward * MONEY.lossShare);
       box.appendChild(card({
-        title: `${fightLabel()}${f.kind === 'boss' ? ' · tussenbaas' : ''}`,
-        lines: [`Tegen ${listSummary(f.foes)}`, `Winst ${f.reward} d · verlies ${fine} d boete ${pips()}`],
+        title: fightLabel(),
+        lines: [listSummary(f.foes), `${f.reward} d ${pips()}`],
         cls: f.kind === 'boss' ? 'boss' : '', go: () => go('fight')
       }));
     } else {
       box.appendChild(card({
         title: `Gevecht ${toRoman(fightNumber() + 1)}`,
-        lines: [`Je hebt alle ${n} gevechten van deze reeks gehad ${pips()}`, 'Win eerst het toernooi: daarna komen de volgende vijf.'],
+        lines: [pips()],
         locked: true
       }));
     }
     // Toernooi
     if (S.finished) {
-      box.appendChild(card({ title: 'Toernooi', lines: ['Je hebt alle toernooien van deze proef gewonnen.'], locked: true }));
+      box.appendChild(card({ title: 'Toernooi', lines: [], locked: true }));
     } else {
       const t = st.tourney, boss = t.rounds[t.rounds.length - 1];
       const retry = S.over === 'lost' && S.mode === 'tournament', early = S.inStage < n;
       box.appendChild(card({
         title: `Toernooi ${toRoman(S.stage + 1)}${retry ? ' (opnieuw)' : ''}`,
-        lines: [`Tot de dood · ${toRoman(t.rounds.length)} rondes · eindbaas: ${listSummary(boss)}`,
-                `Winst ${t.reward} d · verlies: Caesar beslist`,
-                ...(early ? [`<strong>Vroeg:</strong> je hebt pas ${S.inStage} van de ${n} gevechten gehad. Je mag het proberen, maar het is zwaar.`] : [])],
+        lines: [`${toRoman(t.rounds.length)} rondes · ${listSummary(boss)}`, `${t.reward} d`],
         cls: 'deadly', go: () => go('tournament')
       }));
     }
@@ -292,15 +286,66 @@ const TOWN = (() => {
   function card({ title, lines, cls = '', locked = false, go }) {
     const b = document.createElement('button');
     b.className = `choice ${cls}${locked ? ' locked' : ''}`; b.disabled = locked;
-    b.innerHTML = `<b>${title}</b>${lines.map(l => `<span>${l}</span>`).join('')}${locked ? '<em>Nog niet beschikbaar</em>' : ''}`;
+    b.innerHTML = `<b>${title}</b>${lines.map(l => `<span>${l}</span>`).join('')}`;
     if (go) b.onclick = go;
     return b;
   }
   $('pickBack').onclick = () => { $('pick').hidden = true; };
   function go(mode) {
     $('pick').hidden = true; $('town').hidden = true; $('shop').hidden = true;
-    SFX.mood('calm'); chooseArena(mode);
+    SFX.mood('calm'); SFX.town(null); cat.reset(); chooseArena(mode);
   }
+
+  /* ---------- De kat ----------
+     Zit op straat. Klik: hij rolt op zijn rug en spint. Een tijdje na de laatste aai komt hij weer overeind (en miauwt soms). */
+  const cat = (() => {
+    const CAT = { x: 610, y: 470, s: 1, purr: 6 };   // plek (rechts op straat) en hoe lang hij blijft liggen na een aai
+    let g = null, back = false, timer = 0;
+    function draw(svg) {
+      g = el('g', { class: 'cat', tabindex: 0, role: 'button', 'aria-label': 'Aai de kat' }, svg);
+      el('title', {}, g).textContent = 'Aai de kat';
+      pose(); g.addEventListener('click', pet);
+      g.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); pet(); } });
+    }
+    function pose() {
+      [...g.querySelectorAll(':scope > :not(title)')].forEach(n => n.remove());
+      const { x, y } = CAT, fur = '#3a2e2a', light = '#d9cbb0', line = { stroke: '#1e140f', 'stroke-width': 1.4 };
+      el('ellipse', { cx: x, cy: y + 2, rx: 30, ry: 7, fill: 'rgba(30,15,8,.3)' }, g);   // schaduw
+      if (!back) {   // zittend, van opzij
+        el('path', { d: `M${x + 14} ${y - 4} C${x + 34} ${y - 2} ${x + 36} ${y - 22} ${x + 26} ${y - 30}`, fill: 'none', stroke: fur, 'stroke-width': 4, 'stroke-linecap': 'round', class: 'cat-tail' }, g);
+        el('ellipse', { cx: x + 4, cy: y - 12, rx: 15, ry: 13, fill: fur, ...line }, g);
+        el('circle', { cx: x - 8, cy: y - 30, r: 9, fill: fur, ...line }, g);
+        el('path', { d: `M${x - 15} ${y - 35} l2 -9 l5 6 Z M${x - 5} ${y - 37} l3 -9 l4 7 Z`, fill: fur, ...line }, g);
+        el('circle', { cx: x - 11, cy: y - 31, r: 1.4, fill: '#e2b35e' }, g);
+        el('circle', { cx: x - 5, cy: y - 31, r: 1.4, fill: '#e2b35e' }, g);
+        el('ellipse', { cx: x - 4, cy: y - 2, rx: 4, ry: 2.5, fill: fur, ...line }, g);   // pootjes
+        el('ellipse', { cx: x + 6, cy: y - 2, rx: 4, ry: 2.5, fill: fur, ...line }, g);
+      } else {   // op zijn rug, pootjes in de lucht, buik licht
+        el('ellipse', { cx: x, cy: y - 8, rx: 22, ry: 10, fill: fur, ...line }, g);
+        el('ellipse', { cx: x + 2, cy: y - 11, rx: 13, ry: 5.5, fill: light }, g);
+        el('circle', { cx: x - 24, cy: y - 7, r: 8.5, fill: fur, ...line }, g);
+        el('path', { d: `M${x - 30} ${y - 1} l-6 4 l1 -8 Z M${x - 31} ${y - 10} l-7 -2 l5 -5 Z`, fill: fur, ...line }, g);
+        el('path', { d: `M${x - 27} ${y - 8} q2 2 4 0 M${x - 27} ${y - 4} q2 2 4 0`, fill: 'none', stroke: '#e2b35e', 'stroke-width': 1.2 }, g);   // ogen dicht
+        for (const [dx, h] of [[-10, 13], [-4, 15], [8, 14], [14, 12]]) el('path', { d: `M${x + dx} ${y - 14} l${dx > 0 ? 2 : -2} ${-h}`, stroke: fur, 'stroke-width': 4, 'stroke-linecap': 'round' }, g);
+        el('path', { d: `M${x + 20} ${y - 6} C${x + 34} ${y - 4} ${x + 38} ${y + 4} ${x + 30} ${y + 6}`, fill: 'none', stroke: fur, 'stroke-width': 4, 'stroke-linecap': 'round', class: 'cat-tail' }, g);
+      }
+    }
+    function pet() {
+      if (!back) { back = true; pose(); SFX.purr(true); }
+      g.classList.remove('petted'); void g.getBBox(); g.classList.add('petted');
+      clearTimeout(timer);
+      timer = setTimeout(() => { back = false; if (g && g.isConnected) pose(); SFX.purr(false); if (Math.random() < .5) SFX.meow(); }, CAT.purr * 1000);
+    }
+    // Op straat miauwt hij af en toe: de eerste keer na een paar seconden, daarna elke 15–35 s.
+    let meowT = 0;
+    function listen() {
+      clearTimeout(meowT);
+      const next = (wait) => { meowT = setTimeout(() => { if ($('town').hidden) return; if (!back) SFX.meow(); next(15 + Math.random() * 20); }, wait * 1000); };
+      next(2 + Math.random() * 3);
+    }
+    function reset() { clearTimeout(timer); clearTimeout(meowT); if (back) SFX.purr(false); back = false; }
+    return { draw, reset, listen };
+  })();
 
   function render() {
     const host = $('townArt'); host.innerHTML = '';
@@ -309,6 +354,7 @@ const TOWN = (() => {
     arenaSpot(svg);
     street(svg); walls(svg);
     for (const id of ['armorer', 'stable', 'smith', 'bowyer']) shop(svg, id);   // achterste eerst
+    cat.draw(svg);
     el('rect', { width: VB.w, height: VB.h, fill: 'url(#tVignette)', 'pointer-events': 'none' }, svg);
     svg.querySelectorAll('.hot:not(.closed)').forEach(g => {
       const go = () => g.dataset.id === 'arena' ? openPick() : openShop(g.dataset.id);
@@ -319,9 +365,9 @@ const TOWN = (() => {
   }
   function purse() {
     $('townMoney').textContent = S.money;
-    $('townWeapon').textContent = [WEAPONS[S.melee].name, ...(S.ranged ? [WEAPONS[S.ranged].name] : []), ...Object.values(S.gear).filter(Boolean).map(g => GEAR[g].name)].join(', ');
+
     const b = $('townStats');
-    b.textContent = S.points ? `Verdeel je punten (${toRoman(S.points)})` : 'Je stats';
+    b.textContent = S.points ? `Stats · ${toRoman(S.points)}` : 'Stats';
     b.classList.toggle('has-points', S.points > 0);
   }
   $('townStats').onclick = () => openStats('town');
@@ -330,44 +376,44 @@ const TOWN = (() => {
   let current = null;
   function openShop(id) {
     current = id; renderShop(); $('shop').hidden = false; $('shopBack').focus();
+    SFX.town(id);
   }
   function renderShop() {
     const def = SHOPS[current];
-    $('shopEyebrow').textContent = `${def.la} · ${def.nl}`;
-    $('shopMoney').textContent = denarii(S.money);
+    $('shopEyebrow').textContent = def.nl;
+    $('shopMoney').textContent = `${S.money} d`;
     const list = $('wares'); list.innerHTML = '';
     for (const key of def.wares) {
+      if (key === 'arrows') { list.appendChild(arrowRow()); continue; }
       const isGear = !!GEAR[key], it = isGear ? GEAR[key] : WEAPONS[key], owned = S.owned.includes(key);
       const worn = isGear ? S.gear[it.slot] === key : S.melee === key || S.ranged === key, rich = S.money >= it.price;
       let info, cmp;
       if (isGear) {
         const cur = S.gear[it.slot];
-        info = `${SLOTS[it.slot]} · ${it.desc}`;
-        cmp = worn ? 'draag je' : cur ? `vervangt ${GEAR[cur].name.toLowerCase()}` : `je ${SLOTS[it.slot].toLowerCase()}vak is leeg`;
+        info = it.short; cmp = '';
       } else if (it.kind === 'bow') {
         const cd = it.cooldown * Math.max(STAT_RULES.shootMin, 1 - STAT_RULES.shoot * S.stats.agility);
-        info = `${fmt(it.dmg)} schade per pijl · bereik ${it.range} · gaat in vak 2 · met de boog in je handen loop je veel langzamer`;
-        cmp = `${worn ? 'in vak 2 · ' : S.ranged ? `vervangt ${WEAPONS[S.ranged].name.toLowerCase()} · ` : ''}met jouw behendigheid: elke ${fmt(Math.round(cd * 100) / 100)} s een pijl`;
+        info = `${fmt(it.dmg)} schade · bereik ${it.range} · ${fmt(Math.round(cd * 100) / 100)} s`; cmp = '';
       } else {
         const now = WEAPONS[S.melee], diff = it.dmg - now.dmg;
-        info = `${fmt(it.dmg)} schade · bereik ${it.reach}${it.knock ? ' · duwt terug' : ''} · gaat in vak 1`;
-        cmp = worn ? 'in vak 1' : `${diff > 0 ? '+' : ''}${fmt(diff)} schade t.o.v. ${now.name.toLowerCase()}`;
+        info = `${fmt(it.dmg)} schade · bereik ${it.reach}`; cmp = diff && !worn ? `${diff > 0 ? '+' : ''}${fmt(diff)}` : '';
       }
       // kan het samen met wat je nu hebt?
       const clash = isGear && it.needsBow && !S.ranged ? 'koop eerst een boog' : '';
       const li = document.createElement('li');
-      li.innerHTML = `<div><b>${it.name}</b><span>${info}</span><span class="eff">${cmp}</span></div>`;
+      li.innerHTML = `<div><b>${it.name}</b><span>${info}${cmp ? ` <i class="eff">${cmp}</i>` : ''}</span></div>`;
       const b = document.createElement('button'); b.className = 'btn';
-      if (worn && isGear) { b.textContent = 'Doe af'; b.onclick = () => { S.gear[it.slot] = null; changed(); }; }
-      else if (worn) { b.textContent = isBow(key) ? 'In vak 2' : 'In vak 1'; b.disabled = true; }
-      else if (owned && clash) { b.textContent = clash; b.disabled = true; }
+      if (worn && key === 'quiver') { b.textContent = '✓'; b.disabled = true; }   // afdoen zou pijlen kosten
+      else if (worn && isGear) { b.textContent = 'Doe af'; b.onclick = () => { S.gear[it.slot] = null; changed(); }; }
+      else if (worn) { b.textContent = '✓'; b.disabled = true; }
+      else if (owned && clash) { b.textContent = 'Doe aan'; b.disabled = true; b.title = clash; }
       else if (owned) { b.textContent = isGear ? 'Doe aan' : 'Neem mee'; b.onclick = () => equip(key); }
       else { b.textContent = `${it.price} d`; b.disabled = !rich; b.setAttribute('aria-label', `${it.name} kopen voor ${it.price} denarii`); b.onclick = () => buy(key); }
       li.appendChild(b); list.appendChild(li);
     }
     const priceOf = k => (GEAR[k] || WEAPONS[k]).price;
-    const cheapest = def.wares.filter(k => !S.owned.includes(k)).map(priceOf).sort((a, b) => a - b)[0];
-    $('shopNote').textContent = cheapest > S.money ? `Je komt ${denarii(cheapest - S.money)} tekort voor het goedkoopste stuk. Win een gevecht en kom terug.` : '';
+    const cheapest = def.wares.filter(k => k !== 'arrows' && !S.owned.includes(k)).map(priceOf).sort((a, b) => a - b)[0];
+    void cheapest;
   }
   function buy(key) {
     const it = GEAR[key] || WEAPONS[key]; if (S.money < it.price || S.owned.includes(key)) return;
@@ -378,16 +424,26 @@ const TOWN = (() => {
     const before = { ...S.gear }, msg = wear(key);
     changed();
     const off = Object.keys(before).filter(k => before[k] && !S.gear[k]).map(k => GEAR[before[k]].name.toLowerCase());
-    if (msg) $('shopNote').textContent = `Gekocht. ${msg}`;
-    else if (off.length) $('shopNote').textContent = `${off.join(' en ')} ${off.length > 1 ? 'zijn' : 'is'} afgedaan: dat gaat niet samen met ${WEAPONS[PLAYER.weapon].name.toLowerCase()}.`.replace(/^./, c => c.toUpperCase());
+    void msg; void off;
   }
-  function changed() { updateUI(); purse(); renderShop(); }
-  $('shopBack').onclick = () => { $('shop').hidden = true; current = null; purse(); };
+  function changed() { S.ammo = Math.min(S.ammo, me.ammoMax); updateUI(); purse(); renderShop(); }
+  // Pijlen: aanvullen tot je koker vol is (of zoveel als je kunt betalen).
+  function arrowRow() {
+    const li = document.createElement('li'), room = me.ammoMax - S.ammo, n = Math.min(room, Math.floor(S.money / AMMO.price));
+    li.innerHTML = `<div><b>Pijlen</b><span>${S.ammo}/${me.ammoMax}</span></div>`;
+    const b = document.createElement('button'); b.className = 'btn';
+    if (!room) { b.textContent = 'Vol'; b.disabled = true; }
+    else { b.textContent = n ? `+${n} · ${n * AMMO.price} d` : `${AMMO.price} d`; b.disabled = !n; b.onclick = () => { S.money -= n * AMMO.price; S.ammo += n; SFX.hit(); changed(); }; }
+    li.appendChild(b); return li;
+  }
+  $('shopBack').onclick = () => { $('shop').hidden = true; current = null; purse(); SFX.town('street'); };
 
   /* ---------- In en uit ---------- */
   function open() {
     SFX.mood('town'); settle();
     render(); $('town').hidden = false; S.townSeen = true;
+    SFX.town('street', Object.keys(SHOPS).filter(shopOpen));
+    cat.listen();
   }
   return { open, render, purse };
 })();

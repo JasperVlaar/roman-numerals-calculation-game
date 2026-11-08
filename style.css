@@ -249,3 +249,24 @@ button:disabled{opacity:.4;cursor:default}
 .slot.on b{color:var(--bronze)}
 .slot.to{border-color:var(--bronze);animation:pointsGlow .5s ease-in-out infinite alternate}
 .slot:disabled{opacity:.4;cursor:default}
+
+/* De kat in de straat (town.js) */
+.town-svg .cat{cursor:pointer}
+.town-svg .cat:focus{outline:none}
+.town-svg .cat:focus-visible,.town-svg .cat:hover{filter:drop-shadow(0 0 6px rgba(240,197,106,.7))}
+.town-svg .cat.petted{animation:catWiggle .35s ease-out}
+.town-svg .cat-tail{animation:catTail 2.4s ease-in-out infinite alternate;transform-box:fill-box;transform-origin:0% 100%}
+.town-svg .purr-text{animation:purrText 1.4s ease-in-out infinite}
+@keyframes catWiggle{0%{transform:translateY(0)}40%{transform:translateY(-3px)}100%{transform:translateY(0)}}
+@keyframes catTail{from{transform:rotate(-6deg)}to{transform:rotate(8deg)}}
+@keyframes purrText{0%,100%{opacity:.35;transform:translateY(0)}50%{opacity:1;transform:translateY(-3px)}}
+@media (prefers-reduced-motion:reduce){.town-svg .cat-tail,.town-svg .purr-text,.town-svg .cat.petted{animation:none}}
+
+/* Weinig tekst: toetsen op het startscherm, lege titels */
+.keys{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;color:var(--muted)}
+.keys kbd{display:inline-block;min-width:22px;padding:2px 6px;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;background:var(--stone-2);color:var(--ink);font-family:var(--f-body);font-size:13px;text-align:center}
+#statsTitle:empty,#judgeTitle:empty{display:none}
+.wares span i.eff{font-style:normal;color:var(--laurel);margin-left:4px}
+.slot.empty{animation:slotEmpty .4s ease-in-out 3}
+@keyframes slotEmpty{50%{border-color:var(--blood);color:var(--blood)}}
+.goal .label:empty{visibility:hidden}
