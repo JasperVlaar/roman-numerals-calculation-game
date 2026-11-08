@@ -264,8 +264,19 @@ function nextRound() {
   spawnRound();
   void heal;
 }
+// Moeilijkheid: vooral hoe snel tegenstanders slaan. windup = langer aanzetten (meer tijd om weg te stappen),
+// cooldown = langer wachten tussen twee aanvallen, arrow = pijlsnelheid. Zwaar = de waarden in FOES.
+const DIFFICULTY = {
+  easy:   { nl: 'Makkelijk', windup: 1.8,  cooldown: 1.6,  arrow: .7 },
+  normal: { nl: 'Normaal',   windup: 1.35, cooldown: 1.25, arrow: .85 },
+  hard:   { nl: 'Zwaar',     windup: 1,    cooldown: 1,    arrow: 1 }
+};
+let difficulty = 'normal';
+try { difficulty = localStorage.getItem('rn-difficulty') || 'normal'; } catch (e) {}
 function mkFoe(type, x, y) {
-  const d = FOES[type];
+  const base = FOES[type], m = DIFFICULTY[difficulty] || DIFFICULTY.hard;
+  const d = { ...base, windup: base.windup * m.windup, cooldown: base.cooldown * m.cooldown,
+              ranged: base.ranged && { ...base.ranged, arrow: base.ranged.arrow * m.arrow } };
   return { type, d, x, y, vx: 0, vy: 0, face: Math.atan2(P.y - y, P.x - x), hp: d.hp, state: 'walk', t: 0, cd: .2 + Math.random() * .4,
            flash: 0, lunge: 0, dead: 0, wob: Math.random() * 10 };
 }
@@ -398,6 +409,7 @@ function update(dt) {
   }
   P.vx += (tx - P.vx) * k; P.vy += (ty - P.vy) * k;
   P.x += P.vx * dt; P.y += P.vy * dt;
+  P.walk = ((P.walk || 0) + Math.hypot(P.vx, P.vy) * dt * .16) % TAU2;   // stappen
   contain(P, W.rx - PLAYER.radius - 4, W.ry - PLAYER.radius - 4);
   if (me.riding && !P.dead) {   // tegen de muur: de wagen remt af en draait mee langs de muur, maar jij kunt er nog vanaf sturen
     const v = Math.hypot(P.vx, P.vy);
@@ -631,29 +643,76 @@ function drawBody(o, r, tunic, skin, hair, opts = {}) {
   ctx.fillStyle = 'rgba(40,20,8,.28)'; ctx.beginPath(); ctx.ellipse(2, 3, r * 1.05, r * .9, 0, 0, TAU2); ctx.fill();
   ctx.rotate(o.face + (opts.lean || 0));
   if (opts.forward) ctx.translate(opts.forward, 0);
+  if (opts.feet !== undefined && opts.stride) ctx.translate(0, Math.sin(opts.feet * 2) * .5 * opts.stride);   // wiegen bij het lopen
   const fl = opts.flash > 0;
   ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(30,15,8,.75)';
+  if (opts.feet !== undefined) {   // sandalen: stappen om en om als je loopt
+    const st = Math.sin(opts.feet) * r * .85 * (opts.stride ?? 1);
+    for (const side of [-1, 1]) {
+      ctx.fillStyle = fl ? '#fff' : '#6b4526'; ctx.beginPath(); ctx.ellipse(side * st, side * r * .32, r * .36, r * .2, 0, 0, TAU2); ctx.fill(); ctx.stroke();
+    }
+  }
+  if (opts.quiver) {   // pijlkoker op de rug, veren steken uit
+    ctx.fillStyle = fl ? '#fff' : '#5a3a26'; ctx.beginPath(); ctx.roundRect(-r * 1.05, -r * .55, r * .5, r * .9, 2); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#8e1f1a'; ctx.lineWidth = 1.6;
+    for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(-r * 1.05, -r * .4 + i * r * .28); ctx.lineTo(-r * 1.35, -r * .5 + i * r * .28); ctx.stroke(); }
+    ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(30,15,8,.75)';
+  }
   // armen (handen) links en rechts voor de schouders
   for (const side of [-1, 1]) {
     const reach = side === 1 ? (opts.armR ?? 0) : (opts.armL ?? 0);
     ctx.fillStyle = fl ? '#fff' : skin; ctx.beginPath(); ctx.arc(r * .35 + reach, side * r * .78, r * .3, 0, TAU2); ctx.fill(); ctx.stroke();
   }
   ctx.fillStyle = fl ? '#fff' : tunic; ctx.beginPath(); ctx.ellipse(0, 0, r * .62, r, 0, 0, TAU2); ctx.fill(); ctx.stroke();
-  if (opts.belt) { ctx.strokeStyle = opts.belt; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-r * .2, -r * .9); ctx.lineTo(r * .2, r * .9); ctx.stroke(); ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(30,15,8,.75)'; }
-  if (opts.shield) {   // scutum aan de linkerarm: rood met een bronzen knop
-    ctx.fillStyle = fl ? '#fff' : '#8e1f1a'; ctx.beginPath(); ctx.roundRect(r * .35, -r * 1.3, r * .42, r * 1.1, 2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = C.bronze; ctx.beginPath(); ctx.arc(r * .56, -r * .75, r * .16, 0, TAU2); ctx.fill();
+  if (opts.armor === 'leather' && !fl) {   // leren harnas: schouderstukken en riemen
+    ctx.fillStyle = '#5e3c22';
+    for (const side of [-1, 1]) { ctx.beginPath(); ctx.ellipse(-r * .05, side * r * .72, r * .34, r * .26, 0, 0, TAU2); ctx.fill(); ctx.stroke(); }
+    ctx.strokeStyle = '#3b2a1e'; ctx.lineWidth = 1.2;
+    for (const y of [-.45, 0, .45]) { ctx.beginPath(); ctx.moveTo(-r * .5, y * r); ctx.lineTo(r * .45, y * r); ctx.stroke(); }
+    ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(30,15,8,.75)';
   }
+  if (opts.armor === 'lorica' && !fl) {   // lorica segmentata: ijzeren banden over de schouders
+    ctx.strokeStyle = '#5c5a62'; ctx.lineWidth = 2;
+    for (const k of [-.55, -.18, .18, .55]) { ctx.beginPath(); ctx.ellipse(0, 0, r * .62, r * Math.abs(k) + r * .2, 0, k < 0 ? Math.PI : 0, k < 0 ? TAU2 : Math.PI); ctx.stroke(); }
+    ctx.fillStyle = '#b8b2a6';
+    for (const side of [-1, 1]) { ctx.beginPath(); ctx.ellipse(-r * .05, side * r * .74, r * .36, r * .28, 0, 0, TAU2); ctx.fill(); ctx.stroke(); }
+    ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(30,15,8,.75)';
+  }
+  if (opts.belt) { ctx.strokeStyle = opts.belt; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-r * .2, -r * .9); ctx.lineTo(r * .2, r * .9); ctx.stroke(); ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(30,15,8,.75)'; }
   ctx.fillStyle = fl ? '#fff' : skin; ctx.beginPath(); ctx.arc(r * .12, 0, r * .48, 0, TAU2); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = fl ? '#fff' : hair; ctx.beginPath(); ctx.arc(-r * .02, 0, r * .42, Math.PI * .5, Math.PI * 1.5); ctx.fill();
+  if (opts.helmet) {   // galea: bronzen helm met wangstukken en een rode pluim van voor naar achter
+    ctx.fillStyle = fl ? '#fff' : C.bronze; ctx.beginPath(); ctx.arc(r * .06, 0, r * .52, 0, TAU2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = fl ? '#fff' : '#a8742f';
+    for (const side of [-1, 1]) { ctx.beginPath(); ctx.ellipse(r * .32, side * r * .38, r * .2, r * .12, side * .5, 0, TAU2); ctx.fill(); }
+    ctx.strokeStyle = fl ? '#fff' : '#b8352c'; ctx.lineWidth = r * .32; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(r * .42, 0); ctx.lineTo(-r * .55, 0); ctx.stroke();
+    ctx.strokeStyle = 'rgba(30,15,8,.35)'; ctx.lineWidth = 1;
+    for (let i = 0; i < 4; i++) { const x = r * (.3 - i * .25); ctx.beginPath(); ctx.moveTo(x, -r * .14); ctx.lineTo(x - r * .08, r * .14); ctx.stroke(); }
+    ctx.lineCap = 'butt'; ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(30,15,8,.75)';
+  } else {
+    ctx.fillStyle = fl ? '#fff' : hair; ctx.beginPath(); ctx.arc(-r * .02, 0, r * .42, Math.PI * .5, Math.PI * 1.5); ctx.fill();
+  }
+  if (opts.shield) {   // scutum aan de linkerarm: gebogen, rood met bronzen rand en knop
+    const k = opts.shieldUp ? 1 : 0;   // bij het slaan iets naar voren
+    ctx.save(); ctx.translate(r * (.5 + .25 * k), -r * .9); ctx.rotate(-.2 + .25 * k);
+    ctx.fillStyle = fl ? '#fff' : '#8e1f1a'; ctx.strokeStyle = fl ? '#fff' : C.bronze; ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.moveTo(r * .05, -r * .85); ctx.quadraticCurveTo(r * .45, 0, r * .05, r * .85); ctx.lineTo(-r * .45, r * .8); ctx.quadraticCurveTo(-r * .1, 0, -r * .45, -r * .8); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = C.bronze; ctx.beginPath(); ctx.arc(-r * .05, 0, r * .17, 0, TAU2); ctx.fill();
+    ctx.strokeStyle = 'rgba(226,179,94,.7)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-r * .2, -r * .55); ctx.lineTo(-r * .2, r * .55); ctx.stroke();
+    ctx.restore(); ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(30,15,8,.75)';
+  }
   if (opts.item) opts.item(r);
   ctx.restore();
 }
 // Hoe de speler eruitziet met zijn uitrusting.
 function playerLook() {
   const b = S.gear.body;
+  const moving = Math.hypot(P.vx, P.vy);
   return { tunic: b === 'lorica' ? '#8f8a80' : b === 'leather' ? '#7a5230' : C.blood,
-           belt: b === 'lorica' ? '#5c5a62' : C.bronze, hair: S.gear.head ? C.bronze : C['hair-1'], shield: me.shield };
+           belt: b === 'lorica' ? null : C.bronze, hair: C['hair-1'], shield: me.shield,
+           // voor drawBody: uitrusting en lopen
+           hero: { armor: b, helmet: !!S.gear.head, quiver: !!S.gear.quiver && !!S.ranged, feet: me.riding ? undefined : P.walk || 0,
+                   stride: Math.min(1, moving / 60), forward: Math.min(1.5, moving / 60) } };
 }
 // Strijdwagen van bovenaf: twee paarden voorop, wagenbak met wielen, jij erin.
 function drawChariot(now) {
@@ -677,7 +736,7 @@ function drawChariot(now) {
 }
 function drawPlayer(now) {
   const w = WEAPONS[PLAYER.weapon], look = playerLook();
-  if (P.dead) { drawFallen(P, PLAYER.radius, C.blood, C.skin, 1); return; }
+  if (P.dead) { drawFallen(P, PLAYER.radius, look.tunic, C.skin, 1); return; }
   if (P.hurt > 0 && Math.floor(now / 70) % 2 === 0) ctx.globalAlpha = .45;
   if (me.riding) drawChariot(now);
   if (S.switching > 0) {   // wisselen: een ring die volloopt
@@ -690,7 +749,7 @@ function drawPlayer(now) {
     // Boog: pees naar achteren vlak voor het schot; met je vuisten als iemand tegen je aan staat.
     const pull = P.cd > 0 && P.cd < .35 ? 1 - P.cd / .35 : 0, punch = P.punch > 0 ? Math.sin((1 - P.punch / WEAPONS.fists.swing) * Math.PI) : 0;
     drawBody(P, PLAYER.radius, look.tunic, C.skin, look.hair, {
-      flash: P.flash, belt: look.belt, armR: 4 + 9 * punch, armL: 4,
+      ...look.hero, flash: P.flash, belt: look.belt, armR: 4 + 9 * punch, armL: 4,
       item: r => {
         const bx = r + 3, ang = 1.1;
         ctx.strokeStyle = w === WEAPONS.composite ? '#2a1a12' : '#5a3a26'; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
@@ -709,7 +768,7 @@ function drawPlayer(now) {
     // Vuistslag: de rechter- of linkervuist schiet naar voren en het lijf leunt mee, zoals bij een slaaf.
     const punch = sw >= 0 ? Math.sin(sw * Math.PI) : 0, right = P.swingDir > 0;
     drawBody(P, PLAYER.radius, look.tunic, C.skin, look.hair, {
-      flash: P.flash, belt: look.belt, shield: look.shield, forward: 3 * punch,
+      ...look.hero, flash: P.flash, belt: look.belt, shield: look.shield, forward: 3 * punch,
       armR: right ? 9 * punch : 0, armL: right ? 0 : 9 * punch,
       item: () => {
         if (punch > .3) {
@@ -724,7 +783,7 @@ function drawPlayer(now) {
   const ang = sw >= 0 ? P.swingDir * (-1.1 + 2.2 * sw) : .55;
   const len = PLAYER.radius + w.reach + 2;
   drawBody(P, PLAYER.radius, look.tunic, C.skin, look.hair, {
-    flash: P.flash, belt: look.belt, shield: look.shield, armR: sw >= 0 ? 3 : 0,
+    ...look.hero, flash: P.flash, belt: look.belt, shield: look.shield, shieldUp: sw >= 0, armR: sw >= 0 ? 3 : 0,
     item: r => {
       if (sw >= 0) {   // zwaaispoor
         ctx.strokeStyle = 'rgba(255,240,210,.55)'; ctx.lineWidth = 5; ctx.lineCap = 'round';
@@ -939,6 +998,13 @@ function newRun() {
   startFight(); S.paused = false;
 }
 $('startBtn').onclick = () => { SFX.init(); $('start').hidden = true; newRun(); };
+// Moeilijkheid kiezen op het startscherm (onthouden in de browser).
+function showDifficulty() { document.querySelectorAll('#diff button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.d === difficulty))); }
+document.querySelectorAll('#diff button').forEach(b => b.onclick = () => {
+  difficulty = b.dataset.d; try { localStorage.setItem('rn-difficulty', difficulty); } catch (e) {}
+  showDifficulty();
+});
+showDifficulty();
 // Geluid aan/uit: knop rechtsboven, of de toets M.
 function showMute() { const b = $('mute'); b.textContent = SFX.muted ? 'Geluid uit' : 'Geluid aan'; b.setAttribute('aria-pressed', String(!SFX.muted)); }
 $('slot_melee').onclick = () => { switchTo('melee'); $('slot_melee').blur(); };

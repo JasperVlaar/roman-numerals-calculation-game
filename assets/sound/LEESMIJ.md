@@ -67,4 +67,4 @@ Alle bronnen uit `sounds/Creative Commons/`; bewerkt met ffmpeg (ingekort, mono,
 | `horse.mp3` | "horse" door 3bagbrew (59569), eerste 6,5 s | stallen, af en toe; zacht op straat |
 | `clopping.mp3` | "horse clip-clopping downhill" door swiftoid (182504), 3–25 s, langzaam in en uit | komt elke 20–45 s langs op straat |
 
-Licenties: deze map heet "Creative Commons"; controleer per geluid op Freesound of het CC0 of CC BY is. De makers staan voor de zekerheid allemaal in de vermelding op het startscherm.
+Licentie: CC0 (map `sounds/Creative Commons/`), geen naamsvermelding nodig. Op het startscherm staan alleen de geluiden uit `Attribution 4.0` (CC BY 4.0) en Pixabay.
