@@ -310,3 +310,7 @@ button:disabled{opacity:.4;cursor:default}
 @keyframes polish{0%{transform:translate(0,0)}25%{transform:translate(6px,-4px)}50%{transform:translate(0,-8px)}75%{transform:translate(-6px,-4px)}100%{transform:translate(0,0)}}
 @keyframes nod{0%,100%{transform:rotate(0)}50%{transform:rotate(-5deg)}}
 @media (prefers-reduced-motion:reduce){.shop-svg *{animation:none!important}}
+#pause .vol{width:100%;margin:4px 0 16px}
+.town-svg .cat-eyes{animation:catBlink 5.5s infinite;transform-box:fill-box;transform-origin:center}
+@keyframes catBlink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+@media (prefers-reduced-motion:reduce){.town-svg .cat-eyes{animation:none}}

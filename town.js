@@ -404,7 +404,7 @@ const TOWN = (() => {
   /* ---------- De kat ----------
      Zit op straat. Klik: hij rolt op zijn rug en spint. Een tijdje na de laatste aai komt hij weer overeind (en miauwt soms). */
   const cat = (() => {
-    const CAT = { x: 610, y: 470, s: 1, purr: 6 };   // plek (rechts op straat) en hoe lang hij blijft liggen na een aai
+    const CAT = { x: 610, y: 470, s: 1.15, purr: 6 };   // plek (rechts op straat) en hoe lang hij blijft liggen na een aai
     let g = null, back = false, timer = 0;
     function draw(svg) {
       g = el('g', { class: 'cat', tabindex: 0, role: 'button', 'aria-label': 'Aai de kat' }, svg);
@@ -412,27 +412,60 @@ const TOWN = (() => {
       pose(); g.addEventListener('click', pet);
       g.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); pet(); } });
     }
+    // Rode cyperse kat, getekend rond zijn voeten (0,0) en dan verplaatst en geschaald naar zijn plek.
     function pose() {
       [...g.querySelectorAll(':scope > :not(title)')].forEach(n => n.remove());
-      const { x, y } = CAT, fur = '#3a2e2a', light = '#d9cbb0', line = { stroke: '#1e140f', 'stroke-width': 1.4 };
-      el('ellipse', { cx: x, cy: y + 2, rx: 30, ry: 7, fill: 'rgba(30,15,8,.3)' }, g);   // schaduw
-      if (!back) {   // zittend, van opzij
-        el('path', { d: `M${x + 14} ${y - 4} C${x + 34} ${y - 2} ${x + 36} ${y - 22} ${x + 26} ${y - 30}`, fill: 'none', stroke: fur, 'stroke-width': 4, 'stroke-linecap': 'round', class: 'cat-tail' }, g);
-        el('ellipse', { cx: x + 4, cy: y - 12, rx: 15, ry: 13, fill: fur, ...line }, g);
-        el('circle', { cx: x - 8, cy: y - 30, r: 9, fill: fur, ...line }, g);
-        el('path', { d: `M${x - 15} ${y - 35} l2 -9 l5 6 Z M${x - 5} ${y - 37} l3 -9 l4 7 Z`, fill: fur, ...line }, g);
-        el('circle', { cx: x - 11, cy: y - 31, r: 1.4, fill: '#e2b35e' }, g);
-        el('circle', { cx: x - 5, cy: y - 31, r: 1.4, fill: '#e2b35e' }, g);
-        el('ellipse', { cx: x - 4, cy: y - 2, rx: 4, ry: 2.5, fill: fur, ...line }, g);   // pootjes
-        el('ellipse', { cx: x + 6, cy: y - 2, rx: 4, ry: 2.5, fill: fur, ...line }, g);
-      } else {   // op zijn rug, pootjes in de lucht, buik licht
-        el('ellipse', { cx: x, cy: y - 8, rx: 22, ry: 10, fill: fur, ...line }, g);
-        el('ellipse', { cx: x + 2, cy: y - 11, rx: 13, ry: 5.5, fill: light }, g);
-        el('circle', { cx: x - 24, cy: y - 7, r: 8.5, fill: fur, ...line }, g);
-        el('path', { d: `M${x - 30} ${y - 1} l-6 4 l1 -8 Z M${x - 31} ${y - 10} l-7 -2 l5 -5 Z`, fill: fur, ...line }, g);
-        el('path', { d: `M${x - 27} ${y - 8} q2 2 4 0 M${x - 27} ${y - 4} q2 2 4 0`, fill: 'none', stroke: '#e2b35e', 'stroke-width': 1.2 }, g);   // ogen dicht
-        for (const [dx, h] of [[-10, 13], [-4, 15], [8, 14], [14, 12]]) el('path', { d: `M${x + dx} ${y - 14} l${dx > 0 ? 2 : -2} ${-h}`, stroke: fur, 'stroke-width': 4, 'stroke-linecap': 'round' }, g);
-        el('path', { d: `M${x + 20} ${y - 6} C${x + 34} ${y - 4} ${x + 38} ${y + 4} ${x + 30} ${y + 6}`, fill: 'none', stroke: fur, 'stroke-width': 4, 'stroke-linecap': 'round', class: 'cat-tail' }, g);
+      const fur = '#c4733a', dark = '#7e3f1c', light = '#f2dfc2', pink = '#e39a92', eye = '#cfd650',
+            line = { stroke: '#3a1f12', 'stroke-width': 1.1, 'stroke-linejoin': 'round' },
+            c = el('g', { transform: `translate(${CAT.x} ${CAT.y}) scale(${CAT.s})` }, g),
+            stripe = (d, w = 1.8) => el('path', { d, fill: 'none', stroke: dark, 'stroke-width': w, 'stroke-linecap': 'round' }, c),
+            whiskers = (x, y, dir) => { for (const dy of [-2, 0, 2.2]) el('path', { d: `M${x} ${y} q${dir * 6} ${dy - 1} ${dir * 12} ${dy * 1.6}`, fill: 'none', stroke: '#fff6e6', 'stroke-width': .55, opacity: .85 }, c); };
+      el('ellipse', { cx: 3, cy: 1.5, rx: back ? 34 : 26, ry: 5.5, fill: 'rgba(30,15,8,.32)' }, c);   // schaduw
+      if (!back) {   // zittend, driekwart naar links
+        // staart om de pootjes heen, het puntje zwiept
+        el('path', { d: 'M15 -3 C30 -2 30 6 14 5 C4 4.5 -6 4 -12 2', fill: 'none', stroke: fur, 'stroke-width': 5.5, 'stroke-linecap': 'round' }, c);
+        stripe('M22 3 l1 -4 M17 5 l0 -4.5 M10 4.6 l0 -4', 1.5);
+        el('path', { d: 'M-12 2 q-5 -1 -7 -5', fill: 'none', stroke: dark, 'stroke-width': 5, 'stroke-linecap': 'round', class: 'cat-tail' }, c);
+        // lijf: peervorm, achterpoot als bolling
+        el('path', { d: 'M-8 -1 C-13 -14 -10 -29 1 -32 C13 -35 23 -22 21 -6 C20 0 12 2 3 1.5 C-2 1.3 -6 .5 -8 -1 Z', fill: fur, ...line }, c);
+        el('path', { d: 'M6 -1 C4 -10 9 -16 15 -15 C21 -13 22 -5 18 0', fill: 'none', stroke: dark, 'stroke-width': 1, opacity: .6 }, c);
+        stripe('M8 -29 q5 3 5 9 M14 -27 q4 4 4 10 M18 -19 q2 3 1 7');
+        el('ellipse', { cx: -5, cy: -15, rx: 6.5, ry: 10, fill: light }, c);   // witte bef
+        // voorpootjes met witte sokjes
+        for (const x of [-9, -2]) { el('path', { d: `M${x} -15 L${x - .5} -1`, stroke: fur, 'stroke-width': 5, 'stroke-linecap': 'round' }, c); el('ellipse', { cx: x - .5, cy: -.6, rx: 3.4, ry: 2, fill: light, ...line, 'stroke-width': .7 }, c); }
+        // kop
+        el('path', { d: 'M-17 -44 L-15.5 -56 L-8 -48 Z M-4 -48.5 L2 -57 L4 -45 Z', fill: fur, ...line }, c);
+        el('path', { d: 'M-15.3 -46 L-14.6 -53 L-10 -48.5 Z M-2.6 -48 L1.4 -53.5 L2.6 -46.5 Z', fill: pink }, c);
+        el('path', { d: 'M-18 -40 C-18 -49 -11 -51 -6.5 -51 C-1 -51 5 -48 5 -40 C5 -34 0 -30.5 -6.5 -30.5 C-13 -30.5 -18 -34 -18 -40 Z', fill: fur, ...line }, c);
+        stripe('M-9.5 -50 l.8 4 M-6.5 -50.5 l0 4.5 M-3.5 -50 l-.8 4', 1.3);
+        stripe('M-18 -39 l3 .6 M4.8 -39 l-3 .6', 1.2);
+        el('ellipse', { cx: -6.5, cy: -34.8, rx: 6, ry: 4, fill: light }, c);   // snoet
+        const eyes = el('g', { class: 'cat-eyes' }, c);
+        for (const x of [-11, -2]) { el('ellipse', { cx: x, cy: -41.5, rx: 2.5, ry: 2.8, fill: eye, stroke: '#3a1f12', 'stroke-width': .6 }, eyes); el('ellipse', { cx: x, cy: -41.5, rx: .75, ry: 2.2, fill: '#1a0f0a' }, eyes); el('circle', { cx: x + .8, cy: -42.6, r: .55, fill: '#fff' }, eyes); }
+        el('path', { d: 'M-8 -37.6 h3 l-1.5 1.9 Z', fill: pink, stroke: '#7a3a30', 'stroke-width': .4 }, c);
+        el('path', { d: 'M-6.5 -35.7 v1.2 q-1.2 1.2 -2.4 .3 M-6.5 -34.5 q1.2 1.2 2.4 .3', fill: 'none', stroke: '#5a2e1c', 'stroke-width': .6 }, c);
+        whiskers(-10, -35, -1); whiskers(-3, -35, 1);
+      } else {   // op zijn rug, pootjes in de lucht, buikje bloot
+        el('path', { d: 'M20 -6 C32 -4 36 4 28 7 C24 8 21 6 22 3', fill: 'none', stroke: fur, 'stroke-width': 5, 'stroke-linecap': 'round', class: 'cat-tail' }, c);
+        el('path', { d: 'M24 5.6 C21 6 21 4.5 22 3', fill: 'none', stroke: dark, 'stroke-width': 5, 'stroke-linecap': 'round' }, c);
+        // pootjes omhoog, met roze kussentjes
+        for (const [x, dx, h] of [[-12, -3, 14], [-5, -1, 16], [8, 2, 15], [15, 4, 12]]) {
+          el('path', { d: `M${x} -12 q${dx} ${-h / 2} ${dx * 1.6} ${-h}`, fill: 'none', stroke: fur, 'stroke-width': 5, 'stroke-linecap': 'round' }, c);
+          el('circle', { cx: x + dx * 1.6, cy: -12 - h, r: 2.9, fill: light, ...line, 'stroke-width': .6 }, c);
+          el('circle', { cx: x + dx * 1.6, cy: -12 - h - .8, r: 1, fill: pink }, c);
+        }
+        el('ellipse', { cx: 0, cy: -8, rx: 22, ry: 10, fill: fur, ...line }, c);
+        stripe('M-12 -1 q2 -3 0 -5 M-4 1 q2 -3 0 -5 M5 1 q2 -3 0 -5 M13 -1 q2 -3 0 -5');
+        el('ellipse', { cx: 1, cy: -12, rx: 15, ry: 5.8, fill: light }, c);   // buik
+        // kop, ondersteboven naar links
+        el('path', { d: 'M-30 -2 L-40 0 L-34 -7 Z M-31 -13 L-40 -17 L-33 -19.5 Z', fill: fur, ...line }, c);
+        el('path', { d: 'M-31.5 -3 L-37.5 -1.3 L-34 -5.6 Z M-32 -13.5 L-37.6 -16.3 L-33.5 -17.8 Z', fill: pink }, c);
+        el('circle', { cx: -25, cy: -9, r: 9.5, fill: fur, ...line }, c);
+        stripe('M-32 -11 l3 0 M-32 -8 l3.2 0 M-32 -5 l3 0', 1.2);
+        el('ellipse', { cx: -20, cy: -9, rx: 4, ry: 5.5, fill: light }, c);
+        el('path', { d: 'M-26 -13.5 q-1.5 1.8 0 3.6 M-26 -7.5 q-1.5 1.8 0 3.6', fill: 'none', stroke: '#3a1f12', 'stroke-width': .9, 'stroke-linecap': 'round' }, c);   // oogjes dicht
+        el('path', { d: 'M-17.6 -10.4 v3 l1.8 -1.5 Z', fill: pink }, c);
+        whiskers(-19, -12, 1); whiskers(-19, -6, 1);
       }
     }
     function pet() {

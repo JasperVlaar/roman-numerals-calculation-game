@@ -353,6 +353,7 @@ function hitPlayer(f) {
   S.freeze = FEEL.hitstop * 1.4; S.shake = Math.max(S.shake, FEEL.playerShake);
   float(P.x, P.y - 20, real ? '−' + fmt(real) : '0', C.blood);
   SFX.hurt();
+  if (P.hp > 0) SFX.cheer(Math.min(.8, .35 + real / me.maxHp));   // het publiek geniet ook als jíj bloedt, harder bij een flinke klap
   $('stage').classList.remove('hurt'); void $('stage').offsetWidth; $('stage').classList.add('hurt');
   updateUI();
   if (P.hp <= 0) { P.dead = true; endFight(false); }
@@ -1102,10 +1103,10 @@ $('startBtn').onclick = () => { SFX.init(); $('start').hidden = true; newRun(); 
 let volPreview = 0;
 function showVolume() {
   const v = SFX.muted ? 0 : Math.round(SFX.volume * 100);
-  for (const id of ['volume', 'townVolume']) $(id).value = v;
+  for (const id of ['volume', 'townVolume', 'pauseVolume']) $(id).value = v;
   $('volumeOut').textContent = v; showMute();
 }
-for (const id of ['volume', 'townVolume']) $(id).addEventListener('input', ev => {
+for (const id of ['volume', 'townVolume', 'pauseVolume']) $(id).addEventListener('input', ev => {
   SFX.init(); SFX.setVolume(ev.target.value / 100);
   if (+ev.target.value === 0) SFX.setMuted(true);
   showVolume();
@@ -1169,8 +1170,17 @@ cvs.addEventListener('pointerdown', ev => { if (S.paused) return; cvs.setPointer
 cvs.addEventListener('pointermove', ev => { if (steer.down) toWorld(ev); });
 ['pointerup', 'pointercancel'].forEach(t => cvs.addEventListener(t, () => steer.down = false));
 const anyOverlay = () => ['start', 'result', 'stats', 'town', 'shop', 'pick', 'judge'].some(id => !$(id).hidden);
+// Pauze: Escape tijdens een gevecht, nog eens Escape (of Verder) om door te gaan.
+const inFight = () => !S.paused && !anyOverlay();
+function pause() { S.paused = true; keys.clear(); steer.down = false; SFX.mood('calm'); showVolume(); $('pause').hidden = false; $('pauseBtn').focus(); }
+function resume() { $('pause').hidden = true; S.paused = false; keys.clear(); if (S.intro <= 0) SFX.mood('fight'); }
+$('pauseBtn').onclick = resume;
 addEventListener('keydown', ev => {
-  if (anyOverlay()) return;
+  if (ev.key === 'Escape' && !(ev.target.closest && ev.target.closest('#dev'))) {
+    if (!$('pause').hidden) { ev.preventDefault(); resume(); return; }
+    if (inFight()) { ev.preventDefault(); pause(); return; }
+  }
+  if (anyOverlay() || !$('pause').hidden) return;
   const k = ev.key.length === 1 ? ev.key.toLowerCase() : ev.key;
   if (k === 'm') { $('mute').click(); return; }
   if (k === '1') { switchTo('melee'); return; }
@@ -1178,7 +1188,7 @@ addEventListener('keydown', ev => {
   if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','a','d','w','s'].includes(k)) { keys.add(k); ev.preventDefault(); }
 });
 addEventListener('keyup', ev => keys.delete(ev.key.length === 1 ? ev.key.toLowerCase() : ev.key));
-addEventListener('blur', () => keys.clear());
+addEventListener('blur', () => { keys.clear(); if (inFight()) pause(); });   // ander venster: vanzelf pauze
 new ResizeObserver(() => fitWorld(false)).observe(stage);
 
 startFight();
