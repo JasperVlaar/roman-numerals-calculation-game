@@ -122,14 +122,15 @@ const TOWN = (() => {
 
   // Een winkel: open voorkant (of luiken), luifel met strepen, uithangbord dat de straat in steekt.
   function shop(svg, id) {
-    const def = SHOPS[id], sp = SPOTS[id], side = sp.side, open = def.open;
+    const def = SHOPS[id], sp = SPOTS[id], side = sp.side, open = shopOpen(id);
     const g = el('g', { class: 'hot' + (open ? '' : ' closed'), 'data-id': id }, svg);
     const xa = sp.x0 + 8, xb = sp.x1 - 8;
     const Q = (u, v) => pt(side, lerp(xa, xb, u), v * .5);   // punt in de winkelopening (v 0..1 = straat..luifel)
     // gevel om de opening
     el('polygon', { points: poly([pt(side, sp.x0, 0), pt(side, sp.x1, 0), pt(side, sp.x1, .66), pt(side, sp.x0, .66)]), fill: '#5a463a', stroke: '#2e1f19', 'stroke-width': 1.2 }, g);
     el('polygon', { points: poly([Q(0, 0), Q(1, 0), Q(1, 1), Q(0, 1)]), fill: '#22141a' }, g);
-    if (open) contents[id](g, Q, side, scaleAt((xa + xb) / 2));
+    if (open && contents[id]) contents[id](g, Q, side, scaleAt((xa + xb) / 2));
+    else if (open) el('polygon', { points: poly([Q(0, 0), Q(1, 0), Q(1, 1), Q(0, 1)]), fill: '#3a2420' }, g);
     else shutters(g, Q);
     // luifel
     const colors = { smith: ['#9a4a3a', '#d9cbb0'], armorer: ['#5f6d45', '#d9cbb0'], bowyer: ['#74305a', '#d9cbb0'], stable: ['#c08a3e', '#5a3a26'] }[id];
@@ -148,7 +149,7 @@ const TOWN = (() => {
     const t1 = el('text', { x: ax, y: y + h * .45, 'text-anchor': 'middle', 'font-family': 'Cinzel, Georgia, serif', 'font-weight': 700, 'font-size': 19 * s, 'letter-spacing': 2 * s, fill: open ? '#e2b35e' : '#8d8172' }, g);
     t1.textContent = def.la.toUpperCase();
     const t2 = el('text', { x: ax, y: y + h * .8, 'text-anchor': 'middle', 'font-family': 'Alegreya Sans, sans-serif', 'font-size': 13 * s, fill: open ? '#f5ead6' : '#8d8172' }, g);
-    t2.textContent = open ? def.nl : `${def.nl} · binnenkort`;
+    t2.textContent = open ? def.nl : def.after ? `${def.nl} · na toernooi ${toRoman(def.after)}` : `${def.nl} · binnenkort`;
     // klikvlak: gevel, luifel en bord samen
     const hit = el('polygon', { class: 'hl', points: poly([pt(side, sp.x0, 0), pt(side, sp.x1, 0), out(side, sp.x1, .54, 70), [side < 0 ? x + w : x, y], [side < 0 ? x : x + w, y], pt(side, sp.x0, .66)]) }, g);
     g.insertBefore(hit, g.firstChild);
@@ -164,8 +165,46 @@ const TOWN = (() => {
     el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: '#3b3034', 'stroke-width': 2.5 }, g);   // dwarsbalk
   }
 
-  // Wat je in een open winkel ziet. (Alleen de wapensmid is nu open; de rest volgt.)
+  // Wat je in een open winkel ziet.
   const contents = {
+    bowyer(g, Q, side, s) {
+      // bogen aan de muur, een paar pijlkokers eronder
+      for (let i = 0; i < 4; i++) {
+        const [x, y] = Q(.15 + i * .2, .62), r = 20 * s;
+        el('path', { d: `M${x} ${y - r} Q${x + r * .7 * side * -1} ${y} ${x} ${y + r}`, fill: 'none', stroke: i % 2 ? '#2a1a12' : '#6b4526', 'stroke-width': 2.4 * s }, g);
+        el('line', { x1: x, y1: y - r, x2: x, y2: y + r, stroke: '#ece3cf', 'stroke-width': .8 }, g);
+      }
+      for (let i = 0; i < 3; i++) {
+        const [x, y] = Q(.25 + i * .25, .12), w = 6 * s, h = 18 * s;
+        el('rect', { x: x - w / 2, y: y - h, width: w, height: h, fill: '#5a3a26', stroke: '#2e1f19', 'stroke-width': 1 }, g);
+        for (let k = -1; k <= 1; k++) el('line', { x1: x + k * w * .25, y1: y - h, x2: x + k * w * .3, y2: y - h - 6 * s, stroke: '#8e1f1a', 'stroke-width': 1.4 * s }, g);
+      }
+    },
+    stable(g, Q, side, s) {
+      // halfhoge staldeuren met twee paardenhoofden erboven
+      el('polygon', { points: poly([Q(0, 0), Q(1, 0), Q(1, .45), Q(0, .45)]), fill: '#6b4526' }, g);
+      for (let i = 1; i < 6; i++) el('line', { x1: Q(i / 6, 0)[0], y1: Q(i / 6, 0)[1], x2: Q(i / 6, .45)[0], y2: Q(i / 6, .45)[1], stroke: '#3a2416', 'stroke-width': 1 }, g);
+      for (let i = 0; i < 2; i++) {
+        const [x, y] = Q(.3 + i * .4, .62), r = 11 * s;
+        el('ellipse', { cx: x, cy: y, rx: r * .7, ry: r, fill: i ? '#3a271c' : '#5a3a26', stroke: '#1e140f', 'stroke-width': 1 }, g);
+        el('ellipse', { cx: x, cy: y + r * .8, rx: r * .45, ry: r * .4, fill: i ? '#2a1a12' : '#4a2e1e' }, g);
+        el('path', { d: `M${x - r * .4} ${y - r * .8} l${-r * .15} ${-r * .5} l${r * .35} ${r * .25} Z M${x + r * .4} ${y - r * .8} l${r * .15} ${-r * .5} l${-r * .35} ${r * .25} Z`, fill: i ? '#3a271c' : '#5a3a26' }, g);
+      }
+    },
+    armorer(g, Q, side, s) {
+      // rij schilden aan de muur, twee harnassen op een standaard
+      for (let i = 0; i < 3; i++) {
+        const [x, y] = Q(.18 + i * .26, .68), r = 15 * s;
+        el('ellipse', { cx: x, cy: y, rx: r * .75, ry: r, fill: i === 1 ? '#8e1f1a' : '#9a7a3a', stroke: '#2e1f19', 'stroke-width': 1 }, g);
+        el('circle', { cx: x, cy: y, r: r * .22, fill: '#d49a48' }, g);
+      }
+      for (let i = 0; i < 2; i++) {
+        const [x, y] = Q(.3 + i * .4, .25), w = 15 * s, h = 22 * s;
+        el('line', { x1: x, y1: y + h * .5, x2: x, y2: Q(.3 + i * .4, 0)[1], stroke: '#3b2a1e', 'stroke-width': 2 * s }, g);
+        el('path', { d: `M${x - w / 2} ${y - h / 2} Q${x} ${y - h * .7} ${x + w / 2} ${y - h / 2} L${x + w * .4} ${y + h / 2} L${x - w * .4} ${y + h / 2} Z`, fill: i ? '#8f8a80' : '#7a5230', stroke: '#2e1f19', 'stroke-width': 1 }, g);
+        if (i) for (let k = 1; k < 4; k++) el('line', { x1: x - w * .45, y1: y - h / 2 + k * h / 4, x2: x + w * .45, y2: y - h / 2 + k * h / 4, stroke: '#5c5a62', 'stroke-width': 1.2 }, g);
+      }
+    },
     smith(g, Q, side, s) {
       const [fx, fy] = Q(.28, .22);
       el('ellipse', { cx: fx, cy: fy, rx: 70 * s, ry: 55 * s, fill: 'url(#tForge)', class: 'forge' }, g);
@@ -280,7 +319,7 @@ const TOWN = (() => {
   }
   function purse() {
     $('townMoney').textContent = S.money;
-    $('townWeapon').textContent = WEAPONS[PLAYER.weapon].name;
+    $('townWeapon').textContent = [WEAPONS[S.melee].name, ...(S.ranged ? [WEAPONS[S.ranged].name] : []), ...Object.values(S.gear).filter(Boolean).map(g => GEAR[g].name)].join(', ');
     const b = $('townStats');
     b.textContent = S.points ? `Verdeel je punten (${toRoman(S.points)})` : 'Je stats';
     b.classList.toggle('has-points', S.points > 0);
@@ -297,27 +336,52 @@ const TOWN = (() => {
     $('shopEyebrow').textContent = `${def.la} · ${def.nl}`;
     $('shopMoney').textContent = denarii(S.money);
     const list = $('wares'); list.innerHTML = '';
-    const now = WEAPONS[PLAYER.weapon];
     for (const key of def.wares) {
-      const w = WEAPONS[key], owned = S.owned.includes(key), held = PLAYER.weapon === key, rich = S.money >= w.price;
+      const isGear = !!GEAR[key], it = isGear ? GEAR[key] : WEAPONS[key], owned = S.owned.includes(key);
+      const worn = isGear ? S.gear[it.slot] === key : S.melee === key || S.ranged === key, rich = S.money >= it.price;
+      let info, cmp;
+      if (isGear) {
+        const cur = S.gear[it.slot];
+        info = `${SLOTS[it.slot]} · ${it.desc}`;
+        cmp = worn ? 'draag je' : cur ? `vervangt ${GEAR[cur].name.toLowerCase()}` : `je ${SLOTS[it.slot].toLowerCase()}vak is leeg`;
+      } else if (it.kind === 'bow') {
+        const cd = it.cooldown * Math.max(STAT_RULES.shootMin, 1 - STAT_RULES.shoot * S.stats.agility);
+        info = `${fmt(it.dmg)} schade per pijl · bereik ${it.range} · gaat in vak 2 · met de boog in je handen loop je veel langzamer`;
+        cmp = `${worn ? 'in vak 2 · ' : S.ranged ? `vervangt ${WEAPONS[S.ranged].name.toLowerCase()} · ` : ''}met jouw behendigheid: elke ${fmt(Math.round(cd * 100) / 100)} s een pijl`;
+      } else {
+        const now = WEAPONS[S.melee], diff = it.dmg - now.dmg;
+        info = `${fmt(it.dmg)} schade · bereik ${it.reach}${it.knock ? ' · duwt terug' : ''} · gaat in vak 1`;
+        cmp = worn ? 'in vak 1' : `${diff > 0 ? '+' : ''}${fmt(diff)} schade t.o.v. ${now.name.toLowerCase()}`;
+      }
+      // kan het samen met wat je nu hebt?
+      const clash = isGear && it.needsBow && !S.ranged ? 'koop eerst een boog' : '';
       const li = document.createElement('li');
-      const diff = w.dmg - now.dmg, cmp = held ? 'in je hand' : `${diff > 0 ? '+' : ''}${fmt(diff)} schade t.o.v. ${now.name.toLowerCase()}`;
-      li.innerHTML = `<div><b>${w.name}</b><span>${fmt(w.dmg)} schade · bereik ${w.reach}${w.knock ? ' · duwt terug' : ''}</span><span class="eff">${cmp}</span></div>`;
+      li.innerHTML = `<div><b>${it.name}</b><span>${info}</span><span class="eff">${cmp}</span></div>`;
       const b = document.createElement('button'); b.className = 'btn';
-      if (held) { b.textContent = 'In je hand'; b.disabled = true; }
-      else if (owned) { b.textContent = 'Pak op'; b.onclick = () => equip(key); }
-      else { b.textContent = `${w.price} d`; b.disabled = !rich; b.setAttribute('aria-label', `${w.name} kopen voor ${w.price} denarii`); b.onclick = () => buy(key); }
+      if (worn && isGear) { b.textContent = 'Doe af'; b.onclick = () => { S.gear[it.slot] = null; changed(); }; }
+      else if (worn) { b.textContent = isBow(key) ? 'In vak 2' : 'In vak 1'; b.disabled = true; }
+      else if (owned && clash) { b.textContent = clash; b.disabled = true; }
+      else if (owned) { b.textContent = isGear ? 'Doe aan' : 'Neem mee'; b.onclick = () => equip(key); }
+      else { b.textContent = `${it.price} d`; b.disabled = !rich; b.setAttribute('aria-label', `${it.name} kopen voor ${it.price} denarii`); b.onclick = () => buy(key); }
       li.appendChild(b); list.appendChild(li);
     }
-    const cheapest = def.wares.filter(k => !S.owned.includes(k)).map(k => WEAPONS[k].price).sort((a, b) => a - b)[0];
-    $('shopNote').textContent = cheapest > S.money ? `Je komt ${denarii(cheapest - S.money)} tekort voor het goedkoopste wapen. Win een gevecht en kom terug.` : '';
+    const priceOf = k => (GEAR[k] || WEAPONS[k]).price;
+    const cheapest = def.wares.filter(k => !S.owned.includes(k)).map(priceOf).sort((a, b) => a - b)[0];
+    $('shopNote').textContent = cheapest > S.money ? `Je komt ${denarii(cheapest - S.money)} tekort voor het goedkoopste stuk. Win een gevecht en kom terug.` : '';
   }
   function buy(key) {
-    const w = WEAPONS[key]; if (S.money < w.price || S.owned.includes(key)) return;
-    S.money -= w.price; S.owned.push(key); equip(key);
+    const it = GEAR[key] || WEAPONS[key]; if (S.money < it.price || S.owned.includes(key)) return;
+    S.money -= it.price; S.owned.push(key); equip(key);
     SFX.hit();   // tik op het aambeeld (voorlopig het klapgeluid)
   }
-  function equip(key) { PLAYER.weapon = key; updateUI(); purse(); renderShop(); }
+  function equip(key) {
+    const before = { ...S.gear }, msg = wear(key);
+    changed();
+    const off = Object.keys(before).filter(k => before[k] && !S.gear[k]).map(k => GEAR[before[k]].name.toLowerCase());
+    if (msg) $('shopNote').textContent = `Gekocht. ${msg}`;
+    else if (off.length) $('shopNote').textContent = `${off.join(' en ')} ${off.length > 1 ? 'zijn' : 'is'} afgedaan: dat gaat niet samen met ${WEAPONS[PLAYER.weapon].name.toLowerCase()}.`.replace(/^./, c => c.toUpperCase());
+  }
+  function changed() { updateUI(); purse(); renderShop(); }
   $('shopBack').onclick = () => { $('shop').hidden = true; current = null; purse(); };
 
   /* ---------- In en uit ---------- */

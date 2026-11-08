@@ -25,14 +25,17 @@
       st.fights.forEach((f, fi) => { n++; opts.push(`<option value="f:${si}:${fi}">Gevecht ${toRoman(n)} · ${f.kind === 'boss' ? 'tussenbaas: ' : ''}${listSummary(f.foes)}</option>`); });
       opts.push(`<option value="t:${si}">Toernooi ${toRoman(si + 1)} · eindbaas ${listSummary(st.tourney.rounds[st.tourney.rounds.length - 1])}</option>`);
     });
-    const weapons = Object.entries(WEAPONS).map(([k, w]) => `<option value="${k}">${w.name}</option>`).join('');
+    const weapons = Object.entries(WEAPONS).filter(([k]) => !isBow(k)).map(([k, w]) => `<option value="${k}">${w.name}</option>`).join('');
+    const bows = '<option value="">geen</option>' + Object.entries(WEAPONS).filter(([k]) => isBow(k)).map(([k, w]) => `<option value="${k}">${w.name}</option>`).join('');
     box.innerHTML = `<div class="panel dev">
       <p class="eyebrow">Testmenu</p>
       <h2>Spring naar een gevecht</h2>
       <label>Gevecht<select id="devFight">${opts.join('')}</select></label>
       <div class="dev-grid">
         ${Object.entries(STATS).map(([k, d]) => `<label>${d.nl}<input type="number" min="0" max="30" step="1" id="dev_${k}" value="0"></label>`).join('')}
-        <label>Wapen<select id="devWeapon">${weapons}</select></label>
+        <label>Wapen (1)<select id="devWeapon">${weapons}</select></label>
+        <label>Boog (2)<select id="devBow">${bows}</select></label>
+        ${Object.entries(SLOTS).map(([slot, nl]) => `<label>${nl}<select id="dev_gear_${slot}"><option value="">geen</option>${Object.entries(GEAR).filter(([, g]) => g.slot === slot).map(([k, g]) => `<option value="${k}">${g.name}</option>`).join('')}</select></label>`).join('')}
         <label>Denarii<input type="number" min="0" max="9999" step="1" id="devMoney" value="0"></label>
       </div>
       <p class="muted small" id="devNote"></p>
@@ -66,20 +69,34 @@
   }
   const xpOf = def => roundsOf(def).flat().reduce((n, [t, c]) => n + (XP.perFoe[t] || 3) * c, 0);
   function randomize() {
-    const done = history(), shop = Object.keys(WEAPONS).filter(k => WEAPONS[k].price > 0).sort((a, b) => WEAPONS[a].price - WEAPONS[b].price);
-    let xp = 0, money = 0, spent = 0, weapon = 'fists'; const bought = [];
+    // Wat je kunt kopen, goedkoopste eerst; een winkel telt pas mee als hij op dat moment open is.
+    const done = history(), priceOf = k => (GEAR[k] || WEAPONS[k]).price;
+    const shopAt = k => Object.values(SHOPS).find(sh => sh.wares.includes(k));
+    let wish = Object.values(SHOPS).flatMap(sh => sh.wares).sort((a, b) => priceOf(a) - priceOf(b));
+    let xp = 0, money = 0, spent = 0, tourneys = 0; const bought = [], owned = ['fists'], gear = { body: '', head: '', shield: '', mount: '' };
     for (const def of done) {
       xp += xpOf(def); money += def.reward || 0;
-      while (shop.length && money >= WEAPONS[shop[0]].price) { const k = shop.shift(); money -= WEAPONS[k].price; spent += WEAPONS[k].price; bought.push(WEAPONS[k].name.toLowerCase()); weapon = k; }
+      if (def.kind === 'tournament') tourneys++;
+      for (const k of [...wish]) {
+        if (shopAt(k).after > tourneys || money < priceOf(k)) continue;
+        money -= priceOf(k); spent += priceOf(k); bought.push((GEAR[k] || WEAPONS[k]).name.toLowerCase()); wish = wish.filter(x => x !== k);
+        owned.push(k); if (GEAR[k]) gear[GEAR[k].slot] = k;   // duurder = beter: het laatst gekochte stuk per vak draag je
+      }
     }
+    // Wapen: met strijdwagen de beste boog (en dan geen schild), anders het sterkste wapen voor dichtbij.
+    const bows = owned.filter(k => WEAPONS[k] && isBow(k)), melee = owned.filter(k => WEAPONS[k] && !isBow(k));
+    const best = list => list.sort((a, b) => WEAPONS[b].dmg - WEAPONS[a].dmg)[0];
+    const weapon = best(melee), bow = bows.length ? best(bows) : '';
+    if (!bow) gear.mount = '';
     const level = levelOf(xp), pts = POINTS.start + (level - 1) * POINTS.perLevel;
     const keys = Object.keys(STATS), v = Object.fromEntries(keys.map(k => [k, 0]));
     for (let i = 0; i < pts; i++) v[keys[Math.floor(Math.random() * keys.length)]]++;
     for (const k of keys) $('dev_' + k).value = v[k];
-    $('devWeapon').value = weapon; $('devMoney').value = money;
-    plan = { xp, pts, sig: JSON.stringify(v) + weapon + money };
+    $('devWeapon').value = weapon; $('devBow').value = bow; $('devMoney').value = money;
+    for (const slot of Object.keys(SLOTS)) $('dev_gear_' + slot).value = gear[slot];
+    plan = { xp, pts, bought: done.length, sig: JSON.stringify(v) + weapon + money };
     $('devNote').textContent = `${done.length} ${done.length === 1 ? 'gevecht' : 'gevechten'} gewonnen, alle XP opgeraapt: ${xp} XP, niveau ${toRoman(level)}, ${pts} punten (willekeurig verdeeld). `
-      + `Verdiend ${money + spent} d, uitgegeven ${spent} d${bought.length ? ` aan ${bought.join(' en ')}` : ''}, over ${money} d.`;
+      + `Verdiend ${money + spent} d, uitgegeven ${spent} d${bought.length ? ` aan ${bought.slice(0, -1).join(', ')}${bought.length > 1 ? ' en ' : ''}${bought[bought.length - 1]}` : ''}, over ${money} d.`;
   }
   function note(ev) {
     if (ev && ev.target && ev.target.id === 'devFight') { plan = null; }
@@ -95,7 +112,17 @@
     S.mode = type === 't' ? 'tournament' : 'fight';
     for (const k of Object.keys(STATS)) S.stats[k] = Math.max(0, Math.round(+$('dev_' + k).value || 0));
     const w = $('devWeapon').value, all = Object.keys(WEAPONS);
-    PLAYER.weapon = w; S.owned = all.slice(0, all.indexOf(w) + 1);
+    const bw = $('devBow').value || null;
+    S.melee = w; S.ranged = bw; S.active = 'melee'; S.switching = 0;
+    S.owned = all.filter(k => !isBow(k) && WEAPONS[k].price <= WEAPONS[w].price || bw && isBow(k) && WEAPONS[k].price <= WEAPONS[bw].price);
+    S.gear = { body: null, head: null, shield: null, mount: null };
+    for (const slot of Object.keys(SLOTS)) {
+      const g = $('dev_gear_' + slot).value || null; S.gear[slot] = g;
+      // wat goedkoper is in hetzelfde vak heb je dan ook al gekocht
+      if (g) S.owned.push(...Object.keys(GEAR).filter(k => GEAR[k].slot === slot && GEAR[k].price <= GEAR[g].price));
+    }
+    if (!bw) S.gear.mount = null;   // strijdwagen alleen met een boog
+    syncWeapon();
     S.money = Math.max(0, Math.round(+$('devMoney').value || 0));
     S.points = 0; S.townSeen = true; S.over = null; S.delta = 0;
     // XP: na 'Willekeurig' (en niets daarna aangepast) de echte XP; anders het begin van het niveau dat bij de punten hoort.

@@ -239,3 +239,13 @@ button:disabled{opacity:.4;cursor:default}
 .dev-row{display:flex;gap:8px;flex-wrap:wrap}
 .dev-row .btn{flex:1 1 120px;color:var(--ink)}
 .panel.dev .btn.wide{color:var(--muted)}
+
+/* Wapenvakken in de HUD: 1 = melee, 2 = boog */
+.stats .slots dd{display:flex;gap:4px}
+.stats .slots small{text-transform:none;letter-spacing:0}
+.slot{display:flex;align-items:center;gap:5px;height:28px;padding:0 8px;border-radius:8px;border:1px solid var(--line);background:var(--stone);color:var(--muted);font:inherit;font-size:13px;cursor:pointer}
+.slot b{font-family:var(--f-display);font-size:11px;color:var(--muted)}
+.slot.on{border-color:var(--bronze);color:var(--ink);background:var(--stone-2)}
+.slot.on b{color:var(--bronze)}
+.slot.to{border-color:var(--bronze);animation:pointsGlow .5s ease-in-out infinite alternate}
+.slot:disabled{opacity:.4;cursor:default}
