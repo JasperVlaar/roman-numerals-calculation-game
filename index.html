@@ -35,6 +35,7 @@
       <li><kbd>1</kbd> <kbd>2</kbd> wapen</li>
       <li><kbd>M</kbd> geluid</li>
     </ul>
+    <label class="vol"><span aria-hidden="true">🔊</span><input type="range" id="volume" min="0" max="100" step="1" aria-label="Volume"><output id="volumeOut">60</output></label>
     <div class="diff" id="diff" role="group" aria-label="Moeilijkheid">
       <button data-d="easy">Makkelijk</button><button data-d="normal">Normaal</button><button data-d="hard">Zwaar</button>
     </div>
@@ -122,6 +123,7 @@
   <div class="town">
     <header class="town-bar">
       <p class="town-purse"><b id="townMoney">0</b> d<span id="townWeapon" hidden></span></p>
+      <label class="vol small"><span aria-hidden="true">🔊</span><input type="range" id="townVolume" min="0" max="100" step="1" aria-label="Volume"></label>
       <button id="townStats" class="town-stats">Je stats</button>
     </header>
     <div class="town-art" id="townArt"></div>

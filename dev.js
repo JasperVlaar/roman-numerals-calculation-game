@@ -23,7 +23,7 @@
     let n = 0;
     STAGES.forEach((st, si) => {
       st.fights.forEach((f, fi) => { n++; opts.push(`<option value="f:${si}:${fi}">Gevecht ${toRoman(n)} · ${f.kind === 'boss' ? 'tussenbaas: ' : ''}${listSummary(f.foes)}</option>`); });
-      opts.push(`<option value="t:${si}">Toernooi ${toRoman(si + 1)} · eindbaas ${listSummary(st.tourney.rounds[st.tourney.rounds.length - 1])}</option>`);
+      opts.push(`<option value="t:${si}">Toernooi ${toRoman(si + 1)} · eindbaas ${listSummary(roundsOf(st.tourney).at(-1))}</option>`);
     });
     const weapons = Object.entries(WEAPONS).filter(([k]) => !isBow(k)).map(([k, w]) => `<option value="${k}">${w.name}</option>`).join('');
     const bows = '<option value="">geen</option>' + Object.entries(WEAPONS).filter(([k]) => isBow(k)).map(([k, w]) => `<option value="${k}">${w.name}</option>`).join('');
@@ -68,7 +68,7 @@
     });
     return done;
   }
-  const xpOf = def => roundsOf(def).flat().reduce((n, [t, c]) => n + (XP.perFoe[t] || 3) * c, 0);
+  const xpOf = def => [...roundsOf(def), ...extraOf(def).filter(Boolean).map(e => e.foes)].flat().reduce((n, [t, c]) => n + (XP.perFoe[t] || 3) * c, 0);
   function randomize() {
     // Wat je kunt kopen, goedkoopste eerst; een winkel telt pas mee als hij op dat moment open is.
     const done = history(), priceOf = k => (GEAR[k] || WEAPONS[k]).price;

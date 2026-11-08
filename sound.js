@@ -40,6 +40,9 @@ const SFX = (() => {
   let started = false, muted = false, crowd = null, crowdTarget = MIX.crowd.calm, fade = null;
   const ok = {}, playing = [];
   try { muted = localStorage.getItem('rn-muted') === '1'; } catch (e) {}
+  // Hoofdvolume (0..1), op het startscherm in te stellen; alles hieronder wordt ermee vermenigvuldigd.
+  let master = .6;
+  try { const v = parseFloat(localStorage.getItem('rn-volume')); if (!isNaN(v)) master = v; } catch (e) {}
 
   // Kijk welke bestanden er echt zijn; ontbrekende worden overgeslagen.
   for (const [kind, list] of Object.entries(SOUNDS)) {
@@ -70,7 +73,7 @@ const SFX = (() => {
     const src = list[Math.floor(Math.random() * list.length)];
     if (track && busy.includes(src)) return;
     lastStart[kind] = now;
-    const a = new Audio(encodeURI(src)); a.dataset.src = src; a.volume = Math.max(0, Math.min(1, vol));
+    const a = new Audio(encodeURI(src)); a.dataset.src = src; a.volume = Math.max(0, Math.min(1, vol * master));
     if (!track) {   // klappen: klein verschil in echte toonhoogte (niet opgerekt), klinkt minder herhalend
       a.preservesPitch = false; a.playbackRate = .92 + Math.random() * .16;
     }
@@ -82,14 +85,14 @@ const SFX = (() => {
   }
   function startCrowd() {
     const src = pick('crowd'); if (!src || crowd) return;
-    crowd = new Audio(encodeURI(src)); crowd.loop = true; crowd.volume = muted ? 0 : crowdTarget;
+    crowd = new Audio(encodeURI(src)); crowd.loop = true; crowd.volume = muted ? 0 : crowdTarget * master;
     crowd.play().catch(() => {});
   }
   function fadeCrowd(to) {
     crowdTarget = to; if (!crowd) return;
     clearInterval(fade);
     fade = setInterval(() => {
-      const goal = muted ? 0 : crowdTarget, v = crowd.volume + (goal - crowd.volume) * .15;
+      const goal = muted ? 0 : crowdTarget * master, v = crowd.volume + (goal - crowd.volume) * .15;
       crowd.volume = Math.abs(goal - v) < .01 ? goal : v;
       if (crowd.volume === goal) clearInterval(fade);
     }, 50);
@@ -109,10 +112,10 @@ const SFX = (() => {
   const level = (key) => {
     const c = AMB[key];
     if (muted || !where) return 0;
-    if (where === 'street') return c.street;
-    if (c.shop === where) return c.inside;          // in deze winkel
-    if (c.shop) return c.street * .5;                // de andere werkplaatsen hoor je gedempt
-    return c.inside ?? 0;                            // vogels en hoefgetrappel: zacht binnen
+    if (where === 'street') return c.street * master;
+    if (c.shop === where) return c.inside * master;          // in deze winkel
+    if (c.shop) return c.street * .5 * master;                // de andere werkplaatsen hoor je gedempt
+    return (c.inside ?? 0) * master;                         // vogels en hoefgetrappel: zacht binnen
   };
   function schedule(key, wait) {
     const s = amb[key]; clearTimeout(s.timer);
@@ -154,7 +157,7 @@ const SFX = (() => {
     purr(on) {
       if (!started) return;
       if (!purr) { purr = new Audio(encodeURI(PURR)); purr.loop = true; purr.onerror = () => {}; }
-      if (on && !muted) { if (purr.paused) { purr.volume = 0; purr.currentTime = Math.random() * 5; purr.play().catch(() => {}); } ramp(purr, MIX.purr, 500); }
+      if (on && !muted) { if (purr.paused) { purr.volume = 0; purr.currentTime = Math.random() * 5; purr.play().catch(() => {}); } ramp(purr, MIX.purr * master, 500); }
       else ramp(purr, 0, 900, () => purr.pause());
     },
     init() {
@@ -163,6 +166,13 @@ const SFX = (() => {
       if (!crowd) setTimeout(startCrowd, 800);   // het bestand was misschien nog niet gecontroleerd
     },
     get muted() { return muted; },
+    get volume() { return master; },
+    // Hoofdvolume instellen (0..1). Omhoog schuiven zet het geluid ook weer aan.
+    setVolume(v) {
+      master = Math.max(0, Math.min(1, v)); try { localStorage.setItem('rn-volume', String(master)); } catch (e) {}
+      if (master > 0 && muted) this.setMuted(false);
+      fadeCrowd(crowdTarget); if (where) setPlace(where);
+    },
     setMuted(m) {
       muted = m; try { localStorage.setItem('rn-muted', m ? '1' : '0'); } catch (e) {}
       if (m) playing.splice(0).forEach(a => fadeOut(a, 80));

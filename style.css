@@ -275,3 +275,9 @@ button:disabled{opacity:.4;cursor:default}
 .diff{display:flex;gap:6px}
 .diff button{flex:1;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--stone-2);color:var(--muted);font-family:var(--f-display);font-size:14px}
 .diff button[aria-pressed="true"]{border-color:var(--bronze);color:var(--ink);background:#3d2c37}
+
+/* Volume-schuifje (startscherm en straat) */
+.vol{display:flex;align-items:center;gap:10px;color:var(--ink)}
+.vol input{flex:1;accent-color:var(--bronze);height:28px}
+.vol output{min-width:3ch;text-align:right;font-family:var(--f-display);color:var(--muted)}
+.vol.small{flex:0 1 160px;gap:6px;font-size:14px}

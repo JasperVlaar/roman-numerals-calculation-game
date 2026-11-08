@@ -28,7 +28,7 @@ const POINTS = { start: 0, perLevel: 2 };
 // XP-drempels (totaal) voor niveau II, III, IV, ... Gevecht I, II, III leveren 5, 10, 15 XP op.
 const LEVELS = [4, 12, 24, 40, 60, 85, 115, 150, 190, 235, 285, 340, 400, 470, 550, 640, 740, 850];
 // life = na zoveel seconden verdwijnt een bolletje; de laatste 'fade' seconden knippert en vervaagt het.
-const XP = { life: 6, fade: 2, perFoe: { slave: 5, archer: 5, gladiator: 10, gladiatorStick: 12, gladiatorSword: 15, champion: 25 }, speed: [70, 150], friction: 3.5, settle: .3, pickup: 6, magnet: 26, pull: 160, collect: 5 };
+const XP = { life: 7.8, fade: 3, perFoe: { slave: 5, archer: 5, gladiator: 10, gladiatorStick: 12, gladiatorSword: 15, lion: 15, champion: 25 }, speed: [70, 150], friction: 3.5, settle: .3, pickup: 6, magnet: 26, pull: 160, collect: 5 };
 const levelOf = xp => 1 + LEVELS.filter(t => xp >= t).length;
 const hitChance = att => Math.min(STAT_RULES.hitMax, STAT_RULES.hitBase + STAT_RULES.hit * att);
 const blockChance = def => Math.min(STAT_RULES.blockMax, STAT_RULES.blockBase + STAT_RULES.block * def);
@@ -36,10 +36,12 @@ const blockChance = def => Math.min(STAT_RULES.blockMax, STAT_RULES.blockBase + 
 // Je begint met je vuisten, net als een slaaf: zelfde schade, zelfde bereik, ongeveer even vaak.
 const WEAPONS = {
   fists: { name: 'Vuisten', kind: 'fists', dmg: 2, reach: 10, cooldown: 2, swing: .22, knock: 0, price: 0 },   // vuisten duwen niet terug
-  stick: { name: 'Stok', kind: 'stick', dmg: 3, reach: 13, cooldown: 2, swing: .22, knock: 85, price: 12 },
-  gladius: { name: 'Gladius', kind: 'sword', dmg: 5, reach: 15, cooldown: 2, swing: .2, knock: 60, price: 40 },
+  // hit: 'single' = één tegenstander; 'sweep' = iedereen binnen bereik in een boog voor je (arc = halve breedte, rad);
+  // 'pierce' = iedereen op een smalle lijn recht voor je (width = halve breedte).
+  stick: { name: 'Stok', kind: 'stick', dmg: 2, reach: 21, cooldown: 2, swing: .22, knock: 85, price: 12, hit: 'sweep', arc: 1.6 },
+  gladius: { name: 'Gladius', kind: 'sword', dmg: 5, reach: 19, cooldown: 2, swing: .2, knock: 60, price: 40, hit: 'sweep', arc: .52 },   // arc .52 = ca. 60° breed
   // Hasta: speer. Groot bereik en duwt ver, maar trager.
-  hasta: { name: 'Hasta', kind: 'spear', dmg: 4, reach: 20, cooldown: 2.3, swing: .26, knock: 120, price: 70 },
+  hasta: { name: 'Hasta', kind: 'spear', dmg: 6, reach: 22, cooldown: 2.3, swing: .26, knock: 120, price: 70, hit: 'pierce', width: 7 },
   // Bogen: schieten vanzelf op de dichtstbijzijnde tegenstander binnen range. Staat er iemand tegen je aan, dan sla je met je vuisten.
   // Behendigheid: per punt STAT_RULES.shoot korter wachten tussen twee pijlen (hoogstens tot shootMin × cooldown). Niet samen met een schild.
   bow: { name: 'Korte boog', kind: 'bow', dmg: 2, range: 150, arrow: 300, reach: 0, cooldown: 1.8, swing: .25, knock: 20, price: 60 },
@@ -71,6 +73,10 @@ const FOES = {
   archer: { name: 'boogschutter', plural: 'boogschutters', hp: 10, dmg: 2, armor: 0, attack: 0, defense: 0, speed: 60, radius: 10, reach: 0, windup: .7, recover: .35, cooldown: 2.6, lunge: 0,
            ranged: { min: 90, max: 180, flee: 60, arrow: 240, life: 1.4 },
            tunic: '#5f6d45', belt: '#3b2a1e', hair: 'hair-1', skin: 'skin' },
+  // Leeuw: komt later binnen (door de poort) en springt op je af. Hij duikt eerst in elkaar en kijkt in een vaste
+  // richting (rode pijl, windup seconden); dan stormt hij die kant op (dash). Stap opzij en hij schiet langs je heen.
+  lion: { name: 'leeuw', plural: 'leeuwen', hp: 26, dmg: 4, armor: 0, attack: 0, defense: 0, speed: 62, radius: 12, reach: 0, windup: .8, recover: 1.1, cooldown: 1.2, lunge: 0, knock: 160,
+          dash: { range: 190, speed: 380, time: .5 }, tunic: '#c9934a', hair: 'hair-2', skin: 'skin-2' },
   // Kampioen: de eindbaas van een toernooi. Groter, harder, zware armor; veel sterker dan alles daarvoor.
   champion: { name: 'kampioen', plural: 'kampioenen', hp: 28, dmg: 3, armor: 2, attack: 0, defense: 0, speed: 74, radius: 13, reach: 14, windup: .34, recover: .35, cooldown: 1.5, lunge: 12,
            tunic: '#5c5a62', belt: '#d49a48', hair: 'bronze', skin: 'skin-2' }   // grijs = ijzeren harnas
@@ -85,30 +91,30 @@ const STAGES = [
       { kind: 'normal', foes: [['slave', 1]], reward: 5 },
       { kind: 'normal', foes: [['slave', 2]], reward: 8 },
       { kind: 'normal', foes: [['slave', 2], ['archer', 1]], reward: 12 },
-      { kind: 'normal', foes: [['gladiator', 1], ['archer', 1], ['slave', 1]], reward: 18 },
-      { kind: 'boss', foes: [['gladiatorStick', 1]], reward: 25 } ],
-    tourney: { kind: 'tournament', rounds: [[['slave', 2]], [['slave', 1], ['archer', 2]], [['champion', 1]]], reward: 60 } },
+      { kind: 'normal', foes: [['gladiator', 1], ['archer', 1], ['slave', 2]], reward: 18 },
+      { kind: 'boss', foes: [['gladiatorStick', 1], ['slave', 2]], reward: 25 } ],
+    tourney: { kind: 'tournament', rounds: [[['slave', 3]], [['slave', 2], ['archer', 2]], [['champion', 1]]], reward: 60 } },
   { fights: [
-      { kind: 'normal', foes: [['gladiator', 2]], reward: 20 },
-      { kind: 'normal', foes: [['archer', 3]], reward: 22 },
-      { kind: 'normal', foes: [['slave', 10]], reward: 25 },
-      { kind: 'normal', foes: [['gladiatorStick', 1], ['archer', 2]], reward: 30 },
-      { kind: 'boss', foes: [['gladiatorStick', 2]], reward: 40 } ],
-    tourney: { kind: 'tournament', rounds: [[['gladiator', 1], ['archer', 2]], [['gladiatorSword', 1], ['slave', 2]], [['champion', 2]]], reward: 120 } },
+      { kind: 'normal', foes: [['gladiator', 2], ['slave', 2]], reward: 20 },
+      { kind: 'normal', foes: [['archer', 3], ['slave', 2]], extra: { at: .5, foes: [['gladiator', 2]] }, reward: 22 },
+      { kind: 'normal', foes: [['slave', 10]], extra: { at: .5, foes: [['slave', 5]] }, reward: 25 },
+      { kind: 'normal', foes: [['gladiatorStick', 1], ['archer', 2], ['slave', 2]], extra: { at: .5, foes: [['gladiator', 2]] }, reward: 30 },
+      { kind: 'boss', foes: [['gladiatorStick', 2], ['archer', 2]], extra: { at: .5, foes: [['gladiatorSword', 1]] }, reward: 40 } ],
+    tourney: { kind: 'tournament', rounds: [[['gladiator', 2], ['archer', 2]], [['gladiatorSword', 1], ['slave', 4]], { foes: [['champion', 2]], extra: { after: 8, foes: [['lion', 1]] } }], reward: 120 } },
   // Blok 3: na toernooi II gaan de stallen open. Grote groepen en veel boogschutters: hier loont de strijdwagen.
   { fights: [
-      { kind: 'normal', foes: [['archer', 5]], reward: 35 },
-      { kind: 'normal', foes: [['gladiator', 4]], reward: 40 },
-      { kind: 'normal', foes: [['slave', 15]], reward: 45 },
-      { kind: 'normal', foes: [['gladiatorSword', 2], ['archer', 3]], reward: 55 },
-      { kind: 'boss', foes: [['champion', 1], ['gladiatorStick', 2]], reward: 70 } ],
-    tourney: { kind: 'tournament', rounds: [[['gladiatorSword', 2]], [['slave', 10], ['archer', 2]], [['champion', 3]]], reward: 200 } }
+      { kind: 'normal', foes: [['archer', 5], ['slave', 3]], extra: { at: .5, foes: [['gladiator', 2]] }, reward: 35 },
+      { kind: 'normal', foes: [['gladiator', 4]], extra: { at: .5, foes: [['archer', 3]] }, reward: 40 },
+      { kind: 'normal', foes: [['slave', 15]], extra: { at: .5, foes: [['gladiatorStick', 2]] }, reward: 45 },
+      { kind: 'normal', foes: [['gladiatorSword', 2], ['archer', 3]], extra: { at: .5, foes: [['gladiator', 3]] }, reward: 55 },
+      { kind: 'boss', foes: [['champion', 1], ['gladiatorStick', 2]], extra: { at: .5, foes: [['gladiatorSword', 2]] }, reward: 70 } ],
+    tourney: { kind: 'tournament', rounds: [[['gladiatorSword', 2], ['archer', 2]], [['slave', 10], ['archer', 3]], { foes: [['champion', 3]], extra: { after: 8, foes: [['lion', 2]] } }], reward: 200 } }
 ];
 const KINDS = { normal: 'Gevecht', boss: 'Tussenbaas', tournament: 'Toernooi' };
 // Tussen de rondes krijg je heal × je maximale leven terug. Ga je neer, dan beslist Caesar.
 // Kans op duim omhoog = mercyBase + mercyFavor × (schade die je uitdeelde / alle leven van alle tegenstanders), hoogstens mercyMax.
 // Duim omhoog: je leeft, maar het toernooi en de beloning zijn weg (geen boete); je mag het opnieuw proberen. Duim omlaag: dood, alles opnieuw vanaf gevecht I.
-const TOURNAMENT = { heal: .25, mercyBase: .15, mercyFavor: .8, mercyMax: .95 };
+const TOURNAMENT = { heal: 0, mercyBase: .15, mercyFavor: .8, mercyMax: .95 };
 // Waar je bent: S.stage (welk blok), S.inStage (zoveel gevechten van dat blok gewonnen), S.finished (alle toernooien gewonnen).
 const stageOf = () => STAGES[Math.min(S.stage, STAGES.length - 1)];
 const fightIdx = () => S.finished ? stageOf().fights.length - 1 : Math.min(S.inStage, stageOf().fights.length - 1);
@@ -116,7 +122,10 @@ const fightNumber = () => STAGES.slice(0, Math.min(S.stage, STAGES.length - 1)).
 const fightOpen = () => S.finished || S.inStage < stageOf().fights.length;   // na 5 gevechten: eerst het toernooi
 const fightDef = () => S.mode === 'tournament' ? stageOf().tourney : stageOf().fights[fightIdx()];
 const fightTitle = () => S.mode === 'tournament' ? `Toernooi ${toRoman(Math.min(S.stage, STAGES.length - 1) + 1)}` : `Gevecht ${toRoman(fightNumber())}`;
-const roundsOf = def => def.rounds || [def.foes];
+// Een ronde is een lijst [[type, aantal], ...] of { foes, extra }. extra = versterking die door de poort binnenkomt:
+// { foes, at: 0,5 } = als de helft van de eerste groep verslagen is; { foes, after: 8 } = na 8 seconden.
+const roundsOf = def => (def.rounds || [def.extra ? { foes: def.foes, extra: def.extra } : def.foes]).map(r => Array.isArray(r) ? r : r.foes);
+const extraOf = def => def.rounds ? def.rounds.map(r => Array.isArray(r) ? null : r.extra || null) : [def.extra || null];
 const listSummary = list => list.map(([t, n]) => `${n} ${n > 1 ? FOES[t].plural : FOES[t].name}`).join(' en ');
 // Na elk gevecht ga je de stad in; terug naar de arena door op de arena te klikken.
 const MONEY = { lossShare: .5 };
@@ -237,14 +246,17 @@ function startFight() {
   S.foes = []; S.floats = []; S.dust = []; S.arrows = []; S.over = null; S.overT = 0; S.freeze = 0; S.shake = 0;
   S.intro = INTRO.step * INTRO.count; S.shout = 0;
   S.orbs = []; S.collect = 0; S.gained = 0; S.levelUps = 0; S.xpStart = S.xp; S.pointsStart = S.points;
-  S.round = 0; S.dealt = 0; S.switching = 0; syncWeapon();
-  S.poolHp = roundsOf(def).flat().reduce((n, [t, c]) => n + FOES[t].hp * c, 0);
+  S.round = 0; S.dealt = 0; S.switching = 0;
+  if (S.gear.mount && S.ranged) S.active = 'ranged';   // met een strijdwagen begin je op de wagen
+  syncWeapon(); P.cdMax = 0;
+  S.poolHp = [...roundsOf(def), ...extraOf(def).filter(Boolean).map(e => e.foes)].flat().reduce((n, [t, c]) => n + FOES[t].hp * c, 0);
   spawnRound();
 }
 // De tegenstanders van de huidige ronde (een gewoon gevecht heeft één ronde).
 function spawnRound() {
   const list = testCount ? [['slave', testCount]] : roundsOf(fightDef())[S.round];
-  S.foes = [];
+  S.foes = []; S.extra = testCount ? null : extraOf(fightDef())[S.round]; S.extraDone = false; S.roundT = 0;
+  S.firstCount = list.reduce((n, [, c]) => n + c, 0);
   let i = 0, total = list.reduce((n, [, c]) => n + c, 0);
   for (const [type, count] of list) for (let k = 0; k < count; k++, i++) {
     // Tegenstanders staan links en rechts, een eind van je af, en komen meteen op je af.
@@ -252,6 +264,20 @@ function spawnRound() {
     S.foes.push(mkFoe(type, side * W.rx * .5, spread - W.ry * .1));
   }
   updateUI();
+}
+// Versterking: de poorten links en rechts gaan open en de nieuwe tegenstanders lopen het zand op.
+function checkExtra() {
+  const e = S.extra; if (!e || S.extraDone) return;
+  const dead = S.foes.filter(f => f.state === 'dead').length, allDead = dead >= S.foes.length;
+  if (!(e.at !== undefined ? dead >= Math.ceil(S.firstCount * e.at) : S.roundT >= e.after || allDead)) return;
+  S.extraDone = true; S.gate = 1.2;
+  let i = 0;
+  for (const [type, count] of e.foes) for (let k = 0; k < count; k++, i++) {
+    const side = i % 2 ? 1 : -1, f = mkFoe(type, side * (W.rx - 18), (Math.floor(i / 2) - .5) * 22);
+    f.face = side > 0 ? Math.PI : 0; f.cd = .8; S.foes.push(f);
+    for (let j = 0; j < 6; j++) S.dust.push({ x: f.x + (Math.random() - .5) * 16, y: f.y + (Math.random() - .5) * 16, t: 1 });
+  }
+  arenaCheer(); SFX.cheer(.8); S.shake = Math.max(S.shake, 4);
 }
 // Toernooi: volgende ronde. Een deel van je leven komt terug, nieuw aftellen.
 function nextRound() {
@@ -275,7 +301,7 @@ let difficulty = 'normal';
 try { difficulty = localStorage.getItem('rn-difficulty') || 'normal'; } catch (e) {}
 function mkFoe(type, x, y) {
   const base = FOES[type], m = DIFFICULTY[difficulty] || DIFFICULTY.hard;
-  const d = { ...base, windup: base.windup * m.windup, cooldown: base.cooldown * m.cooldown,
+  const d = { ...base, windup: base.windup * m.windup, cooldown: base.cooldown * m.cooldown, dash: base.dash && { ...base.dash },
               ranged: base.ranged && { ...base.ranged, arrow: base.ranged.arrow * m.arrow } };
   return { type, d, x, y, vx: 0, vy: 0, face: Math.atan2(P.y - y, P.x - x), hp: d.hp, state: 'walk', t: 0, cd: .2 + Math.random() * .4,
            flash: 0, lunge: 0, dead: 0, wob: Math.random() * 10 };
@@ -299,7 +325,8 @@ function hitFoe(f, dmg, from, soft) {
   if (f.hp <= 0) {
     f.state = 'dead'; f.dead = 1; f.vx *= 1.6; f.vy *= 1.6;
     dropXp(f);
-    if (S.foes.every(o => o.state === 'dead')) { S.collect = XP.collect; arenaCheer(); SFX.cheer(1); }   // nog even oprapen
+    checkExtra();
+    if (S.foes.every(o => o.state === 'dead') && (!S.extra || S.extraDone)) { S.collect = XP.collect; arenaCheer(); SFX.cheer(1); }   // nog even oprapen
   }
 }
 // Blokken: korte bronzen flits aan de kant van de aanvaller, geen schade.
@@ -431,6 +458,7 @@ function update(dt) {
     return;
   }
   S.shout = Math.max(0, S.shout - dt);
+  S.roundT = (S.roundT || 0) + dt; checkExtra(); S.gate = Math.max(0, (S.gate || 0) - dt);
   // Automatisch slaan: de dichtstbijzijnde levende tegenstander binnen bereik.
   P.block = Math.max(0, (P.block || 0) - dt);
   P.cd = Math.max(0, P.cd - dt); P.swing = Math.max(0, P.swing - dt); P.hurt = Math.max(0, P.hurt - dt); P.flash = Math.max(0, P.flash - dt);
@@ -451,14 +479,21 @@ function update(dt) {
     const t = bd / w.arrow, ax = best.x + (best.state === 'walk' ? Math.cos(best.face) * best.d.speed * t * .6 : 0), ay = best.y + (best.state === 'walk' ? Math.sin(best.face) * best.d.speed * t * .6 : 0);
     const a = Math.atan2(ay - P.y, ax - P.x);
     S.arrows.push({ x: P.x + Math.cos(a) * (PLAYER.radius + 4), y: P.y + Math.sin(a) * (PLAYER.radius + 4), vx: Math.cos(a) * w.arrow, vy: Math.sin(a) * w.arrow, t: 0, life: w.range / w.arrow * 1.15, dmg: w.dmg, stuck: 0, mine: true });
-    P.cd = me.shootCd; P.swing = w.swing; S.ammo--; updateUI();
+    P.cd = P.cdMax = me.shootCd; P.swing = w.swing; S.ammo--; updateUI();
   } else if (!bow && !P.dead && inReach && P.cd === 0) {
-    P.cd = w.cooldown; P.swing = w.swing; P.swingDir *= -1;
+    P.cd = P.cdMax = w.cooldown; P.swing = w.swing; P.swingDir *= -1;
     if (w.kind === 'stick') SFX.whoosh();
-    // Raakt de klap? Eerst je eigen raakkans, dan de blokkans van de tegenstander.
-    if (Math.random() >= me.hit) { /* mis */ }
-    else if (Math.random() < blockChance(best.d.defense)) blocked(best, P);
-    else hitFoe(best, me.dmg, P);
+    // Wie wordt er geraakt: één (gladius, vuisten), iedereen in de zwaai (stok) of iedereen op de lijn (speer).
+    const fa = P.face, targets = w.hit === 'sweep' || w.hit === 'pierce' ? S.foes.filter(f => {
+      if (f.state === 'dead') return false;
+      const dx = f.x - P.x, dy = f.y - P.y, dist = Math.hypot(dx, dy);
+      if (dist - f.d.radius - PLAYER.radius > w.reach) return false;
+      const along = dx * Math.cos(fa) + dy * Math.sin(fa), side = -dx * Math.sin(fa) + dy * Math.cos(fa);
+      if (w.hit === 'pierce') return along > 0 && Math.abs(side) <= f.d.radius + w.width;
+      return Math.abs(((Math.atan2(dy, dx) - fa + Math.PI * 3) % TAU2) - Math.PI) <= w.arc || dist < f.d.radius + PLAYER.radius + 2;
+    }) : [best];
+    if (!targets.includes(best)) targets.push(best);
+    for (const t of targets) hitFoe(t, me.dmg, P);
   }
 
   // Tegenstanders: aanlopen, aanzetten, uithalen, herstellen.
@@ -469,6 +504,25 @@ function update(dt) {
     const ex = P.x - f.x, ey = P.y - f.y, d = Math.hypot(ex, ey) || 1, gap = d - f.d.radius - PLAYER.radius;
     f.cd = Math.max(0, f.cd - dt);
     let mx = 0, my = 0;
+    const D = f.d.dash;
+    if (D) {
+      // Leeuw: sluipen, in elkaar duiken en richten (richting ligt vast), stormen, uitrusten.
+      if (f.state === 'walk') {
+        f.face = lerpAngle(f.face, Math.atan2(ey, ex), 1 - Math.exp(-dt * 6));
+        mx = Math.cos(f.face) * f.d.speed; my = Math.sin(f.face) * f.d.speed;
+        if (!P.dead && f.cd === 0 && d <= D.range) { f.state = 'windup'; f.t = f.d.windup; f.aim = Math.atan2(ey, ex); }
+      } else if (f.state === 'windup') {
+        f.t -= dt; f.face = f.aim;
+        if (f.t <= 0) { f.state = 'dash'; f.t = D.time; f.hitP = false; SFX.cheer(.5); }
+      } else if (f.state === 'dash') {
+        f.t -= dt; mx = Math.cos(f.aim) * D.speed; my = Math.sin(f.aim) * D.speed;
+        if (!f.hitP && gap <= 2) { f.hitP = true; hitPlayer(f); }
+        if (f.t <= 0) { f.state = 'recover'; f.t = f.d.recover; f.cd = f.d.cooldown; }
+      } else if (f.state === 'recover') { f.t -= dt; if (f.t <= 0) f.state = 'walk'; }
+      f.x += (mx + f.vx) * dt; f.y += (my + f.vy) * dt;
+      contain(f, W.rx - f.d.radius - 4, W.ry - f.d.radius - 4);
+      continue;
+    }
     const R = f.d.ranged;
     if (R) {
       // Boogschutter: afstand houden, richten, schieten.
@@ -480,11 +534,10 @@ function update(dt) {
         const side = Math.sin(performance.now() / 900 + f.wob) > 0 ? 1 : -1;   // anders langzaam opzij stappen
         if (dir) { mx = ex / d * f.d.speed * dir; my = ey / d * f.d.speed * dir; }
         else { mx = -ey / d * f.d.speed * .35 * side; my = ex / d * f.d.speed * .35 * side; }
-        if (!P.dead && f.cd === 0 && d >= R.flee && d <= R.max + 30) { f.state = 'windup'; f.t = f.d.windup; }
+        if (!P.dead && f.cd === 0 && d <= R.max + 30) { f.state = 'windup'; f.t = f.d.windup; }   // ook als je dichtbij staat
       } else if (f.state === 'windup') {
         f.t -= dt;
-        if (d < R.flee * .6) { f.state = 'walk'; f.cd = .4; }   // je staat er bovenop: hij breekt af
-        else if (f.t <= 0) {
+        if (f.t <= 0) {
           const a = Math.atan2(ey, ex);
           S.arrows.push({ x: f.x + Math.cos(a) * (f.d.radius + 4), y: f.y + Math.sin(a) * (f.d.radius + 4), vx: Math.cos(a) * R.arrow, vy: Math.sin(a) * R.arrow, t: 0, life: R.life, dmg: f.d.dmg, stuck: 0 });
           f.state = 'recover'; f.t = f.d.recover; f.cd = f.d.cooldown;
@@ -623,7 +676,8 @@ function drawOrbs(now) {
     }
     const left = XP.life - o.t, fade = Math.max(0, Math.min(1, left / XP.fade));
     // De laatste seconden: vervagen en steeds sneller knipperen.
-    ctx.globalAlpha = fade < 1 ? fade * (.55 + .45 * Math.sin(now / (40 + 120 * fade))) : 1;
+    // knipperen: helemaal aan en uit, steeds sneller
+    ctx.globalAlpha = fade < 1 ? (Math.sin(now / (35 + 110 * fade)) > 0 ? .25 + .75 * fade : .08) : 1;
     const pulse = 1 + .18 * Math.sin(now / 160 + o.ph), r = 3.4 * pulse * (.6 + .4 * fade);
     const g = ctx.createRadialGradient(o.x, o.y, 0, o.x, o.y, r * 3.2);
     g.addColorStop(0, 'rgba(170,215,255,.75)'); g.addColorStop(1, 'rgba(90,160,255,0)');
@@ -739,6 +793,17 @@ function drawPlayer(now) {
   if (P.dead) { drawFallen(P, PLAYER.radius, look.tunic, C.skin, 1); return; }
   if (P.hurt > 0 && Math.floor(now / 70) % 2 === 0) ctx.globalAlpha = .45;
   if (me.riding) drawChariot(now);
+  if (!S.switching && P.cdMax && !me.riding) {   // klaar om te slaan? een ring die volloopt, met een flits als hij vol is
+    const t = 1 - P.cd / P.cdMax, rr = PLAYER.radius + 5;
+    if (t < 1) {
+      ctx.strokeStyle = 'rgba(245,234,214,.18)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(P.x, P.y, rr, 0, TAU2); ctx.stroke();
+      ctx.strokeStyle = 'rgba(245,234,214,.65)'; ctx.beginPath(); ctx.arc(P.x, P.y, rr, -Math.PI / 2, -Math.PI / 2 + TAU2 * t); ctx.stroke();
+      P.readyFlash = .25;
+    } else if (P.readyFlash > 0) {
+      ctx.strokeStyle = `rgba(240,197,106,${P.readyFlash * 3})`; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(P.x, P.y, rr + 2 * (1 - P.readyFlash * 4), 0, TAU2); ctx.stroke();
+      P.readyFlash -= 1 / 60;
+    }
+  }
   if (S.switching > 0) {   // wisselen: een ring die volloopt
     const t = 1 - S.switching / ARMS.switchTime;
     ctx.strokeStyle = 'rgba(245,234,214,.8)'; ctx.lineWidth = 2.5;
@@ -831,6 +896,7 @@ function drawFoe(f, now) {
   if (f.state === 'dead') { drawFallen(f, d.radius, d.tunic, C[d.skin], f.dead); return; }
   const wind = f.state === 'windup' ? 1 - f.t / d.windup : 0;
   if (d.ranged) { drawArcher(f, wind); return; }
+  if (d.dash) { drawLion(f, wind); return; }
   // Aanzet: rode gloed en arm naar achteren; uitval: arm en lijf naar voren.
   if (wind > 0) {
     ctx.fillStyle = `rgba(212,70,59,${.15 + .3 * wind})`;
@@ -862,6 +928,33 @@ function drawFoe(f, now) {
     ctx.strokeStyle = `rgba(212,70,59,${f.lunge * .7})`; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.arc(0, 0, d.radius + d.reach + 4, -.5, .5); ctx.stroke(); ctx.restore();
   }
+}
+// Leeuw van bovenaf: lang lijf, manen om de kop, staart. Bij het richten een rode pijl in de richting waarin hij gaat springen.
+function drawLion(f, wind) {
+  const d = f.d, r = d.radius, fl = f.flash > 0;
+  if (wind > 0) {
+    const len = d.dash.speed * d.dash.time;
+    ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.aim);
+    ctx.strokeStyle = `rgba(212,70,59,${.2 + .6 * wind})`; ctx.lineWidth = 3 + 3 * wind; ctx.setLineDash([10, 8]);
+    ctx.beginPath(); ctx.moveTo(r + 4, 0); ctx.lineTo(len, 0); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = `rgba(212,70,59,${.2 + .6 * wind})`; ctx.beginPath(); ctx.moveTo(len + 10, 0); ctx.lineTo(len - 4, -8); ctx.lineTo(len - 4, 8); ctx.fill();
+    ctx.restore();
+  }
+  ctx.save(); ctx.translate(f.x, f.y);
+  ctx.fillStyle = 'rgba(40,20,8,.28)'; ctx.beginPath(); ctx.ellipse(3, 4, r * 1.6, r * .9, f.face, 0, TAU2); ctx.fill();
+  ctx.rotate(f.face);
+  const crouch = wind > 0 ? 1 - .15 * wind : 1, stretch = f.state === 'dash' ? 1.15 : 1;
+  ctx.scale(stretch, crouch);
+  ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(30,15,8,.75)';
+  ctx.strokeStyle = fl ? '#fff' : '#9a6a2e'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(-r * 1.3, 0); ctx.quadraticCurveTo(-r * 2, r * .6 * Math.sin(performance.now() / 200), -r * 2.3, r * .2); ctx.stroke();   // staart
+  ctx.lineCap = 'butt'; ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(30,15,8,.75)';
+  ctx.fillStyle = fl ? '#fff' : (wind > 0 ? mix(d.tunic, C.blood, .4 * wind) : d.tunic);
+  ctx.beginPath(); ctx.ellipse(-r * .2, 0, r * 1.35, r * .75, 0, 0, TAU2); ctx.fill(); ctx.stroke();   // lijf
+  ctx.fillStyle = fl ? '#fff' : '#7a4a1e'; ctx.beginPath(); ctx.arc(r * .9, 0, r * .78, 0, TAU2); ctx.fill(); ctx.stroke();   // manen
+  ctx.fillStyle = fl ? '#fff' : '#d8a45a'; ctx.beginPath(); ctx.ellipse(r * 1.15, 0, r * .48, r * .42, 0, 0, TAU2); ctx.fill(); ctx.stroke();   // kop
+  ctx.fillStyle = '#2a1a12'; for (const s2 of [-1, 1]) { ctx.beginPath(); ctx.arc(r * 1.3, s2 * r * .17, 1.3, 0, TAU2); ctx.fill(); }
+  ctx.restore();
 }
 // Boogschutter: boog voor het lijf; bij het richten een rode stippellijn naar je toe die steeds feller wordt.
 function drawArcher(f, wind) {
@@ -998,6 +1091,19 @@ function newRun() {
   startFight(); S.paused = false;
 }
 $('startBtn').onclick = () => { SFX.init(); $('start').hidden = true; newRun(); };
+// Volume: schuifjes op het startscherm en in de straat. Bij het schuiven hoor je meteen hoe hard het is.
+let volPreview = 0;
+function showVolume() {
+  const v = SFX.muted ? 0 : Math.round(SFX.volume * 100);
+  for (const id of ['volume', 'townVolume']) $(id).value = v;
+  $('volumeOut').textContent = v; showMute();
+}
+for (const id of ['volume', 'townVolume']) $(id).addEventListener('input', ev => {
+  SFX.init(); SFX.setVolume(ev.target.value / 100);
+  if (+ev.target.value === 0) SFX.setMuted(true);
+  showVolume();
+  const now = performance.now(); if (now - volPreview > 350) { volPreview = now; SFX.cheer(.4); }   // proefje
+});
 // Moeilijkheid kiezen op het startscherm (onthouden in de browser).
 function showDifficulty() { document.querySelectorAll('#diff button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.d === difficulty))); }
 document.querySelectorAll('#diff button').forEach(b => b.onclick = () => {
@@ -1009,8 +1115,8 @@ showDifficulty();
 function showMute() { const b = $('mute'); b.textContent = SFX.muted ? 'Geluid uit' : 'Geluid aan'; b.setAttribute('aria-pressed', String(!SFX.muted)); }
 $('slot_melee').onclick = () => { switchTo('melee'); $('slot_melee').blur(); };
 $('slot_ranged').onclick = () => { switchTo('ranged'); $('slot_ranged').blur(); };
-$('mute').onclick = () => { SFX.init(); SFX.setMuted(!SFX.muted); showMute(); };
-showMute();
+$('mute').onclick = () => { SFX.init(); SFX.setMuted(!SFX.muted); if (!SFX.muted && SFX.volume === 0) SFX.setVolume(.6); showVolume(); };
+showMute(); showVolume();
 
 /* ---------- Punten verdelen ---------- */
 // mode 'toTown' = na de uitslag, op weg naar de stad; 'town' = vanuit de straat (Klaar = terug de straat in); 'arena' = op weg naar het gevecht.

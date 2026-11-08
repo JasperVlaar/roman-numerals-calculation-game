@@ -272,7 +272,7 @@ const TOWN = (() => {
     if (S.finished) {
       box.appendChild(card({ title: 'Toernooi', lines: [], locked: true }));
     } else {
-      const t = st.tourney, boss = t.rounds[t.rounds.length - 1];
+      const t = st.tourney, boss = roundsOf(t).at(-1);
       const retry = S.over === 'lost' && S.mode === 'tournament', early = S.inStage < n;
       box.appendChild(card({
         title: `Toernooi ${toRoman(S.stage + 1)}${retry ? ' (opnieuw)' : ''}`,
@@ -408,7 +408,7 @@ const TOWN = (() => {
       else if (worn) { b.textContent = '✓'; b.disabled = true; }
       else if (owned && clash) { b.textContent = 'Doe aan'; b.disabled = true; b.title = clash; }
       else if (owned) { b.textContent = isGear ? 'Doe aan' : 'Neem mee'; b.onclick = () => equip(key); }
-      else { b.textContent = `${it.price} d`; b.disabled = !rich; b.setAttribute('aria-label', `${it.name} kopen voor ${it.price} denarii`); b.onclick = () => buy(key); }
+      else { b.textContent = `${it.price} d`; b.disabled = !rich || !!clash; if (clash) b.title = clash; b.setAttribute('aria-label', `${it.name} kopen voor ${it.price} denarii`); b.onclick = () => buy(key); }
       li.appendChild(b); list.appendChild(li);
     }
     const priceOf = k => (GEAR[k] || WEAPONS[k]).price;
