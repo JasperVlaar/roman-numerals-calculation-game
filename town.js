@@ -40,8 +40,11 @@ const TOWN = (() => {
     d.innerHTML = `
       <linearGradient id="tSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#191117"/><stop offset=".55" stop-color="#4a1d3c"/><stop offset="1" stop-color="#8a3f52"/></linearGradient>
       <radialGradient id="tSun" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#f0a060" stop-opacity=".55"/><stop offset="1" stop-color="#f0a060" stop-opacity="0"/></radialGradient>
-      <linearGradient id="tWallL" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3e2f28"/><stop offset="1" stop-color="#7b674e"/></linearGradient>
-      <linearGradient id="tWallR" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#3a2b25"/><stop offset="1" stop-color="#6f5c46"/></linearGradient>
+      <linearGradient id="tWallL" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5a3f2c"/><stop offset=".6" stop-color="#9a7550"/><stop offset="1" stop-color="#8a6a4a"/></linearGradient>
+      <linearGradient id="tWallR" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#523a2a"/><stop offset=".6" stop-color="#8e6c4a"/><stop offset="1" stop-color="#806246"/></linearGradient>
+      <linearGradient id="tShade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a0f14" stop-opacity=".55"/><stop offset=".35" stop-color="#1a0f14" stop-opacity="0"/><stop offset=".8" stop-color="#1a0f14" stop-opacity="0"/><stop offset="1" stop-color="#1a0f14" stop-opacity=".35"/></linearGradient>
+      <radialGradient id="tHaze" cx=".5" cy=".46" r=".5"><stop offset="0" stop-color="#f0a060" stop-opacity=".28"/><stop offset=".5" stop-color="#c06a4a" stop-opacity=".08"/><stop offset="1" stop-color="#c06a4a" stop-opacity="0"/></radialGradient>
+      <radialGradient id="tLit"><stop offset="0" stop-color="#ffd27a"/><stop offset="1" stop-color="#e08a3a"/></radialGradient>
       <linearGradient id="tStreet" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#8a7050"/><stop offset="1" stop-color="#c4a576"/></linearGradient>
       <linearGradient id="tArena" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6f5c46"/><stop offset=".5" stop-color="#d6c8aa"/><stop offset="1" stop-color="#6f5c46"/></linearGradient>
       <radialGradient id="tGlow"><stop offset="0" stop-color="#ffb060" stop-opacity=".7"/><stop offset=".4" stop-color="#ff8a3a" stop-opacity=".25"/><stop offset="1" stop-color="#ff7a30" stop-opacity="0"/></radialGradient>
@@ -79,34 +82,114 @@ const TOWN = (() => {
     el('ellipse', { cx: 480, cy: base - 20, rx: 120, ry: 40, fill: 'url(#tGlow)' }, g);
   }
 
+  // Vaste 'willekeur', zodat de straat er elke keer hetzelfde uitziet.
+  let seed = 7; const rand = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const yAt = t => VP.y + (VB.h - VP.y) * t;                     // t = 1 vooraan, kleiner naar achteren
+  const halfW = y => VP.x * (y - VP.y) / (VB.h - VP.y);           // halve breedte van de straat op hoogte y
   function street(svg) {
-    el('polygon', { points: poly([[0, VB.h], [END, floorY(END)], [VB.w - END, floorY(END)], [VB.w, VB.h]]), fill: 'url(#tStreet)' }, svg);
-    const g = el('g', { stroke: 'rgba(60,35,20,.28)', 'stroke-width': 1, fill: 'none' }, svg);
-    for (let i = 1; i < 18; i++) {   // voegen dwars op de straat, dichter naar achteren
-      const y = VP.y + (VB.h - VP.y) / (1 + i * .22);
-      if (y < floorY(END)) break;
-      const xl = VP.x - (VP.x) * (y - VP.y) / (VB.h - VP.y), xr = VB.w - xl;
-      el('line', { x1: xl, y1: y, x2: xr, y2: y }, g);
+    seed = 7;
+    el('polygon', { points: poly([[0, VB.h], [END, floorY(END)], [VB.w - END, floorY(END)], [VB.w, VB.h]]), fill: '#7d6448' }, svg);
+    // keien: rijen ronde stenen, kleiner naar achteren
+    const g = el('g', {}, svg), stop = floorY(END);
+    for (let t = 1; ; ) {
+      const y = yAt(t); if (y < stop) break;
+      const rowH = (VB.h - VP.y) * t * .055, hw = halfW(y), w = rowH * 1.5;
+      for (let x = VP.x - hw - (rand() * w); x < VP.x + hw; x += w * (.9 + rand() * .3)) {
+        const c = 150 + Math.floor(rand() * 45);
+        el('ellipse', { cx: x + w / 2, cy: y - rowH / 2, rx: w * .46, ry: rowH * .42, fill: `rgb(${c},${Math.floor(c * .8)},${Math.floor(c * .58)})`, stroke: 'rgba(50,30,18,.55)', 'stroke-width': Math.max(.4, rowH * .06) }, g);
+      }
+      t -= .055 * t;
     }
-    for (let i = -6; i <= 6; i++) {   // voegen in de lengte, naar het verdwijnpunt
-      const bx = VP.x + i * 90, t = (floorY(END) - VP.y) / (VB.h - VP.y);
-      el('line', { x1: bx, y1: VB.h, x2: lerp(VP.x, bx, t), y2: floorY(END) }, g);
+    // uitgesleten spoor van de wagens in het midden en een goot
+    for (const k of [-.18, .18]) el('path', { d: `M${VP.x + k * VB.w} ${VB.h} L${VP.x + k * (VB.w - 2 * END) / 2 * 1.2} ${stop}`, stroke: 'rgba(40,24,14,.35)', 'stroke-width': 7, fill: 'none' }, svg);
+    // stoepen langs de huizen, met een stoeprand
+    for (const side of [-1, 1]) {
+      const d = 46, pts = [pt(side, 0, 0), pt(side, END, 0), out(side, END, 0, d), out(side, 0, 0, d)];
+      el('polygon', { points: poly(pts), fill: '#a0835e' }, svg);
+      const [a, b] = [out(side, 0, 0, d), out(side, END, 0, d)];
+      el('polygon', { points: poly([a, b, [b[0], b[1] + 2], [a[0], a[1] + 14]]), fill: '#5e4836' }, svg);   // stoeprand
+      for (let x = 0; x < END; x += 26) { const p1 = pt(side, x, 0), p2 = out(side, x, 0, d); el('line', { x1: p1[0], y1: p1[1], x2: p2[0], y2: p2[1], stroke: 'rgba(60,40,25,.3)', 'stroke-width': 1 }, svg); }
     }
-    el('line', { x1: VP.x, y1: VB.h, x2: VP.x, y2: floorY(END), stroke: 'rgba(60,35,20,.4)', 'stroke-width': 2.5 }, svg);   // goot
+    // stapstenen van stoep naar stoep, zoals in Pompeii
+    for (const [t, n] of [[.8, 3]]) {
+      const y = yAt(t), hw = halfW(y) * .5, rw = hw / n * .38;
+      for (let k = 0; k < n; k++) {
+        const x = VP.x - hw + (k + .5) * (2 * hw / n);
+        el('ellipse', { cx: x, cy: y + rw * .25, rx: rw, ry: rw * .38, fill: '#4a3626' }, svg);
+        el('ellipse', { cx: x, cy: y, rx: rw, ry: rw * .38, fill: '#b8a07a', stroke: '#5e4836', 'stroke-width': 1 }, svg);
+      }
+    }
   }
 
   function walls(svg) {
+    seed = 21;
+    const quad = (side, a, b, h0, h1) => poly([pt(side, a, h0), pt(side, b, h0), pt(side, b, h1), pt(side, a, h1)]);
     for (const side of [-1, 1]) {
       el('polygon', { points: poly([pt(side, 0, 0), pt(side, END, 0), pt(side, END, 1), pt(side, 0, 1)]), fill: side < 0 ? 'url(#tWallL)' : 'url(#tWallR)' }, svg);
-      // dakrand met pannen
-      el('polygon', { points: poly([pt(side, 0, .975), pt(side, END, .975), out(side, END, 1, 14), out(side, 0, 1, 14)]), fill: '#9a4a3a', stroke: '#5a2418', 'stroke-width': 1 }, svg);
-      // ramen van de bovenverdieping
-      for (const [a, b] of [[40, 110], [140, 200], [262, 300], [330, 362]]) {
-        el('polygon', { points: poly([pt(side, a, .74), pt(side, b, .74), pt(side, b, .88), pt(side, a, .88)]), fill: '#24161a', stroke: '#3b2a22', 'stroke-width': 1 }, svg);
+      // waar de pleister eraf is: rode baksteen
+      for (let k = 0; k < 7; k++) {
+        const a = rand() * (END - 40), b = a + 18 + rand() * 30, h0 = .7 + rand() * .2, h1 = h0 + .04 + rand() * .05;
+        el('polygon', { points: quad(side, a, b, h0, h1), fill: '#8e4a32', opacity: .55 }, svg);
+        for (let r = 0; r < 3; r++) { const hh = lerp(h0, h1, (r + 1) / 4); const p1 = pt(side, a, hh), p2 = pt(side, b, hh); el('line', { x1: p1[0], y1: p1[1], x2: p2[0], y2: p2[1], stroke: '#5a2a1c', 'stroke-width': .8, opacity: .6 }, svg); }
       }
+      // vlekken en verkleuring
+      for (let k = 0; k < 10; k++) { const [x, y] = pt(side, rand() * END, .1 + rand() * .85), sc = scaleAt(Math.abs(x - (side < 0 ? 0 : VB.w))); el('ellipse', { cx: x, cy: y, rx: 18 * sc + 4, ry: 10 * sc + 3, fill: rand() < .5 ? '#3a2618' : '#d8b88a', opacity: .1 }, svg); }
+      // lijst tussen de verdiepingen
+      el('polygon', { points: quad(side, 0, END, .685, .705), fill: '#5e4430' }, svg);
+      // ramen boven: kozijn, luiken open of dicht, soms licht, een bloempot op de vensterbank
+      [[30, 95], [130, 190], [262, 296], [326, 356]].forEach(([a, b], n) => {
+        const lit = (side < 0 && n === 2) || (side > 0 && n === 1), shut = (n + (side > 0)) % 3 === 0;
+        el('polygon', { points: quad(side, a - 3, b + 3, .735, .895), fill: '#4a3424' }, svg);
+        el('polygon', { points: quad(side, a, b, .745, .885), fill: lit ? 'url(#tLit)' : '#1e1216' }, svg);
+        if (lit) el('polygon', { points: quad(side, a, b, .745, .885), fill: '#ffb050', opacity: .25, filter: 'blur(1px)' }, svg);
+        const w = (b - a) * .45;
+        if (shut) { el('polygon', { points: quad(side, a, b, .745, .885), fill: '#5f6d45' }, svg); const m1 = pt(side, (a + b) / 2, .745), m2 = pt(side, (a + b) / 2, .885); el('line', { x1: m1[0], y1: m1[1], x2: m2[0], y2: m2[1], stroke: '#3a4228', 'stroke-width': 1.2 }, svg); }
+        else { el('polygon', { points: quad(side, a - w, a - 2, .745, .885), fill: '#5f6d45', stroke: '#3a4228', 'stroke-width': .8 }, svg); el('polygon', { points: quad(side, b + 2, b + w, .745, .885), fill: '#5f6d45', stroke: '#3a4228', 'stroke-width': .8 }, svg); }
+        el('polygon', { points: poly([pt(side, a - 4, .735), pt(side, b + 4, .735), out(side, b + 4, .735, 8), out(side, a - 4, .735, 8)]), fill: '#7a5a3e' }, svg);   // vensterbank
+        if (n % 2 === 0) { const [px, py] = out(side, (a + b) / 2, .735, 4), sc = scaleAt((a + b) / 2) * 1.6; el('rect', { x: px - 5 * sc, y: py - 7 * sc, width: 10 * sc, height: 7 * sc, fill: '#a8542e' }, svg); for (let f = 0; f < 4; f++) el('circle', { cx: px + (f - 1.5) * 3 * sc, cy: py - (8 + (f % 2) * 2) * sc, r: 2 * sc, fill: f % 2 ? '#c03a3a' : '#5f8a3a' }, svg); }
+      });
+      // houten balkon (maenianum) boven de voorste winkel
+      const [b0, b1] = side < 0 ? [100, 210] : [70, 180];
+      el('polygon', { points: poly([pt(side, b0, .69), pt(side, b1, .69), out(side, b1, .69, 34), out(side, b0, .69, 34)]), fill: '#5a3a26', stroke: '#2e1f19', 'stroke-width': 1 }, svg);
+      for (let x = b0; x <= b1; x += 10) { const p1 = out(side, x, .69, 34), p2 = out(side, x, .745, 34); el('line', { x1: p1[0], y1: p1[1], x2: p2[0], y2: p2[1], stroke: '#3b2a1e', 'stroke-width': 1.4 * scaleAt(x) + .4 }, svg); }
+      { const p1 = out(side, b0, .745, 34), p2 = out(side, b1, .745, 34); el('line', { x1: p1[0], y1: p1[1], x2: p2[0], y2: p2[1], stroke: '#3b2a1e', 'stroke-width': 2.5 }, svg); }
+      // dakrand met pannen (imbrices)
+      el('polygon', { points: poly([pt(side, 0, .965), pt(side, END, .965), out(side, END, 1, 16), out(side, 0, 1, 16)]), fill: '#a4523c', stroke: '#5a2418', 'stroke-width': 1 }, svg);
+      for (let x = 4; x < END; x += 11) { const p1 = pt(side, x, .965), p2 = out(side, x, 1, 16); el('line', { x1: p1[0], y1: p1[1], x2: p2[0], y2: p2[1], stroke: '#6e2e1e', 'stroke-width': 1.6 * scaleAt(x) + .3 }, svg); }
+      // schaduw boven en onder op de muur
+      el('polygon', { points: poly([pt(side, 0, 0), pt(side, END, 0), pt(side, END, 1), pt(side, 0, 1)]), fill: 'url(#tShade)', 'pointer-events': 'none' }, svg);
       // de kopse kant aan het eind van de straat
-      el('polygon', { points: poly([pt(side, END, 0), [side < 0 ? END + 10 : VB.w - END - 10, floorY(END)], [side < 0 ? END + 10 : VB.w - END - 10, roofY(END) + 6], pt(side, END, 1)]), fill: '#4a3a30' }, svg);
+      el('polygon', { points: poly([pt(side, END, 0), [side < 0 ? END + 10 : VB.w - END - 10, floorY(END)], [side < 0 ? END + 10 : VB.w - END - 10, roofY(END) + 6], pt(side, END, 1)]), fill: '#5a4232' }, svg);
       torch(svg, side, 243);
+    }
+    fountain(svg);
+  }
+  // Straatfontein met leeuwenkop, op de stoep tussen de wapensmid en de harnasmaker.
+  function fountain(svg) {
+    const x = 240, [px, py] = out(-1, x, 0, 22), s = scaleAt(x) * 3.4;
+    el('rect', { x: px - 16 * s, y: py - 14 * s, width: 32 * s, height: 14 * s, rx: 2 * s, fill: '#a99474', stroke: '#4a3a2c', 'stroke-width': 1 }, svg);
+    el('rect', { x: px - 14 * s, y: py - 13 * s, width: 28 * s, height: 3 * s, fill: '#5a8a9a' }, svg);
+    el('rect', { x: px - 5 * s, y: py - 34 * s, width: 10 * s, height: 22 * s, fill: '#b8a07a', stroke: '#4a3a2c', 'stroke-width': 1 }, svg);
+    el('circle', { cx: px, cy: py - 26 * s, r: 3.5 * s, fill: '#c9934a', stroke: '#4a3a2c', 'stroke-width': .8 }, svg);
+    el('path', { d: `M${px + 2 * s} ${py - 24 * s} q${6 * s} ${2 * s} ${5 * s} ${11 * s}`, fill: 'none', stroke: '#9ad0e0', 'stroke-width': 1.6 * s, class: 'water' }, svg);
+  }
+  // Waslijn en vlaggetjes over de straat.
+  function overhead(svg) {
+    const line = (x, h, sag, items) => {
+      const a = pt(-1, x, h), b = pt(1, x, h), mx = (a[0] + b[0]) / 2, my = a[1] + sag;
+      el('path', { d: `M${a[0]} ${a[1]} Q${mx} ${my * 2 - a[1] - (a[1] - my) * 0} ${b[0]} ${b[1]}`, fill: 'none', stroke: '#3b2a1e', 'stroke-width': 1 }, svg);
+      items.forEach(([t, w, hgt, c]) => {
+        const x0 = lerp(a[0], b[0], t), y0 = lerp(a[1], b[1], t) + sag * 2 * 4 * t * (1 - t) / 2 * 1;
+        el('path', { d: `M${x0} ${y0} h${w} l${-w * .1} ${hgt} h${-w * .8} Z`, fill: c, opacity: .92, class: 'cloth' }, svg);
+      });
+    };
+    const sc = scaleAt(150);
+    line(150, .9, 30 * sc, [[.22, 18 * sc * 2, 22 * sc * 2, '#ece3cf'], [.36, 14 * sc * 2, 16 * sc * 2, '#74305a'], [.6, 20 * sc * 2, 26 * sc * 2, '#d9cbb0'], [.75, 12 * sc * 2, 14 * sc * 2, '#5f6d45']]);
+    const f = 330, a = pt(-1, f, .95), b = pt(1, f, .95), n = 16;   // vlaggetjes vlak voor de arena
+    for (let k = 0; k < n; k++) {
+      const t0 = k / n, t1 = (k + 1) / n, sag = 14 * Math.sin(Math.PI * (t0 + .5 / n));
+      const x0 = lerp(a[0], b[0], t0), x1 = lerp(a[0], b[0], t1), y = lerp(a[1], b[1], t0) + sag;
+      el('path', { d: `M${x0} ${y} L${x1} ${y} L${(x0 + x1) / 2} ${y + 9}`, fill: ['#b8352c', '#d49a48', '#74305a'][k % 3] }, svg);
     }
   }
 
@@ -120,6 +203,28 @@ const TOWN = (() => {
     el('path', { d: `M${fx} ${fy - 16 * s} C${fx + 7 * s} ${fy - 6 * s} ${fx + 6 * s} ${fy + 2 * s} ${fx} ${fy + 4 * s} C${fx - 6 * s} ${fy + 2 * s} ${fx - 7 * s} ${fy - 6 * s} ${fx} ${fy - 16 * s} Z`, fill: '#f08a3a', class: 'flame' }, svg);
   }
 
+  // Spullen op straat voor de winkels: amforen, tonnen, hooi, een schietschijf. far = achter de voorste winkels.
+  function props(svg, layer) {
+    const g = el('g', { 'pointer-events': 'none' }, svg);
+    const at = (side, x, d) => { const [px, py] = out(side, x, 0, d); return [px, py, scaleAt(x) * 2.2]; };
+    const amphora = (side, x, d, c = '#b0643a') => { const [px, py, s] = at(side, x, d);
+      el('path', { d: `M${px - 5 * s} ${py - 26 * s} h${10 * s} l${-1 * s} ${4 * s} q${9 * s} ${6 * s} ${4 * s} ${18 * s} l${-3 * s} ${4 * s} l${-3 * s} 0 l${-3 * s} ${-4 * s} q${-5 * s} ${-12 * s} ${4 * s} ${-18 * s} Z`, fill: c, stroke: '#2e1f19', 'stroke-width': 1 }, g); };
+    const barrel = (side, x, d) => { const [px, py, s] = at(side, x, d), w = 16 * s, h = 22 * s;
+      el('rect', { x: px - w / 2, y: py - h, width: w, height: h, rx: 4 * s, fill: '#7a5230', stroke: '#2e1f19', 'stroke-width': 1 }, g);
+      for (const k of [.25, .75]) el('line', { x1: px - w / 2, y1: py - h * k, x2: px + w / 2, y2: py - h * k, stroke: '#3b3034', 'stroke-width': 1.6 * s }, g); };
+    const hay = (side, x, d) => { const [px, py, s] = at(side, x, d);
+      el('path', { d: `M${px - 20 * s} ${py} q${4 * s} ${-18 * s} ${20 * s} ${-18 * s} q${16 * s} 0 ${20 * s} ${18 * s} Z`, fill: '#d9b860', stroke: '#8a6a2e', 'stroke-width': 1 }, g); };
+    const target = (side, x, d) => { const [px, py, s] = at(side, x, d), r = 11 * s;
+      el('line', { x1: px, y1: py, x2: px, y2: py - 30 * s, stroke: '#5a3a26', 'stroke-width': 2 * s }, g);
+      for (const [k, c] of [[1, '#ece3cf'], [.66, '#8e1f1a'], [.33, '#ece3cf']]) el('circle', { cx: px, cy: py - 30 * s, r: r * k, fill: c, stroke: '#2e1f19', 'stroke-width': .8 }, g); };
+    if (layer === 'far') {
+      barrel(-1, 380, 18); barrel(-1, 392, 30);          // harnasmaker
+      hay(1, 385, 24);                                   // stallen
+    } else {
+      amphora(-1, 40, 30); amphora(-1, 62, 22, '#9a4a3a'); barrel(-1, 215, 26);   // wapensmid
+      target(1, 60, 40); barrel(1, 215, 24);                                      // boogmaker
+    }
+  }
   // Een winkel: open voorkant (of luiken), luifel met strepen, uithangbord dat de straat in steekt.
   function shop(svg, id) {
     const def = SHOPS[id], sp = SPOTS[id], side = sp.side, open = shopOpen(id);
@@ -353,7 +458,11 @@ const TOWN = (() => {
     defs(svg); sky(svg);
     arenaSpot(svg);
     street(svg); walls(svg);
+    props(svg, 'far');
     for (const id of ['armorer', 'stable', 'smith', 'bowyer']) shop(svg, id);   // achterste eerst
+    props(svg, 'near');
+    overhead(svg);
+    el('rect', { width: VB.w, height: VB.h, fill: 'url(#tHaze)', 'pointer-events': 'none' }, svg);
     cat.draw(svg);
     el('rect', { width: VB.w, height: VB.h, fill: 'url(#tVignette)', 'pointer-events': 'none' }, svg);
     svg.querySelectorAll('.hot:not(.closed)').forEach(g => {
@@ -375,7 +484,7 @@ const TOWN = (() => {
   /* ---------- Winkel: de toonbank ---------- */
   let current = null;
   function openShop(id) {
-    current = id; renderShop(); $('shop').hidden = false; $('shopBack').focus();
+    current = id; $('shopScene').innerHTML = SHOPART.scene(id); renderShop(); $('shop').hidden = false; $('shopBack').focus();
     SFX.town(id);
   }
   function renderShop() {
@@ -401,7 +510,8 @@ const TOWN = (() => {
       // kan het samen met wat je nu hebt?
       const clash = isGear && it.needsBow && !S.ranged ? 'koop eerst een boog' : '';
       const li = document.createElement('li');
-      li.innerHTML = `<div><b>${it.name}</b><span>${info}${cmp ? ` <i class="eff">${cmp}</i>` : ''}</span></div>`;
+      li.innerHTML = `${SHOPART.icon(key)}<div><b>${it.name}</b><span>${info}${cmp ? ` <i class="eff">${cmp}</i>` : ''}</span></div>`;
+      if (worn) li.classList.add('worn');
       const b = document.createElement('button'); b.className = 'btn';
       if (worn && key === 'quiver') { b.textContent = '✓'; b.disabled = true; }   // afdoen zou pijlen kosten
       else if (worn && isGear) { b.textContent = 'Doe af'; b.onclick = () => { S.gear[it.slot] = null; changed(); }; }
@@ -430,7 +540,7 @@ const TOWN = (() => {
   // Pijlen: aanvullen tot je koker vol is (of zoveel als je kunt betalen).
   function arrowRow() {
     const li = document.createElement('li'), room = me.ammoMax - S.ammo, n = Math.min(room, Math.floor(S.money / AMMO.price));
-    li.innerHTML = `<div><b>Pijlen</b><span>${S.ammo}/${me.ammoMax}</span></div>`;
+    li.innerHTML = `${SHOPART.icon('arrows')}<div><b>Pijlen</b><span>${S.ammo}/${me.ammoMax}</span></div>`;
     const b = document.createElement('button'); b.className = 'btn';
     if (!room) { b.textContent = 'Vol'; b.disabled = true; }
     else { b.textContent = n ? `+${n} · ${n * AMMO.price} d` : `${AMMO.price} d`; b.disabled = !n; b.onclick = () => { S.money -= n * AMMO.price; S.ammo += n; SFX.hit(); changed(); }; }

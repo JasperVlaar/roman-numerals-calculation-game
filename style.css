@@ -281,3 +281,32 @@ button:disabled{opacity:.4;cursor:default}
 .vol input{flex:1;accent-color:var(--bronze);height:28px}
 .vol output{min-width:3ch;text-align:right;font-family:var(--f-display);color:var(--muted)}
 .vol.small{flex:0 1 160px;gap:6px;font-size:14px}
+
+/* Winkels van binnen (shops.js) */
+.panel.shop{width:min(560px,100%);padding:0 18px 18px;gap:12px}
+.shop-scene{line-height:0;margin:0 -18px;border-bottom:3px solid #3b2a1e;background:#2a1d1c;border-radius:18px 18px 0 0;overflow:hidden}
+.shop-svg{display:block;width:100%;height:auto}
+.shop-head{display:flex;justify-content:space-between;align-items:baseline}
+.shop-head .eyebrow{margin:0;font-family:var(--f-display);font-size:14px;color:var(--bronze)}
+.shop-head h2{margin:0;font-size:22px;color:var(--coin)}
+.wares li{gap:10px}
+.wares .ware-ico{flex:none;width:40px;height:40px;padding:3px;border-radius:10px;background:rgba(245,234,214,.06);border:1px solid var(--line)}
+.wares li.worn{border-color:rgba(212,154,72,.55)}
+.wares li.worn .ware-ico{background:rgba(212,154,72,.14)}
+/* winkeliers aan het werk */
+.shop-svg .arm-r{transform-box:view-box}
+.shop-svg.smith .arm-r{transform-origin:252px 118px;animation:hammer 1.1s ease-in infinite}
+.shop-svg.smith .sparks{animation:sparks 1.1s linear infinite}
+.shop-svg.bowyer .arm-r{transform-origin:272px 118px;animation:carve 1.3s ease-in-out infinite}
+.shop-svg.bowyer .shavings{animation:sparks 1.3s linear infinite}
+.shop-svg.armorer .arm-r{transform-origin:317px 118px;animation:polish 1.6s ease-in-out infinite}
+.shop-svg.stable .arm-r{transform-origin:327px 118px;animation:carve 2.2s ease-in-out infinite}
+.shop-svg .horse{transform-box:fill-box;transform-origin:50% 100%;animation:nod 3.2s ease-in-out infinite}
+.shop-svg .horse.h1{animation-delay:-1.4s}
+.shop-svg .forge{animation:forge 1.4s ease-in-out infinite alternate}
+@keyframes hammer{0%,55%{transform:rotate(-38deg)}70%{transform:rotate(6deg)}100%{transform:rotate(-38deg)}}
+@keyframes sparks{0%,62%{opacity:0;transform:translate(0,0)}70%{opacity:1}100%{opacity:0;transform:translate(8px,-14px)}}
+@keyframes carve{0%,100%{transform:translate(0,0)}50%{transform:translate(-14px,6px)}}
+@keyframes polish{0%{transform:translate(0,0)}25%{transform:translate(6px,-4px)}50%{transform:translate(0,-8px)}75%{transform:translate(-6px,-4px)}100%{transform:translate(0,0)}}
+@keyframes nod{0%,100%{transform:rotate(0)}50%{transform:rotate(-5deg)}}
+@media (prefers-reduced-motion:reduce){.shop-svg *{animation:none!important}}

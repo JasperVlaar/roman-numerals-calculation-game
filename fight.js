@@ -385,6 +385,8 @@ function gainXp(o) {
   if (after > before) {
     S.points += POINTS.perLevel; S.levelUps++;
     SFX.cheer(.5);
+    // groene LVL UP naast je poppetje, die met je meeloopt en langzaam opstijgt
+    S.floats.push({ text: 'LVL UP', color: '#7ee36a', t: 1.6, follow: true, dx: 13, dy: -14, size: 11 });
   }
   updateUI();
 }
@@ -617,7 +619,10 @@ function update(dt) {
     }
     o.x += o.vx * dt; o.y += o.vy * dt; contain(o, W.rx - 6, W.ry - 6);
   }
-  for (const f of S.floats) { f.t -= dt * .9; f.y -= dt * 30; }
+  for (const f of S.floats) {
+    f.t -= dt * .9;
+    if (f.follow) { f.dy -= dt * 14; f.x = P.x + f.dx; f.y = P.y + f.dy; } else f.y -= dt * 30;
+  }
   S.floats = S.floats.filter(f => f.t > 0);
   for (const p of S.dust) p.t -= dt * 2;
   S.dust = S.dust.filter(p => p.t > 0);
@@ -653,9 +658,11 @@ function draw(now) {
 
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (const f of S.floats) {
-    ctx.globalAlpha = Math.min(1, f.t * 1.5); ctx.font = '700 16px Cinzel, Georgia, serif';
+    ctx.globalAlpha = Math.min(1, f.t * 1.5); ctx.font = `700 ${f.size || 16}px Cinzel, Georgia, serif`;
+    if (f.follow) ctx.textAlign = 'left';
     ctx.lineWidth = 4; ctx.strokeStyle = C.night; ctx.strokeText(f.text, f.x, f.y);
     ctx.fillStyle = f.color; ctx.fillText(f.text, f.x, f.y);
+    ctx.textAlign = 'center';
   }
   ctx.globalAlpha = 1;
   if (S.intro > 0 || S.shout > 0) {   // III, II, I, Pugnate!
