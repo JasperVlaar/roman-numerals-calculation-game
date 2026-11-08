@@ -20,7 +20,7 @@ const SFX = (() => {
     block:    ['assets/sound/block.wav']                          // een klap wordt geblokt
   };
   // Volumes (0 tot 1). Pas hier aan als iets te hard of te zacht is.
-  const MIX = { crowd: { calm: .25, fight: .42, town: 0 }, cheer: .7, cheerBig: .9, boo: .7, hit: .6, hurt: .7, block: .5, whoosh: .45, meow: .6, purr: .7 };
+  const MIX = { crowd: { calm: .25, fight: .42, town: 0 }, cheer: .7, cheerBig: .9, boo: .7, hit: .6, hurt: .7, block: .5, whoosh: .45, meow: .3, purr: .7 };
   // De straat: achtergrond per werkplaats. street = volume op straat (0 = daar niet te horen), inside = in die winkel;
   // chunk = zoveel seconden spelen (vanaf een willekeurig punt), pause = zoveel seconden stil daarna. whole = het hele bestand afspelen.
   // loop = continu (vogeltjes). shop = hoort bij die winkel (ook als die nog dicht is, wordt er binnen gewerkt).
@@ -29,8 +29,8 @@ const SFX = (() => {
     smith:   { src: 'assets/sound/smithy.mp3',    shop: 'smith',   street: .1,  inside: .6,  chunk: [5, 10], pause: [6, 16], pauseIn: [1, 3] },
     bowyer:  { src: 'assets/sound/carve.mp3',     shop: 'bowyer',  street: .18, inside: .55, chunk: [3, 6], pause: [5, 11], pauseIn: [2, 5] },
     armorer: { src: 'assets/sound/footsteps.mp3', shop: 'armorer', street: 0,   inside: .35, chunk: [4, 8], pause: [3, 8], pauseIn: [2, 5] },
-    stable:  { src: 'assets/sound/horse.mp3',     shop: 'stable',  street: .1,  inside: .5,  whole: true, pause: [12, 30], pauseIn: [4, 9] },
-    clop:    { src: 'assets/sound/clopping.mp3',  street: .15, inside: .05, whole: true, pause: [20, 45], first: [6, 14] }   // komt af en toe langs
+    stable:  { src: 'assets/sound/horse.mp3',     shop: 'stable',  street: .05, inside: .25,  whole: true, pause: [12, 30], pauseIn: [4, 9] },
+    clop:    { src: 'assets/sound/clopping.mp3',  street: .075, inside: .025, whole: true, pause: [20, 45], first: [6, 14] }   // komt af en toe langs
   };
   const PURR = 'assets/sound/purr-loop.wav';
   const MAX_AT_ONCE = 2;   // zoveel juich- of joelgeluiden tegelijk; daarna faadt de oudste snel weg

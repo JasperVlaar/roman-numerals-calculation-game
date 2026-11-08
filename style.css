@@ -270,3 +270,8 @@ button:disabled{opacity:.4;cursor:default}
 .slot.empty{animation:slotEmpty .4s ease-in-out 3}
 @keyframes slotEmpty{50%{border-color:var(--blood);color:var(--blood)}}
 .goal .label:empty{visibility:hidden}
+
+/* Moeilijkheid op het startscherm */
+.diff{display:flex;gap:6px}
+.diff button{flex:1;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--stone-2);color:var(--muted);font-family:var(--f-display);font-size:14px}
+.diff button[aria-pressed="true"]{border-color:var(--bronze);color:var(--ink);background:#3d2c37}

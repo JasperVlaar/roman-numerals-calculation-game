@@ -264,8 +264,19 @@ function nextRound() {
   spawnRound();
   void heal;
 }
+// Moeilijkheid: vooral hoe snel tegenstanders slaan. windup = langer aanzetten (meer tijd om weg te stappen),
+// cooldown = langer wachten tussen twee aanvallen, arrow = pijlsnelheid. Zwaar = de waarden in FOES.
+const DIFFICULTY = {
+  easy:   { nl: 'Makkelijk', windup: 1.8,  cooldown: 1.6,  arrow: .7 },
+  normal: { nl: 'Normaal',   windup: 1.35, cooldown: 1.25, arrow: .85 },
+  hard:   { nl: 'Zwaar',     windup: 1,    cooldown: 1,    arrow: 1 }
+};
+let difficulty = 'normal';
+try { difficulty = localStorage.getItem('rn-difficulty') || 'normal'; } catch (e) {}
 function mkFoe(type, x, y) {
-  const d = FOES[type];
+  const base = FOES[type], m = DIFFICULTY[difficulty] || DIFFICULTY.hard;
+  const d = { ...base, windup: base.windup * m.windup, cooldown: base.cooldown * m.cooldown,
+              ranged: base.ranged && { ...base.ranged, arrow: base.ranged.arrow * m.arrow } };
   return { type, d, x, y, vx: 0, vy: 0, face: Math.atan2(P.y - y, P.x - x), hp: d.hp, state: 'walk', t: 0, cd: .2 + Math.random() * .4,
            flash: 0, lunge: 0, dead: 0, wob: Math.random() * 10 };
 }
@@ -939,6 +950,13 @@ function newRun() {
   startFight(); S.paused = false;
 }
 $('startBtn').onclick = () => { SFX.init(); $('start').hidden = true; newRun(); };
+// Moeilijkheid kiezen op het startscherm (onthouden in de browser).
+function showDifficulty() { document.querySelectorAll('#diff button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.d === difficulty))); }
+document.querySelectorAll('#diff button').forEach(b => b.onclick = () => {
+  difficulty = b.dataset.d; try { localStorage.setItem('rn-difficulty', difficulty); } catch (e) {}
+  showDifficulty();
+});
+showDifficulty();
 // Geluid aan/uit: knop rechtsboven, of de toets M.
 function showMute() { const b = $('mute'); b.textContent = SFX.muted ? 'Geluid uit' : 'Geluid aan'; b.setAttribute('aria-pressed', String(!SFX.muted)); }
 $('slot_melee').onclick = () => { switchTo('melee'); $('slot_melee').blur(); };
