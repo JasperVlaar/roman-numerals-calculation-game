@@ -44,6 +44,9 @@ const TOWN = (() => {
       <linearGradient id="tWallR" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#523a2a"/><stop offset=".6" stop-color="#8e6c4a"/><stop offset="1" stop-color="#806246"/></linearGradient>
       <linearGradient id="tShade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a0f14" stop-opacity=".55"/><stop offset=".35" stop-color="#1a0f14" stop-opacity="0"/><stop offset=".8" stop-color="#1a0f14" stop-opacity="0"/><stop offset="1" stop-color="#1a0f14" stop-opacity=".35"/></linearGradient>
       <radialGradient id="tHaze" cx=".5" cy=".46" r=".5"><stop offset="0" stop-color="#f0a060" stop-opacity=".28"/><stop offset=".5" stop-color="#c06a4a" stop-opacity=".08"/><stop offset="1" stop-color="#c06a4a" stop-opacity="0"/></radialGradient>
+      <linearGradient id="tAwnShade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#140a08" stop-opacity=".55"/><stop offset="1" stop-color="#140a08" stop-opacity="0"/></linearGradient>
+      <linearGradient id="tAwnL" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1a0f0a" stop-opacity=".35"/><stop offset=".7" stop-color="#fff2d0" stop-opacity="0"/><stop offset="1" stop-color="#fff2d0" stop-opacity=".18"/></linearGradient>
+      <linearGradient id="tAwnR" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#1a0f0a" stop-opacity=".35"/><stop offset=".7" stop-color="#fff2d0" stop-opacity="0"/><stop offset="1" stop-color="#fff2d0" stop-opacity=".18"/></linearGradient>
       <radialGradient id="tLit"><stop offset="0" stop-color="#ffd27a"/><stop offset="1" stop-color="#e08a3a"/></radialGradient>
       <linearGradient id="tStreet" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#8a7050"/><stop offset="1" stop-color="#c4a576"/></linearGradient>
       <linearGradient id="tArena" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6f5c46"/><stop offset=".5" stop-color="#d6c8aa"/><stop offset="1" stop-color="#6f5c46"/></linearGradient>
@@ -136,17 +139,21 @@ const TOWN = (() => {
       for (let k = 0; k < 10; k++) { const [x, y] = pt(side, rand() * END, .1 + rand() * .85), sc = scaleAt(Math.abs(x - (side < 0 ? 0 : VB.w))); el('ellipse', { cx: x, cy: y, rx: 18 * sc + 4, ry: 10 * sc + 3, fill: rand() < .5 ? '#3a2618' : '#d8b88a', opacity: .1 }, svg); }
       // lijst tussen de verdiepingen
       el('polygon', { points: quad(side, 0, END, .685, .705), fill: '#5e4430' }, svg);
-      // ramen boven: kozijn, luiken open of dicht, soms licht, een bloempot op de vensterbank
-      [[30, 95], [130, 190], [262, 296], [326, 356]].forEach(([a, b], n) => {
-        const lit = (side < 0 && n === 2) || (side > 0 && n === 1), shut = (n + (side > 0)) % 3 === 0;
-        el('polygon', { points: quad(side, a - 3, b + 3, .735, .895), fill: '#4a3424' }, svg);
-        el('polygon', { points: quad(side, a, b, .745, .885), fill: lit ? 'url(#tLit)' : '#1e1216' }, svg);
-        if (lit) el('polygon', { points: quad(side, a, b, .745, .885), fill: '#ffb050', opacity: .25, filter: 'blur(1px)' }, svg);
-        const w = (b - a) * .45;
-        if (shut) { el('polygon', { points: quad(side, a, b, .745, .885), fill: '#5f6d45' }, svg); const m1 = pt(side, (a + b) / 2, .745), m2 = pt(side, (a + b) / 2, .885); el('line', { x1: m1[0], y1: m1[1], x2: m2[0], y2: m2[1], stroke: '#3a4228', 'stroke-width': 1.2 }, svg); }
-        else { el('polygon', { points: quad(side, a - w, a - 2, .745, .885), fill: '#5f6d45', stroke: '#3a4228', 'stroke-width': .8 }, svg); el('polygon', { points: quad(side, b + 2, b + w, .745, .885), fill: '#5f6d45', stroke: '#3a4228', 'stroke-width': .8 }, svg); }
-        el('polygon', { points: poly([pt(side, a - 4, .735), pt(side, b + 4, .735), out(side, b + 4, .735, 8), out(side, a - 4, .735, 8)]), fill: '#7a5a3e' }, svg);   // vensterbank
-        if (n % 2 === 0) { const [px, py] = out(side, (a + b) / 2, .735, 4), sc = scaleAt((a + b) / 2) * 1.6; el('rect', { x: px - 5 * sc, y: py - 7 * sc, width: 10 * sc, height: 7 * sc, fill: '#a8542e' }, svg); for (let f = 0; f < 4; f++) el('circle', { cx: px + (f - 1.5) * 3 * sc, cy: py - (8 + (f % 2) * 2) * sc, r: 2 * sc, fill: f % 2 ? '#c03a3a' : '#5f8a3a' }, svg); }
+      // ramen boven: kleine raamgaten zonder glas, met houten luiken (dicht of opengeklapt), soms een rooster, soms licht van binnen
+      const wood = '#6e4a2c', woodLine = '#3e2818';
+      const planks = (a, b, h0, h1) => { for (let k = 1; k < 3; k++) { const x = lerp(a, b, k / 3), p1 = pt(side, x, h0), p2 = pt(side, x, h1); el('line', { x1: p1[0], y1: p1[1], x2: p2[0], y2: p2[1], stroke: woodLine, 'stroke-width': .9, opacity: .8 }, svg); } };
+      [[40, 85], [140, 180], [266, 292], [330, 352]].forEach(([a, b], n) => {
+        const lit = (side < 0 && n === 2) || (side > 0 && n === 1), shut = (n + (side > 0)) % 3 === 0, grille = !lit && n % 2 === 1;
+        const h0 = .77, h1 = .875;
+        el('polygon', { points: quad(side, a - 3, b + 3, h0 - .01, h1 + .01), fill: '#b8a07a' }, svg);   // stenen omlijsting
+        el('polygon', { points: quad(side, a, b, h0, h1), fill: lit ? 'url(#tLit)' : '#1e1216' }, svg);
+        if (lit) el('polygon', { points: quad(side, a, b, h0, h1), fill: '#ffb050', opacity: .25, filter: 'blur(1px)' }, svg);
+        if (grille) for (let k = 1; k < 4; k++) { const x = lerp(a, b, k / 4), p1 = pt(side, x, h0), p2 = pt(side, x, h1); el('line', { x1: p1[0], y1: p1[1], x2: p2[0], y2: p2[1], stroke: '#3a2a1e', 'stroke-width': 1.6 * scaleAt(x) + .4 }, svg); }
+        const w = (b - a) / 2;
+        if (shut) { el('polygon', { points: quad(side, a, b, h0, h1), fill: wood, stroke: woodLine, 'stroke-width': .8 }, svg); planks(a, b, h0, h1); }
+        else for (const [p, q] of [[a - w, a - 2], [b + 2, b + w]]) { el('polygon', { points: quad(side, p, q, h0, h1), fill: wood, stroke: woodLine, 'stroke-width': .8 }, svg); planks(p, q, h0, h1); }
+        el('polygon', { points: poly([pt(side, a - 4, h0 - .01), pt(side, b + 4, h0 - .01), out(side, b + 4, h0 - .01, 7), out(side, a - 4, h0 - .01, 7)]), fill: '#9a8262' }, svg);   // stenen vensterbank
+        if (n % 2 === 0) { const [px, py] = out(side, (a + b) / 2, h0 - .01, 4), sc = scaleAt((a + b) / 2) * 1.6; el('rect', { x: px - 5 * sc, y: py - 7 * sc, width: 10 * sc, height: 7 * sc, fill: '#a8542e' }, svg); for (let f = 0; f < 4; f++) el('circle', { cx: px + (f - 1.5) * 3 * sc, cy: py - (8 + (f % 2) * 2) * sc, r: 2 * sc, fill: f % 2 ? '#c03a3a' : '#5f8a3a' }, svg); }
       });
       // houten balkon (maenianum) boven de voorste winkel
       const [b0, b1] = side < 0 ? [100, 210] : [70, 180];
@@ -237,13 +244,7 @@ const TOWN = (() => {
     if (open && contents[id]) contents[id](g, Q, side, scaleAt((xa + xb) / 2));
     else if (open) el('polygon', { points: poly([Q(0, 0), Q(1, 0), Q(1, 1), Q(0, 1)]), fill: '#3a2420' }, g);
     else shutters(g, Q);
-    // luifel
-    const colors = { smith: ['#9a4a3a', '#d9cbb0'], armorer: ['#5f6d45', '#d9cbb0'], bowyer: ['#74305a', '#d9cbb0'], stable: ['#c08a3e', '#5a3a26'] }[id];
-    const n = 6;
-    for (let i = 0; i < n; i++) {
-      const a = lerp(sp.x0, sp.x1, i / n), b = lerp(sp.x0, sp.x1, (i + 1) / n);
-      el('polygon', { points: poly([pt(side, a, .62), pt(side, b, .62), out(side, b, .54, 70), out(side, a, .54, 70)]), fill: colors[i % 2], stroke: 'rgba(30,15,8,.45)', 'stroke-width': .8 }, g);
-    }
+    awning(g, id, sp, side);
     // uithangbord, haaks op de muur: recht naar je toe, dus goed leesbaar
     const xs = lerp(sp.x0, sp.x1, side < 0 ? .78 : .78), s = Math.max(.55, scaleAt(xs)), [ax, ay] = out(side, xs, .8, 46);
     const w = 168 * s, h = 54 * s, x = ax - w / 2, y = ay - h / 2;
@@ -262,6 +263,35 @@ const TOWN = (() => {
     el('title', {}, g).textContent = open ? `${def.nl} (${def.la})` : `${def.nl}: nog dicht`;
     if (open) { g.setAttribute('tabindex', '0'); g.setAttribute('role', 'button'); g.setAttribute('aria-label', `${def.nl} binnengaan`); }
     return g;
+  }
+
+  // Luifel (velum) van gestreept zeildoek: hangt iets door, met een geschulpte zoom,
+  // een houten lat aan de voorkant, touwen naar de muur en schaduw op de gevel eronder.
+  function awning(g, id, sp, side) {
+    const [c1, c2] = { smith: ['#9a4a3a', '#e6d7b8'], armorer: ['#5f6d45', '#e6d7b8'], bowyer: ['#74305a', '#e6d7b8'], stable: ['#c08a3e', '#6a4630'] }[id];
+    const n = 7, s = scaleAt((sp.x0 + sp.x1) / 2), D = 70, hb = .62, hf = .54, sag = 5 * s, flap = 11 * s;
+    el('polygon', { points: poly([pt(side, sp.x0, hb), pt(side, sp.x1, hb), pt(side, sp.x1, hb - .14), pt(side, sp.x0, hb - .14)]), fill: 'url(#tAwnShade)' }, g);   // schaduw op de gevel
+    // de voorrand: één doorlopende, licht doorhangende lijn over alle banen
+    const F = t => { const [ax, ay] = out(side, lerp(sp.x0, sp.x1, t), hf, D); return [ax, ay + sag * Math.sin(Math.PI * ((t * n) % 1)) + sag * .6 * Math.sin(Math.PI * t)]; };
+    const B = t => pt(side, lerp(sp.x0, sp.x1, t), hb);
+    const edge = (t0, t1, k = 6) => Array.from({ length: k + 1 }, (_, m) => F(lerp(t0, t1, m / k)).map(v => v.toFixed(1)).join(',')).join(' L');
+    const all = el('g', {}, g);
+    for (let i = 0; i < n; i++) {
+      const t0 = i / n, t1 = (i + 1) / n, col = i % 2 ? c2 : c1, [b0, b1] = [B(t0), B(t1)];
+      el('path', { d: `M${b0} L${b1} L${edge(t1, t0)} Z`, fill: col, stroke: 'rgba(30,15,8,.35)', 'stroke-width': .6 }, all);
+      // naad in het midden van de baan en een plooi
+      const m = (t0 + t1) / 2, bm = B(m), fm = F(m);
+      el('line', { x1: bm[0], y1: bm[1], x2: fm[0], y2: fm[1], stroke: 'rgba(30,15,8,.18)', 'stroke-width': .8 }, all);
+      // geschulpte zoom die naar beneden hangt
+      const [e0, e1] = [F(t0), F(t1)], mid = F(m);
+      el('path', { d: `M${edge(t0, t1, 4)} L${e1[0]} ${e1[1] + flap * .55} Q${mid[0]} ${mid[1] + flap * 1.4} ${e0[0]} ${e0[1] + flap * .55} Z`, fill: col, stroke: 'rgba(30,15,8,.5)', 'stroke-width': .7 }, all);
+      el('path', { d: `M${e1[0]} ${e1[1] + flap * .55} Q${mid[0]} ${mid[1] + flap * 1.4} ${e0[0]} ${e0[1] + flap * .55}`, fill: 'none', stroke: i % 2 ? c1 : c2, 'stroke-width': 1.6 * s + .3, opacity: .9 }, all);   // biesje
+      el('circle', { cx: e0[0], cy: e0[1] + flap * .62, r: 1.6 * s + .4, fill: '#d49a48' }, all);   // kwastje op elke punt
+    }
+    el('polygon', { points: poly([B(0), B(1), F(1), F(0)]), fill: side < 0 ? 'url(#tAwnL)' : 'url(#tAwnR)', 'pointer-events': 'none' }, all);   // licht van voren
+    el('path', { d: `M${B(0)} L${B(1)}`, stroke: '#3e2818', 'stroke-width': 3 * s + 1 }, all);   // houten lat tegen de muur
+    el('path', { d: `M${edge(0, 1, 28)}`, fill: 'none', stroke: '#4a3020', 'stroke-width': 1.6 * s + .6, 'stroke-linejoin': 'round' }, all);   // voorkant
+    for (const t of [0, 1]) { const w = pt(side, lerp(sp.x0, sp.x1, t), .7), f = F(t); el('line', { x1: w[0], y1: w[1], x2: f[0], y2: f[1], stroke: '#2e1f15', 'stroke-width': 1.1 }, all); el('circle', { cx: w[0], cy: w[1], r: 1.6 * s + .5, fill: '#3b3034' }, all); }   // touwen naar ijzeren ogen in de muur
   }
 
   function shutters(g, Q) {
