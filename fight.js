@@ -13,16 +13,20 @@ const C = {}; ['night','porphyry','bronze','sand','sand-2','ink','muted','blood'
 
 /* ---------- Instellingen: hier balanceer je het spel ---------- */
 // Lage getallen, zoals een slaaf begint: 8 leven, 2 schade met je vuisten.
-const PLAYER = { hp: 8, speed: 85, radius: 10, accel: 12, invuln: .6, weapon: 'fists' };
+const PLAYER = { hp: 14, speed: 85, radius: 10, accel: 12, invuln: .6, weapon: 'fists' };
 // Stats: wat één punt doet. Raken en blokken zijn kansen; tegenstanders gebruiken dezelfde formules.
 const STATS = {
-  strength: { name: 'Strength', nl: 'Kracht',     desc: '+0,25 schade per klap' },
-  agility:  { name: 'Agility',  nl: 'Behendigheid', desc: '+3 loopsnelheid, en je schiet sneller met een boog' },
-  vitality: { name: 'Vitality', nl: 'Vitaliteit',  desc: '+1 leven' }
+  strength:  { name: 'Strength',  nl: 'Kracht',       desc: '+0,25 schade per klap met een melee-wapen' },
+  fury:      { name: 'Fury',      nl: 'Furor',        desc: '−5% wachttijd voor al je wapens' },
+  precision: { name: 'Precision', nl: 'Precisie',     desc: '+5% kans op een kritieke klap (dubbele schade)' },
+  agility:   { name: 'Agility',   nl: 'Behendigheid', desc: '+3 loopsnelheid' },
+  vitality:  { name: 'Vitality',  nl: 'Vitaliteit',   desc: '+1 leven' },
+  regen:     { name: 'Regen',     nl: 'Herstel',      desc: '+0,1 leven per seconde' },
+  bloodlust: { name: 'Bloodlust', nl: 'Bloeddorst',   desc: '+5% kans op 1 leven terug als je iemand verslaat' }
 };
 // Attack en Defense (raak- en blokkans) staan voorlopig uit: elke klap binnen bereik raakt.
 // Terugzetten: hitBase .6 en blockBase .1, en de twee stats weer in STATS en S.stats.
-const STAT_RULES = { dmg: .25, speed: 3, shoot: .04, shootMin: .5, hitBase: 1, hit: .05, hitMax: 1, blockBase: 0, block: .06, blockMax: .75, hp: 1 };
+const STAT_RULES = { fury: .05, furyMin: .4, crit: .05, critMul: 2, regen: .1, blood: .05, dmg: .25, speed: 3, shoot: .04, shootMin: .5, hitBase: 1, hit: .05, hitMax: 1, blockBase: 0, block: .06, blockMax: .75, hp: 1 };
 // Punten verdien je met XP: verslagen tegenstanders laten blauwwitte bolletjes vallen. Een niveau omhoog = POINTS.perLevel punten.
 const POINTS = { start: 0, perLevel: 2 };
 // XP-drempels (totaal) voor niveau II, III, IV, ... Gevecht I, II, III leveren 5, 10, 15 XP op.
@@ -35,7 +39,7 @@ const blockChance = def => Math.min(STAT_RULES.blockMax, STAT_RULES.blockBase + 
 // reach = hoe ver voorbij je eigen lijf je raakt; cooldown = seconden tussen twee slagen; price = in denarii bij de wapensmid.
 // Je begint met je vuisten, net als een slaaf: zelfde schade, zelfde bereik, ongeveer even vaak.
 const WEAPONS = {
-  fists: { name: 'Vuisten', kind: 'fists', dmg: 2, reach: 10, cooldown: 2, swing: .22, knock: 0, price: 0 },   // vuisten duwen niet terug
+  fists: { name: 'Vuisten', kind: 'fists', dmg: 2, reach: 10, cooldown: 1.2, swing: .22, knock: 0, price: 0 },   // vuisten duwen niet terug
   // hit: 'single' = één tegenstander; 'sweep' = iedereen binnen bereik in een boog voor je (arc = halve breedte, rad);
   // 'pierce' = iedereen op een smalle lijn recht voor je (width = halve breedte).
   stick: { name: 'Stok', kind: 'stick', dmg: 2, reach: 21, cooldown: 2, swing: .22, knock: 85, price: 12, hit: 'sweep', arc: 1.6 },
@@ -124,8 +128,8 @@ const fightDef = () => S.mode === 'tournament' ? stageOf().tourney : stageOf().f
 const fightTitle = () => S.mode === 'tournament' ? `Toernooi ${toRoman(Math.min(S.stage, STAGES.length - 1) + 1)}` : `Gevecht ${toRoman(fightNumber())}`;
 // Een ronde is een lijst [[type, aantal], ...] of { foes, extra }. extra = versterking die door de poort binnenkomt:
 // { foes, at: 0,5 } = als de helft van de eerste groep verslagen is; { foes, after: 8 } = na 8 seconden.
-const roundsOf = def => (def.rounds || [def.extra ? { foes: def.foes, extra: def.extra } : def.foes]).map(r => Array.isArray(r) ? r : r.foes);
-const extraOf = def => def.rounds ? def.rounds.map(r => Array.isArray(r) ? null : r.extra || null) : [def.extra || null];
+const roundsOf = def => (def.rounds || [def.extra ? { foes: def.foes, extra: def.extra } : def.foes]).map(r => swarmOf(Array.isArray(r) ? r : r.foes));
+const extraOf = def => (def.rounds ? def.rounds.map(r => Array.isArray(r) ? null : r.extra || null) : [def.extra || null]).map(e => e && { ...e, foes: swarmOf(e.foes) });
 const listSummary = list => list.map(([t, n]) => `${n} ${n > 1 ? FOES[t].plural : FOES[t].name}`).join(' en ');
 // Na elk gevecht ga je de stad in; terug naar de arena door op de arena te klikken.
 const MONEY = { lossShare: .5 };
@@ -147,7 +151,7 @@ const AMMO = { base: 5, price: 2 };
 const SHOPS = {
   smith:   { nl: 'Wapensmid',   la: 'Faber',      after: 0, wares: ['stick', 'gladius', 'hasta'] },
   armorer: { nl: 'Harnasmaker', la: 'Loricarius', after: 0, wares: ['leather', 'galea', 'scutum', 'lorica'] },
-  bowyer:  { nl: 'Boogmaker',   la: 'Arcuarius',  after: 1, wares: ['arrows', 'bow', 'composite', 'quiver'] },
+  bowyer:  { nl: 'Boogmaker',   la: 'Arcuarius',  after: 1, wares: ['bow', 'composite'] },   // chaos: pijlen zijn gratis
   stable:  { nl: 'Stallen',     la: 'Stabulum',   after: 2, wares: ['chariot'] }
 };
 const shopOpen = id => SHOPS[id].wares.length > 0 && (S.finished ? STAGES.length : S.stage) >= SHOPS[id].after;
@@ -156,9 +160,20 @@ const FEEL = { hitstop: .06, shake: 5, playerShake: 9, flash: .12 };
 const INTRO = { step: .8, count: 3, shout: .7 };
 // Grootte van het zandveld (oppervlak in wereld-eenheden). Kleiner = de camera zit dichter op het gevecht.
 const FIGHT_AREA = 30000;
+/* ---------- Chaos (branch chaos-autoshooter) ----------
+   swarm  = van dit type komen er zoveel keer zoveel als in STAGES staat (andere types ×1)
+   hp     = leven van tegenstanders × dit getal (niet voor 'tough': bazen en zware jongens)
+   dmg    = schade van tegenstanders × dit getal (altijd minstens 1)
+   first  = dit deel van een ronde staat er bij de start; de rest komt elke 'every' seconden met 'batch' tegelijk
+            door de poorten binnen, zolang er minder dan 'alive' tegenstanders leven
+   weaponCd = wachttijd van al jouw wapens × dit getal; maxArms = zoveel wapens kun je tegelijk dragen
+   orbit  = zo ver zweven je wapens van je lijf */
+const CHAOS = { swarm: { slave: 4, archer: 2, gladiator: 2 }, hp: .4, tough: ['champion', 'lion', 'gladiatorStick', 'gladiatorSword'], dmg: .6,
+                first: .35, every: .7, batch: 3, alive: 28, weaponCd: .6, maxArms: 6, orbit: 16, hitSfxGap: 70 };
+const swarmOf = list => list.map(([t, c]) => [t, c * (CHAOS.swarm[t] || 1)]);
 
 /* ---------- Toestand ---------- */
-const S = { ammo: 0, melee: 'fists', ranged: null, active: 'melee', switching: 0, switchTo: null, arrows: [], mode: 'fight', stage: 0, inStage: 0, finished: false, round: 0, dealt: 0, poolHp: 0, money: 0, delta: 0, owned: ['fists'], gear: { body: null, head: null, shield: null, mount: null, quiver: null }, townSeen: false, xp: 0, xpStart: 0, pointsStart: 0, orbs: [], collect: 0, gained: 0, levelUps: 0, stats: { strength: 0, agility: 0, vitality: 0 }, points: 0, foes: [], floats: [], dust: [], paused: true, over: null, overT: 0, freeze: 0, shake: 0, intro: 0, shout: 0 };
+const S = { arms: ['fists'], queue: [], spawnT: 0, regenAcc: 0, ammo: 0, melee: 'fists', ranged: null, active: 'melee', switching: 0, switchTo: null, arrows: [], mode: 'fight', stage: 0, inStage: 0, finished: false, round: 0, dealt: 0, poolHp: 0, money: 0, delta: 0, owned: ['fists'], gear: { body: null, head: null, shield: null, mount: null, quiver: null }, townSeen: false, xp: 0, xpStart: 0, pointsStart: 0, orbs: [], collect: 0, gained: 0, levelUps: 0, stats: Object.fromEntries(Object.keys(STATS).map(k => [k, 0])), points: 0, foes: [], floats: [], dust: [], paused: true, over: null, overT: 0, freeze: 0, shake: 0, intro: 0, shout: 0 };
 const W = { rx: 280, ry: 220, area: 66000 };
 const view = { cw: 1, ch: 1, dpr: 1, scale: 1 };
 const P = { x: 0, y: 0, vx: 0, vy: 0, face: -Math.PI / 2, hp: PLAYER.hp, cd: 0, swing: 0, swingDir: 1, hurt: 0, flash: 0, target: null, dead: false };
@@ -180,12 +195,16 @@ const testCount = +new URLSearchParams(location.search).get('n') || 0;
 function syncWeapon() { PLAYER.weapon = S.active === 'ranged' && S.ranged ? S.ranged : S.melee; }
 // Uitrusting aandoen. Wapens gaan in hun eigen vak (boog in ranged, de rest in melee).
 // Het schild werkt alleen als je je melee-wapen vasthoudt; de strijdwagen alleen met een boog in je handen.
+// Chaos: alle wapens tegelijk. Een nieuw wapen komt erbij (je vuisten gaan weg zodra je een echt wapen hebt).
 function wear(key) {
   if (WEAPONS[key]) {
-    if (isBow(key)) S.ranged = key; else S.melee = key;
+    S.arms = S.arms.filter(k => k !== 'fists');
+    if (S.arms.length >= CHAOS.maxArms) return 'Je kunt niet meer wapens dragen.';
+    S.arms.push(key);
+    S.melee = S.arms.find(k => !isBow(k)) || 'fists'; S.ranged = S.arms.find(isBow) || null;
   } else {
     const g = GEAR[key];
-    if (g.needsBow && !S.ranged) return 'Koop eerst een boog: de strijdwagen gaat alleen met een boog.';
+    if (g.needsBow && !S.arms.some(isBow)) return 'Koop eerst een boog: de strijdwagen gaat alleen met een boog.';
     S.gear[g.slot] = key;
   }
   syncWeapon();
@@ -193,23 +212,29 @@ function wear(key) {
 }
 // Wisselen tussen de vakken (toets 1 of 2, of de knoppen in de HUD). Tijdens het wisselen val je niet aan.
 function switchTo(slot) {
+  return;   // chaos: niet meer wisselen, alles valt tegelijk aan
   if (slot === 'ranged' && !S.ranged) return;
   if (S.switching > 0) { if (slot === S.active) { S.switching = 0; S.switchTo = null; updateUI(); } return; }   // terug naar wat je had: wissel afgebroken
   if (slot === S.active) return;
   S.switchTo = slot; S.switching = ARMS.switchTime; P.swing = 0; P.punch = 0;
   updateUI();
 }
+// Schade en wachttijd per wapen. Kracht telt alleen voor melee; Furor maakt alle wapens sneller.
+const dmgOf = key => WEAPONS[key].dmg + (isBow(key) ? 0 : STAT_RULES.dmg * (S.stats.strength || 0));
+const cdOf = key => WEAPONS[key].cooldown * CHAOS.weaponCd * Math.max(STAT_RULES.furyMin, 1 - STAT_RULES.fury * (S.stats.fury || 0));
+const rollCrit = dmg => Math.random() < me.crit ? [dmg * STAT_RULES.critMul, true] : [dmg, false];
 const gearSum = key => Object.values(S.gear).reduce((n, g) => n + (g && GEAR[g][key] || 0), 0);
 const me = {
   get maxHp() { return PLAYER.hp + STAT_RULES.hp * S.stats.vitality; },
-  get speed() { return (PLAYER.speed + STAT_RULES.speed * S.stats.agility + gearSum('speed')) * (S.active === 'ranged' && S.ranged ? ARMS.speedMul : 1); },
+  get speed() { return PLAYER.speed + STAT_RULES.speed * S.stats.agility + gearSum('speed'); },
   get armor() { return gearSum('armor'); },
-  get riding() { return S.gear.mount === 'chariot' && S.active === 'ranged' && !!S.ranged; },   // op de wagen alleen met de boog in je handen
+  get riding() { return S.gear.mount === 'chariot' && S.arms.some(isBow); },   // chaos: met een strijdwagen (en een boog) rijd je altijd
   get ammoMax() { return S.gear.quiver ? GEAR[S.gear.quiver].capacity : AMMO.base; },
-  get shield() { return !!S.gear.shield && S.active === 'melee'; },
+  get shield() { return !!S.gear.shield; },
   get shootCd() { const w = WEAPONS[PLAYER.weapon]; return w.cooldown * Math.max(STAT_RULES.shootMin, 1 - STAT_RULES.shoot * S.stats.agility); },
   get knock() { return Object.values(S.gear).reduce((k, g) => k * (g && GEAR[g].knock || 1), 1); },
   get dmg() { return WEAPONS[S.melee].dmg + STAT_RULES.dmg * S.stats.strength; },   // kracht telt voor je melee-wapen
+  get crit() { return STAT_RULES.crit * (S.stats.precision || 0); },
   get hit() { return hitChance(S.stats.attack || 0); },
   get block() { return blockChance(S.stats.defense || 0); }
 };
@@ -247,8 +272,9 @@ function startFight() {
   S.intro = INTRO.step * INTRO.count; S.shout = 0;
   S.orbs = []; S.collect = 0; S.gained = 0; S.levelUps = 0; S.xpStart = S.xp; S.pointsStart = S.points;
   S.round = 0; S.dealt = 0; S.switching = 0;
-  if (S.gear.mount && S.ranged) S.active = 'ranged';   // met een strijdwagen begin je op de wagen
-  syncWeapon(); P.cdMax = 0;
+  syncWeapon(); P.cdMax = 0; S.regenAcc = 0;
+  // elk wapen zweeft op zijn eigen plek rond je lijf en heeft zijn eigen wachttijd
+  P.arms = S.arms.map((key, i) => ({ key, cd: .3 + i * .15, swing: 0, face: -Math.PI / 2, dir: 1, aim: null }));
   S.poolHp = [...roundsOf(def), ...extraOf(def).filter(Boolean).map(e => e.foes)].flat().reduce((n, [t, c]) => n + FOES[t].hp * c, 0);
   spawnRound();
 }
@@ -257,8 +283,13 @@ function spawnRound() {
   const list = testCount ? [['slave', testCount]] : roundsOf(fightDef())[S.round];
   S.foes = []; S.extra = testCount ? null : extraOf(fightDef())[S.round]; S.extraDone = false; S.roundT = 0;
   S.firstCount = list.reduce((n, [, c]) => n + c, 0);
-  let i = 0, total = list.reduce((n, [, c]) => n + c, 0);
-  for (const [type, count] of list) for (let k = 0; k < count; k++, i++) {
+  // chaos: een deel staat er meteen, de rest komt in een willekeurige volgorde door de poorten (bazen het laatst)
+  const all = list.flatMap(([t, c]) => Array(c).fill(t)), now = Math.max(1, Math.min(CHAOS.alive, Math.ceil(all.length * CHAOS.first)));
+  const tough = all.filter(t => CHAOS.tough.includes(t)), weak = all.filter(t => !CHAOS.tough.includes(t)).sort(() => Math.random() - .5);
+  const order = [...weak, ...tough];
+  S.queue = order.slice(now); S.spawnT = CHAOS.every;
+  let i = 0, total = now;
+  for (const type of order.slice(0, now)) for (let k = 0; k < 1; k++, i++) {
     // Tegenstanders staan links en rechts, een eind van je af, en komen meteen op je af.
     const side = i % 2 ? 1 : -1, spread = (Math.floor(i / 2) - (Math.ceil(total / 2) - 1) / 2) * 26;
     S.foes.push(mkFoe(type, side * W.rx * .5, spread - W.ry * .1));
@@ -270,15 +301,20 @@ function checkExtra() {
   const e = S.extra; if (!e || S.extraDone) return;
   const dead = S.foes.filter(f => f.state === 'dead').length, allDead = dead >= S.foes.length;
   if (!(e.at !== undefined ? dead >= Math.ceil(S.firstCount * e.at) : S.roundT >= e.after || allDead)) return;
-  S.extraDone = true; S.gate = 1.2;
-  let i = 0;
-  for (const [type, count] of e.foes) for (let k = 0; k < count; k++, i++) {
-    const side = i % 2 ? 1 : -1, f = mkFoe(type, side * (W.rx - 18), (Math.floor(i / 2) - .5) * 22);
-    f.face = side > 0 ? Math.PI : 0; f.cd = .8; S.foes.push(f);
-    for (let j = 0; j < 6; j++) S.dust.push({ x: f.x + (Math.random() - .5) * 16, y: f.y + (Math.random() - .5) * 16, t: 1 });
-  }
-  arenaCheer(); SFX.cheer(.8); S.shake = Math.max(S.shake, 4);
+  S.extraDone = true;
+  S.queue.unshift(...e.foes.flatMap(([t, c]) => Array(c).fill(t)));   // chaos: de versterking komt als eerste door de poorten
+  S.spawnT = 0; arenaCheer(); SFX.cheer(.8); S.shake = Math.max(S.shake, 4);
 }
+// Door de poorten: links en rechts komen er een paar tegelijk het zand op.
+function gateSpawn(n) {
+  S.gate = 1.2;
+  for (let i = 0; i < n && S.queue.length; i++) {
+    const type = S.queue.shift(), side = Math.random() < .5 ? 1 : -1, f = mkFoe(type, side * (W.rx - 18), (Math.random() - .5) * 50);
+    f.face = side > 0 ? Math.PI : 0; f.cd = .8; S.foes.push(f);
+    for (let j = 0; j < 4; j++) S.dust.push({ x: f.x + (Math.random() - .5) * 16, y: f.y + (Math.random() - .5) * 16, t: 1 });
+  }
+}
+const allBeaten = () => !S.queue.length && S.foes.every(o => o.state === 'dead') && (!S.extra || S.extraDone);
 // Toernooi: volgende ronde. Een deel van je leven komt terug, nieuw aftellen.
 function nextRound() {
   S.round++;
@@ -301,7 +337,7 @@ let difficulty = 'normal';
 try { difficulty = localStorage.getItem('rn-difficulty') || 'normal'; } catch (e) {}
 function mkFoe(type, x, y) {
   const base = FOES[type], m = DIFFICULTY[difficulty] || DIFFICULTY.hard;
-  const d = { ...base, windup: base.windup * m.windup, cooldown: base.cooldown * m.cooldown, dash: base.dash && { ...base.dash },
+  const d = { ...base, hp: CHAOS.tough.includes(type) ? base.hp : Math.max(1, Math.round(base.hp * CHAOS.hp)), dmg: Math.max(1, Math.round(base.dmg * CHAOS.dmg)), windup: base.windup * m.windup, cooldown: base.cooldown * m.cooldown, dash: base.dash && { ...base.dash },
               ranged: base.ranged && { ...base.ranged, arrow: base.ranged.arrow * m.arrow } };
   return { type, d, x, y, vx: 0, vy: 0, face: Math.atan2(P.y - y, P.x - x), hp: d.hp, state: 'walk', t: 0, cd: .2 + Math.random() * .4,
            flash: 0, lunge: 0, dead: 0, wob: Math.random() * 10 };
@@ -309,24 +345,27 @@ function mkFoe(type, x, y) {
 
 /* ---------- Gevecht ---------- */
 // soft = omverrijden: geen hit-stop en weinig schudden, anders schokt het als je door een groep rijdt.
-function hitFoe(f, dmg, from, soft) {
-  const w = WEAPONS[PLAYER.weapon], real = Math.max(0, dmg - f.d.armor);
+function hitFoe(f, dmg, from, soft, w = WEAPONS[PLAYER.weapon], crit = false) {
+  const real = Math.max(0, dmg - f.d.armor);
   S.dealt += Math.min(real, Math.max(0, f.hp));
   f.hp -= real; f.flash = FEEL.flash;
   const dx = f.x - from.x, dy = f.y - from.y, l = Math.hypot(dx, dy) || 1;
-  const kb = soft ? 0 : w.knock * (f.state === 'windup' ? .2 : 1);   // tijdens de aanzet zet hij zich schrap
+  const kb = soft || !w ? 0 : w.knock * (f.state === 'windup' ? .2 : 1);   // tijdens de aanzet zet hij zich schrap
   f.vx += dx / l * kb; f.vy += dy / l * kb;
-  if (soft) S.shake = Math.max(S.shake, 1.5);
-  else { S.freeze = FEEL.hitstop; S.shake = Math.max(S.shake, FEEL.shake); }
-  float(f.x, f.y - 18, real ? '−' + fmt(real) : '0', C.ink);
+  // chaos: geen hit-stop bij elke klap (dan staat alles steeds stil), alleen een tikje bij een kritieke klap
+  S.shake = Math.max(S.shake, crit ? 3 : 1.5);
+  if (crit) S.freeze = Math.max(S.freeze, FEEL.hitstop * .5);
+  if (crit) S.floats.push({ x: f.x, y: f.y - 20, text: '−' + fmt(real) + '!', color: '#f0c56a', t: 1, size: 14 });
+  else S.floats.push({ x: f.x + (Math.random() - .5) * 8, y: f.y - 16, text: real ? '−' + fmt(real) : '0', color: C.ink, t: .8, size: 10 });   // chaos: kleinere getallen
   const now = performance.now();
-  if (!soft || now - (S.lastRamSfx || 0) > 120) { SFX.hit(); S.lastRamSfx = now; }   // niet tien klappen tegelijk
+  if (now - (S.lastHitSfx || 0) > CHAOS.hitSfxGap) { SFX.hit(); S.lastHitSfx = now; }   // niet tien klappen tegelijk
   SFX.cheer(f.hp <= 0 ? .75 : .35);   // het publiek juicht bij elke rake klap, harder als hij valt
   if (f.hp <= 0) {
     f.state = 'dead'; f.dead = 1; f.vx *= 1.6; f.vy *= 1.6;
     dropXp(f);
+    if (!P.dead && P.hp < me.maxHp && Math.random() < STAT_RULES.blood * (S.stats.bloodlust || 0)) heal(1);   // bloeddorst
     checkExtra();
-    if (S.foes.every(o => o.state === 'dead') && (!S.extra || S.extraDone)) { S.collect = XP.collect; arenaCheer(); SFX.cheer(1); }   // nog even oprapen
+    if (allBeaten()) { S.collect = XP.collect; arenaCheer(); SFX.cheer(1); }   // nog even oprapen
   }
 }
 // Blokken: korte bronzen flits aan de kant van de aanvaller, geen schade.
@@ -374,7 +413,7 @@ function endFight(won) {
 }
 /* XP: bolletjes spatten weg uit een verslagen tegenstander en blijven op het zand liggen. */
 function dropXp(f) {
-  const n = XP.perFoe[f.type] || 3, a0 = Math.random() * TAU2;
+  const n = Math.ceil((XP.perFoe[f.type] || 3) / (CHAOS.swarm[f.type] || 1)), a0 = Math.random() * TAU2;
   for (let i = 0; i < n; i++) {
     const a = a0 + i / n * TAU2 + (Math.random() - .5) * .8, sp = XP.speed[0] + Math.random() * (XP.speed[1] - XP.speed[0]);
     S.orbs.push({ x: f.x, y: f.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, ph: Math.random() * 6, state: 'free' });
@@ -391,6 +430,7 @@ function gainXp(o) {
   }
   updateUI();
 }
+function heal(n) { P.hp = Math.min(me.maxHp, P.hp + n); S.floats.push({ text: '+' + fmt(n), color: '#7ee36a', t: 1, follow: true, dx: -16, dy: -12, size: 10 }); updateUI(); }
 function float(x, y, text, color) { S.floats.push({ x, y, text, color, t: 1 }); }
 
 function update(dt) {
@@ -449,10 +489,6 @@ function update(dt) {
   if (sp > 90 && Math.random() < dt * 14) S.dust.push({ x: P.x + (Math.random() - .5) * 8, y: P.y + (Math.random() - .5) * 8, t: 1 });
 
   // Wisselen van wapen loopt ook door tijdens het aftellen.
-  if (S.switching > 0) {
-    S.switching -= dt;
-    if (S.switching <= 0) { S.switching = 0; S.active = S.switchTo; syncWeapon(); P.cd = Math.max(P.cd, .2); updateUI(); }
-  }
   // Aftellen: jij kunt al lopen en kijken, maar er wordt nog niet geslagen.
   if (S.intro > 0) {
     S.intro -= dt;
@@ -462,42 +498,59 @@ function update(dt) {
   }
   S.shout = Math.max(0, S.shout - dt);
   S.roundT = (S.roundT || 0) + dt; checkExtra(); S.gate = Math.max(0, (S.gate || 0) - dt);
-  // Automatisch slaan: de dichtstbijzijnde levende tegenstander binnen bereik.
+  // Chaos: tegenstanders blijven door de poorten binnenkomen.
+  S.spawnT -= dt;
+  if (S.queue.length && S.spawnT <= 0) {
+    const alive = S.foes.filter(f => f.state !== 'dead').length;
+    if (alive < CHAOS.alive) gateSpawn(Math.min(CHAOS.batch, CHAOS.alive - alive));
+    S.spawnT = CHAOS.every;
+  }
+  // Herstel: langzaam leven terug.
+  if (!P.dead && S.stats.regen) { S.regenAcc += STAT_RULES.regen * S.stats.regen * dt; if (S.regenAcc >= 1) { S.regenAcc -= 1; if (P.hp < me.maxHp) heal(1); } }
   P.block = Math.max(0, (P.block || 0) - dt);
-  P.cd = Math.max(0, P.cd - dt); P.swing = Math.max(0, P.swing - dt); P.hurt = Math.max(0, P.hurt - dt); P.flash = Math.max(0, P.flash - dt);
+  P.hurt = Math.max(0, P.hurt - dt); P.flash = Math.max(0, P.flash - dt);
+  // Je lijf kijkt naar de dichtstbijzijnde tegenstander als die dichtbij is, anders waar je heen loopt.
   let best = null, bd = Infinity;
   for (const f of S.foes) if (f.state !== 'dead') { const d = Math.hypot(f.x - P.x, f.y - P.y); if (d < bd) { bd = d; best = f; } }
   P.target = best;
-  const bow = w.kind === 'bow', fists = WEAPONS.fists;
-  const inReach = !bow && best && bd - best.d.radius - PLAYER.radius <= w.reach;
-  const inRange = bow && best && bd <= w.range;
-  if (inReach || inRange) P.face = lerpAngle(P.face, Math.atan2(best.y - P.y, best.x - P.x), 1 - Math.exp(-dt * 20));
+  if (best && bd < 70) P.face = lerpAngle(P.face, Math.atan2(best.y - P.y, best.x - P.x), 1 - Math.exp(-dt * 12));
   else if (sp > 20) P.face = lerpAngle(P.face, Math.atan2(P.vy, P.vx), 1 - Math.exp(-dt * 12));
-  P.punch = Math.max(0, (P.punch || 0) - dt); P.noAmmo = Math.max(0, (P.noAmmo || 0) - dt);
-  if (S.switching > 0) {   // wisselen van wapen: even niets
-  } else if (bow && !P.dead && P.cd === 0 && best && inRange && S.ammo <= 0) {
-    if (!(P.noAmmo > 0)) { P.noAmmo = 2.5; const b = $('slot_ranged'); b.classList.remove('empty'); void b.offsetWidth; b.classList.add('empty'); }   // koker leeg: vak 2 knippert rood
-  } else if (bow && !P.dead && P.cd === 0 && best && inRange) {
-    // Schieten: richt een tikje voor (waar hij heen loopt), de pijl vliegt rechtdoor.
-    const t = bd / w.arrow, ax = best.x + (best.state === 'walk' ? Math.cos(best.face) * best.d.speed * t * .6 : 0), ay = best.y + (best.state === 'walk' ? Math.sin(best.face) * best.d.speed * t * .6 : 0);
-    const a = Math.atan2(ay - P.y, ax - P.x);
-    S.arrows.push({ x: P.x + Math.cos(a) * (PLAYER.radius + 4), y: P.y + Math.sin(a) * (PLAYER.radius + 4), vx: Math.cos(a) * w.arrow, vy: Math.sin(a) * w.arrow, t: 0, life: w.range / w.arrow * 1.15, dmg: w.dmg, stuck: 0, mine: true });
-    P.cd = P.cdMax = me.shootCd; P.swing = w.swing; S.ammo--; updateUI();
-  } else if (!bow && !P.dead && inReach && P.cd === 0) {
-    P.cd = P.cdMax = w.cooldown; P.swing = w.swing; P.swingDir *= -1;
+  // Alle wapens tegelijk: elk zoekt de dichtstbijzijnde tegenstander binnen zijn eigen bereik en valt aan als hij klaar is.
+  const live = S.foes.filter(f => f.state !== 'dead');
+  (P.arms || []).forEach((a, n) => {
+    const w = WEAPONS[a.key], bow = w.kind === 'bow';
+    a.cd = Math.max(0, a.cd - dt); a.swing = Math.max(0, a.swing - dt);
+    const home = armAngle(n);
+    let t = null, td = Infinity;
+    for (const f of live) {
+      const d = Math.hypot(f.x - P.x, f.y - P.y), ok = bow ? d <= w.range : d - f.d.radius - PLAYER.radius <= w.reach + CHAOS.orbit * .4;
+      if (ok && d < td) { td = d; t = f; }
+    }
+    const want = t ? Math.atan2(t.y - P.y, t.x - P.x) : home;
+    if (a.swing <= 0) a.face = lerpAngle(a.face, want, 1 - Math.exp(-dt * (t ? 16 : 6)));
+    if (P.dead || !t || a.cd > 0) return;
+    a.cd = cdOf(a.key); a.swing = w.swing; a.dir *= -1;
+    const [dmg, crit] = rollCrit(dmgOf(a.key));
+    if (bow) {
+      // Schieten: richt een tikje voor (waar hij heen loopt), de pijl vliegt rechtdoor vanaf de boog.
+      const [ox, oy] = armPos(n), tt = td / w.arrow;
+      const ax = t.x + (t.state === 'walk' ? Math.cos(t.face) * t.d.speed * tt * .6 : 0), ay = t.y + (t.state === 'walk' ? Math.sin(t.face) * t.d.speed * tt * .6 : 0);
+      const ang = Math.atan2(ay - oy, ax - ox); a.face = ang;
+      S.arrows.push({ x: ox + Math.cos(ang) * 6, y: oy + Math.sin(ang) * 6, vx: Math.cos(ang) * w.arrow, vy: Math.sin(ang) * w.arrow, t: 0, life: w.range / w.arrow * 1.15, dmg, crit, key: a.key, stuck: 0, mine: true });
+      return;
+    }
     if (w.kind === 'stick') SFX.whoosh();
-    // Wie wordt er geraakt: één (gladius, vuisten), iedereen in de zwaai (stok) of iedereen op de lijn (speer).
-    const fa = P.face, targets = w.hit === 'sweep' || w.hit === 'pierce' ? S.foes.filter(f => {
-      if (f.state === 'dead') return false;
+    // Wie wordt er geraakt: één (vuisten), iedereen in de zwaai (stok, gladius) of iedereen op de lijn (speer).
+    const fa = a.face = want, targets = w.hit === 'sweep' || w.hit === 'pierce' ? live.filter(f => {
       const dx = f.x - P.x, dy = f.y - P.y, dist = Math.hypot(dx, dy);
-      if (dist - f.d.radius - PLAYER.radius > w.reach) return false;
+      if (dist - f.d.radius - PLAYER.radius > w.reach + CHAOS.orbit * .4) return false;
       const along = dx * Math.cos(fa) + dy * Math.sin(fa), side = -dx * Math.sin(fa) + dy * Math.cos(fa);
       if (w.hit === 'pierce') return along > 0 && Math.abs(side) <= f.d.radius + w.width;
       return Math.abs(((Math.atan2(dy, dx) - fa + Math.PI * 3) % TAU2) - Math.PI) <= w.arc || dist < f.d.radius + PLAYER.radius + 2;
-    }) : [best];
-    if (!targets.includes(best)) targets.push(best);
-    for (const t of targets) hitFoe(t, me.dmg, P);
-  }
+    }) : [t];
+    if (!targets.includes(t)) targets.push(t);
+    for (const f of targets) hitFoe(f, dmg, P, false, w, crit);
+  });
 
   // Tegenstanders: aanlopen, aanzetten, uithalen, herstellen.
   for (const f of S.foes) {
@@ -582,7 +635,7 @@ function update(dt) {
       const ex = f.x - P.x, ey = f.y - P.y, d = Math.hypot(ex, ey) || 1;
       f.ramCd = CHARIOT.ramCd; f.vx += ex / d * CHARIOT.ramPush; f.vy += ey / d * CHARIOT.ramPush;
       if (f.state === 'windup') { f.state = 'recover'; f.t = f.d.recover; }   // omvergereden: zijn klap gaat niet door
-      hitFoe(f, CHARIOT.ram, P, true);
+      hitFoe(f, CHARIOT.ram, P, true, null);
     }
   }
   // Lijven duwen elkaar weg, zodat niemand door een ander heen loopt.
@@ -602,7 +655,7 @@ function update(dt) {
     a.t += dt; a.x += a.vx * dt; a.y += a.vy * dt;
     if (a.mine) {   // jouw pijl: raakt de eerste tegenstander die hij tegenkomt
       const f = S.foes.find(f => f.state !== 'dead' && Math.hypot(a.x - f.x, a.y - f.y) < f.d.radius + 2);
-      if (f) { hitFoe(f, a.dmg, { x: a.x - a.vx * .05, y: a.y - a.vy * .05 }); a.stuck = -1; continue; }
+      if (f) { hitFoe(f, a.dmg, { x: a.x - a.vx * .05, y: a.y - a.vy * .05 }, false, WEAPONS[a.key] || null, a.crit); a.stuck = -1; continue; }
     } else if (!P.dead && P.hurt <= 0 && Math.hypot(a.x - P.x, a.y - P.y) < PLAYER.radius + 2) {
       hitPlayer({ x: a.x - a.vx * .05, y: a.y - a.vy * .05, d: { dmg: a.dmg }, arrow: true }); a.stuck = -1; continue;
     }
@@ -773,7 +826,7 @@ function playerLook() {
   return { tunic: b === 'lorica' ? '#8f8a80' : b === 'leather' ? '#7a5230' : C.blood,
            belt: b === 'lorica' ? null : C.bronze, hair: C['hair-1'], shield: me.shield,
            // voor drawBody: uitrusting en lopen
-           hero: { armor: b, helmet: !!S.gear.head, quiver: !!S.gear.quiver && !!S.ranged, feet: me.riding ? undefined : P.walk || 0,
+           hero: { armor: b, helmet: !!S.gear.head, quiver: S.arms.some(isBow), feet: me.riding ? undefined : P.walk || 0,
                    stride: Math.min(1, moving / 60), forward: Math.min(1.5, moving / 60) } };
 }
 // Strijdwagen van bovenaf: twee paarden voorop, wagenbak met wielen, jij erin.
@@ -796,7 +849,59 @@ function drawChariot(now) {
   ctx.beginPath(); ctx.roundRect(-9, -10, 15, 20, 4); ctx.fill(); ctx.stroke();           // wagenbak
   ctx.restore();
 }
+// Waar wapen n zweeft: gelijk verdeeld rond je lijf (bij één wapen rechts voor je).
+function armAngle(n) { const k = (P.arms || []).length || 1; return k === 1 ? .6 : -Math.PI / 2 + n / k * TAU2 + Math.PI / k; }
+function armPos(n) { const a = armAngle(n); return [P.x + Math.cos(a) * CHAOS.orbit, P.y + Math.sin(a) * CHAOS.orbit]; }
 function drawPlayer(now) {
+  const look = playerLook();
+  if (P.dead) { drawFallen(P, PLAYER.radius, look.tunic, C.skin, 1); return; }
+  if (P.hurt > 0 && Math.floor(now / 70) % 2 === 0) ctx.globalAlpha = .45;
+  if (me.riding) drawChariot(now);
+  drawBody(P, PLAYER.radius, look.tunic, C.skin, look.hair, { ...look.hero, flash: P.flash, belt: look.belt, shield: look.shield });
+  (P.arms || []).forEach((a, n) => drawArm(a, n));
+  ctx.globalAlpha = 1;
+}
+// Eén zwevend wapen. Bij een aanval schiet het naar voren (steek) of zwaait het (stok, gladius).
+function drawArm(a, n) {
+  const w = WEAPONS[a.key], [hx, hy] = armPos(n), sw = a.swing > 0 ? 1 - a.swing / w.swing : -1;
+  const lunge = sw >= 0 ? Math.sin(sw * Math.PI) : 0;
+  let ang = a.face;
+  if (sw >= 0 && w.hit === 'sweep') ang = a.face + a.dir * (-w.arc + 2 * w.arc * sw);   // zwaaien langs de boog
+  const out = w.kind === 'bow' ? 0 : lunge * (w.hit === 'sweep' ? 4 : w.reach * .55);
+  ctx.save(); ctx.translate(hx + Math.cos(a.face) * out, hy + Math.sin(a.face) * out); ctx.rotate(ang);
+  ctx.lineCap = 'round'; ctx.strokeStyle = 'rgba(30,15,8,.75)';
+  if (w.kind === 'fists') {
+    ctx.fillStyle = P.flash > 0 ? '#fff' : C.skin; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(2, 0, 3.6, 0, TAU2); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#d9cbb0'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(-1, -2.5); ctx.lineTo(-1, 2.5); ctx.stroke();   // windsel
+  } else if (w.kind === 'bow') {
+    const pull = a.cd > 0 && a.cd < .3 ? 1 - a.cd / .3 : 0;
+    ctx.strokeStyle = a.key === 'composite' ? '#2a1a12' : '#6b4526'; ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.arc(-4, 0, 8, -1.1, 1.1); ctx.stroke();
+    const tx = -4 + Math.cos(1.1) * 8, ty = Math.sin(1.1) * 8, p = 5 * pull;
+    ctx.strokeStyle = 'rgba(245,234,214,.85)'; ctx.lineWidth = .9;
+    ctx.beginPath(); ctx.moveTo(tx, -ty); ctx.lineTo(tx - p, 0); ctx.lineTo(tx, ty); ctx.stroke();
+    if (pull > 0) { ctx.strokeStyle = '#6b4526'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(tx - p, 0); ctx.lineTo(tx + 9, 0); ctx.stroke(); }
+  } else if (w.kind === 'spear') {
+    ctx.strokeStyle = '#6b4526'; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(-12, 0); ctx.lineTo(14, 0); ctx.stroke();
+    ctx.fillStyle = C.iron; ctx.beginPath(); ctx.moveTo(21, 0); ctx.lineTo(13, -3); ctx.lineTo(13, 3); ctx.fill();
+  } else if (w.kind === 'sword') {
+    ctx.strokeStyle = '#3b2a1e'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(1, 0); ctx.lineTo(15, 0); ctx.stroke();
+    ctx.strokeStyle = '#e4e0d4'; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(1, 0); ctx.lineTo(15, 0); ctx.stroke();
+    ctx.strokeStyle = C.bronze; ctx.lineWidth = 2.6; ctx.beginPath(); ctx.moveTo(-4, 0); ctx.lineTo(0, 0); ctx.stroke();
+    ctx.lineWidth = 2.2; ctx.beginPath(); ctx.moveTo(0, -3.5); ctx.lineTo(0, 3.5); ctx.stroke();
+  } else {   // stok
+    ctx.strokeStyle = '#6b4526'; ctx.lineWidth = 2.8; ctx.beginPath(); ctx.moveTo(-6, 0); ctx.lineTo(18, 0); ctx.stroke();
+  }
+  ctx.restore(); ctx.lineCap = 'butt';
+  if (sw >= 0 && w.hit === 'sweep') {   // zwaaispoor rond je lijf
+    const r = PLAYER.radius + w.reach * .9;
+    ctx.strokeStyle = `rgba(255,240,210,${.45 * lunge})`; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    const a0 = a.face - a.dir * w.arc, a1 = ang;
+    ctx.beginPath(); ctx.arc(P.x, P.y, r, Math.min(a0, a1), Math.max(a0, a1)); ctx.stroke(); ctx.lineCap = 'butt';
+  }
+}
+function drawPlayerOld(now) {
   const w = WEAPONS[PLAYER.weapon], look = playerLook();
   if (P.dead) { drawFallen(P, PLAYER.radius, look.tunic, C.skin, 1); return; }
   if (P.hurt > 0 && Math.floor(now / 70) % 2 === 0) ctx.globalAlpha = .45;
@@ -1009,11 +1114,8 @@ function updateUI() {
   const def = fightDef(), rounds = roundsOf(def).length;
   $('foeText').textContent = def.kind === 'tournament' ? `Ronde ${toRoman(S.round + 1)}/${toRoman(rounds)}` : '';
   $('money').textContent = S.money;
-  for (const slot of ['melee', 'ranged']) {
-    const b = $('slot_' + slot), key = S[slot];
-    b.querySelector('span').textContent = key ? WEAPONS[key].name + (slot === 'ranged' ? ` · ${S.ammo}/${me.ammoMax}` : '') : '—';
-    b.disabled = !key; b.classList.toggle('on', S.active === slot && !S.switching); b.classList.toggle('to', S.switching > 0 && S.switchTo === slot);
-  }
+  const count = {}; for (const k of S.arms) count[k] = (count[k] || 0) + 1;
+  $('arms').textContent = Object.entries(count).map(([k, n]) => WEAPONS[k].name + (n > 1 ? ` ×${n}` : '')).join(' · ');
   $('armor').textContent = me.armor;
   $('hpText').textContent = `${P.hp} / ${me.maxHp}`;
   $('hpFill').style.transform = `scaleX(${P.hp / me.maxHp})`;
@@ -1095,7 +1197,7 @@ function enterArena() { startFight(); S.paused = false; }
 function newRun() {
   S.mode = 'fight'; S.stage = 0; S.inStage = 0; S.finished = false;
   S.xp = 0; S.points = POINTS.start; for (const k in S.stats) S.stats[k] = 0;
-  S.money = 0; S.delta = 0; S.owned = ['fists']; S.gear = { body: null, head: null, shield: null, mount: null, quiver: null }; S.townSeen = false; S.ammo = 0; S.melee = 'fists'; S.ranged = null; S.active = 'melee'; S.switching = 0; PLAYER.weapon = 'fists'; S.over = null;
+  S.money = 0; S.delta = 0; S.owned = ['fists']; S.arms = ['fists']; S.gear = { body: null, head: null, shield: null, mount: null, quiver: null }; S.townSeen = false; S.ammo = 0; S.melee = 'fists'; S.ranged = null; S.active = 'melee'; S.switching = 0; PLAYER.weapon = 'fists'; S.over = null;
   startFight(); S.paused = false;
 }
 $('startBtn').onclick = () => { SFX.init(); $('start').hidden = true; newRun(); };
@@ -1121,8 +1223,6 @@ document.querySelectorAll('#diff button').forEach(b => b.onclick = () => {
 showDifficulty();
 // Geluid aan/uit: knop rechtsboven, of de toets M.
 function showMute() { const b = $('mute'); b.textContent = SFX.muted ? 'Geluid uit' : 'Geluid aan'; b.setAttribute('aria-pressed', String(!SFX.muted)); }
-$('slot_melee').onclick = () => { switchTo('melee'); $('slot_melee').blur(); };
-$('slot_ranged').onclick = () => { switchTo('ranged'); $('slot_ranged').blur(); };
 $('mute').onclick = () => { SFX.init(); SFX.setMuted(!SFX.muted); if (!SFX.muted && SFX.volume === 0) SFX.setVolume(.6); showVolume(); };
 showMute(); showVolume();
 
@@ -1137,9 +1237,14 @@ function openStats(mode = 'town') {
 }
 function statEffect(k, n) {
   const v = { ...S.stats, [k]: n };
-  return { strength: `${fmt(WEAPONS[S.melee].dmg + STAT_RULES.dmg * v.strength)} schade`,
+  const pct = x => `${Math.round(x * 100)}%`;
+  return { strength: `+${fmt(STAT_RULES.dmg * v.strength)} schade melee`,
+           fury: `wachttijd ${pct(Math.max(STAT_RULES.furyMin, 1 - STAT_RULES.fury * v.fury))}`,
+           precision: `${pct(STAT_RULES.crit * v.precision)} kritiek`,
            agility: `snelheid ${PLAYER.speed + STAT_RULES.speed * v.agility}`,
-           vitality: `${PLAYER.hp + STAT_RULES.hp * v.vitality} leven` }[k];
+           vitality: `${PLAYER.hp + STAT_RULES.hp * v.vitality} leven`,
+           regen: `${fmt(Math.round(STAT_RULES.regen * v.regen * 10) / 10)} leven/s`,
+           bloodlust: `${pct(STAT_RULES.blood * v.bloodlust)} kans op leven` }[k];
 }
 function renderStats() {
   const list = $('statList'); list.innerHTML = '';
@@ -1183,8 +1288,6 @@ addEventListener('keydown', ev => {
   if (anyOverlay() || !$('pause').hidden) return;
   const k = ev.key.length === 1 ? ev.key.toLowerCase() : ev.key;
   if (k === 'm') { $('mute').click(); return; }
-  if (k === '1') { switchTo('melee'); return; }
-  if (k === '2') { switchTo('ranged'); return; }
   if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','a','d','w','s'].includes(k)) { keys.add(k); ev.preventDefault(); }
 });
 addEventListener('keyup', ev => keys.delete(ev.key.length === 1 ? ev.key.toLowerCase() : ev.key));

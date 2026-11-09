@@ -68,7 +68,7 @@
     });
     return done;
   }
-  const xpOf = def => [...roundsOf(def), ...extraOf(def).filter(Boolean).map(e => e.foes)].flat().reduce((n, [t, c]) => n + (XP.perFoe[t] || 3) * c, 0);
+  const xpOf = def => [...roundsOf(def), ...extraOf(def).filter(Boolean).map(e => e.foes)].flat().reduce((n, [t, c]) => n + Math.ceil((XP.perFoe[t] || 3) / (CHAOS.swarm[t] || 1)) * c, 0);
   function randomize() {
     // Wat je kunt kopen, goedkoopste eerst; een winkel telt pas mee als hij op dat moment open is.
     const done = history(), priceOf = k => (GEAR[k] || WEAPONS[k]).price;
@@ -116,6 +116,7 @@
     const w = $('devWeapon').value, all = Object.keys(WEAPONS);
     const bw = $('devBow').value || null;
     S.melee = w; S.ranged = bw; S.active = 'melee'; S.switching = 0;
+    S.arms = w === 'fists' && bw ? [bw] : [w, bw].filter(Boolean);   // chaos: beide wapens tegelijk
     S.owned = all.filter(k => !isBow(k) && WEAPONS[k].price <= WEAPONS[w].price || bw && isBow(k) && WEAPONS[k].price <= WEAPONS[bw].price);
     S.gear = { body: null, head: null, shield: null, mount: null };
     for (const slot of Object.keys(SLOTS)) {

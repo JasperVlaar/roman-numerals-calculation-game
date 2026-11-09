@@ -314,3 +314,4 @@ button:disabled{opacity:.4;cursor:default}
 .town-svg .cat-eyes{animation:catBlink 5.5s infinite;transform-box:fill-box;transform-origin:center}
 @keyframes catBlink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
 @media (prefers-reduced-motion:reduce){.town-svg .cat-eyes{animation:none}}
+#arms{font-size:15px;max-width:340px;line-height:1.15;display:block}

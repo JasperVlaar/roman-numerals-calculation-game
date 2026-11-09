@@ -393,7 +393,7 @@ const TOWN = (() => {
       const f = st.fights[fightIdx()], fine = Math.round(f.reward * MONEY.lossShare);
       box.appendChild(card({
         title: fightLabel(),
-        lines: [listSummary(f.foes), `${f.reward} d ${pips()}`],
+        lines: [listSummary(swarmOf(f.foes)), `${f.reward} d ${pips()}`],
         cls: f.kind === 'boss' ? 'boss' : '', go: () => go('fight')
       }));
     } else {
@@ -557,21 +557,20 @@ const TOWN = (() => {
     const list = $('wares'); list.innerHTML = '';
     for (const key of def.wares) {
       if (key === 'arrows') { list.appendChild(arrowRow()); continue; }
-      const isGear = !!GEAR[key], it = isGear ? GEAR[key] : WEAPONS[key], owned = S.owned.includes(key);
-      const worn = isGear ? S.gear[it.slot] === key : S.melee === key || S.ranged === key, rich = S.money >= it.price;
+      const isGear = !!GEAR[key], it = isGear ? GEAR[key] : WEAPONS[key], owned = isGear && S.owned.includes(key);
+      const worn = isGear && S.gear[it.slot] === key, rich = S.money >= it.price;
+      const have = S.arms.filter(k => k === key).length, full = !isGear && S.arms.filter(k => k !== 'fists').length >= CHAOS.maxArms;
       let info, cmp;
       if (isGear) {
         const cur = S.gear[it.slot];
         info = it.short; cmp = '';
       } else if (it.kind === 'bow') {
-        const cd = it.cooldown * Math.max(STAT_RULES.shootMin, 1 - STAT_RULES.shoot * S.stats.agility);
-        info = `${fmt(it.dmg)} schade · bereik ${it.range} · ${fmt(Math.round(cd * 100) / 100)} s`; cmp = '';
+        info = `${fmt(dmgOf(key))} schade · bereik ${it.range} · ${fmt(Math.round(cdOf(key) * 100) / 100)} s`; cmp = have ? `×${have}` : '';
       } else {
-        const now = WEAPONS[S.melee], diff = it.dmg - now.dmg;
-        info = `${fmt(it.dmg)} schade · bereik ${it.reach}`; cmp = diff && !worn ? `${diff > 0 ? '+' : ''}${fmt(diff)}` : '';
+        info = `${fmt(dmgOf(key))} schade · bereik ${it.reach} · ${fmt(Math.round(cdOf(key) * 100) / 100)} s`; cmp = have ? `×${have}` : '';
       }
       // kan het samen met wat je nu hebt?
-      const clash = isGear && it.needsBow && !S.ranged ? 'koop eerst een boog' : '';
+      const clash = isGear && it.needsBow && !S.arms.some(isBow) ? 'koop eerst een boog' : full ? 'vol' : '';
       const li = document.createElement('li');
       li.innerHTML = `${SHOPART.icon(key)}<div><b>${it.name}</b><span>${info}${cmp ? ` <i class="eff">${cmp}</i>` : ''}</span></div>`;
       if (worn) li.classList.add('worn');
@@ -589,8 +588,9 @@ const TOWN = (() => {
     void cheapest;
   }
   function buy(key) {
-    const it = GEAR[key] || WEAPONS[key]; if (S.money < it.price || S.owned.includes(key)) return;
-    S.money -= it.price; S.owned.push(key); equip(key);
+    const it = GEAR[key] || WEAPONS[key]; if (S.money < it.price || (GEAR[key] && S.owned.includes(key))) return;
+    if (WEAPONS[key] && S.arms.filter(k => k !== 'fists').length >= CHAOS.maxArms) return;
+    S.money -= it.price; if (!S.owned.includes(key)) S.owned.push(key); equip(key);
     SFX.hit();   // tik op het aambeeld (voorlopig het klapgeluid)
   }
   function equip(key) {
