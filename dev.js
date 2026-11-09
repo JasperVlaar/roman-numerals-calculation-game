@@ -22,36 +22,36 @@
     const opts = [];
     let n = 0;
     STAGES.forEach((st, si) => {
-      st.fights.forEach((f, fi) => { n++; opts.push(`<option value="f:${si}:${fi}">Gevecht ${toRoman(n)} · ${f.kind === 'boss' ? 'tussenbaas: ' : ''}${listSummary(f.foes)}</option>`); });
-      opts.push(`<option value="t:${si}">Toernooi ${toRoman(si + 1)} · eindbaas ${listSummary(roundsOf(st.tourney).at(-1))}</option>`);
+      st.fights.forEach((f, fi) => { n++; opts.push(`<option value="f:${si}:${fi}">Fight ${toRoman(n)} · ${f.kind === 'boss' ? 'mini-boss: ' : ''}${listSummary(f.foes)}</option>`); });
+      opts.push(`<option value="t:${si}">Tournament ${toRoman(si + 1)} · final boss ${listSummary(roundsOf(st.tourney).at(-1))}</option>`);
     });
     const weapons = Object.entries(WEAPONS).filter(([k]) => !isBow(k)).map(([k, w]) => `<option value="${k}">${w.name}</option>`).join('');
-    const bows = '<option value="">geen</option>' + Object.entries(WEAPONS).filter(([k]) => isBow(k)).map(([k, w]) => `<option value="${k}">${w.name}</option>`).join('');
+    const bows = '<option value="">none</option>' + Object.entries(WEAPONS).filter(([k]) => isBow(k)).map(([k, w]) => `<option value="${k}">${w.name}</option>`).join('');
     box.innerHTML = `<div class="panel dev">
-      <p class="eyebrow">Testmenu</p>
-      <h2>Spring naar een gevecht</h2>
-      <label>Gevecht<select id="devFight">${opts.join('')}</select></label>
+      <p class="eyebrow">Test menu</p>
+      <h2>Jump to a fight</h2>
+      <label>Fight<select id="devFight">${opts.join('')}</select></label>
       <div class="dev-grid">
         ${Object.entries(STATS).map(([k, d]) => `<label>${d.nl}<input type="number" min="0" max="30" step="1" id="dev_${k}" value="0"></label>`).join('')}
-        <label>Wapen (1)<select id="devWeapon">${weapons}</select></label>
-        <label>Boog (2)<select id="devBow">${bows}</select></label>
-        ${Object.entries(SLOTS).map(([slot, nl]) => `<label>${nl}<select id="dev_gear_${slot}"><option value="">geen</option>${Object.entries(GEAR).filter(([, g]) => g.slot === slot).map(([k, g]) => `<option value="${k}">${g.name}</option>`).join('')}</select></label>`).join('')}
-        <label>Pijlen<input type="number" min="0" max="15" step="1" id="devAmmo" value="0"></label>
+        <label>Weapon (1)<select id="devWeapon">${weapons}</select></label>
+        <label>Bow (2)<select id="devBow">${bows}</select></label>
+        ${Object.entries(SLOTS).map(([slot, nl]) => `<label>${nl}<select id="dev_gear_${slot}"><option value="">none</option>${Object.entries(GEAR).filter(([, g]) => g.slot === slot).map(([k, g]) => `<option value="${k}">${g.name}</option>`).join('')}</select></label>`).join('')}
+        <label>Arrows<input type="number" min="0" max="15" step="1" id="devAmmo" value="0"></label>
         <label>Denarii<input type="number" min="0" max="9999" step="1" id="devMoney" value="0"></label>
       </div>
       <p class="muted small" id="devNote"></p>
-      <h3 class="dev-h">Testarena</h3>
+      <h3 class="dev-h">Test arena</h3>
       <div class="dev-grid dev-test">
-        ${[0, 1, 2].map(i => `<label>Vijand ${i + 1}<select id="devFoe${i}"><option value="">—</option>${foeTypes()}</select></label><label>Aantal<input type="number" min="1" max="20" step="1" id="devFoeN${i}" value="1"></label>`).join('')}
-        <label class="dev-check"><input type="checkbox" id="devGod"> Onsterfelijk</label>
+        ${[0, 1, 2].map(i => `<label>Enemy ${i + 1}<select id="devFoe${i}"><option value="">—</option>${foeTypes()}</select></label><label>Count<input type="number" min="1" max="20" step="1" id="devFoeN${i}" value="1"></label>`).join('')}
+        <label class="dev-check"><input type="checkbox" id="devGod"> Immortal</label>
       </div>
       <div class="dev-row">
-        <button class="btn" id="devRandom">Willekeurig</button>
-        <button class="btn" id="devTown">Naar de stad</button>
+        <button class="btn" id="devRandom">Random</button>
+        <button class="btn" id="devTown">To the town</button>
         <button class="btn" id="devTest">Test</button>
-        <button class="primary" id="devGo">Vecht</button>
+        <button class="primary" id="devGo">Fight</button>
       </div>
-      <button class="btn wide" id="devClose">Sluiten (Esc)</button>
+      <button class="btn wide" id="devClose">Close (Esc)</button>
     </div>`;
     document.body.appendChild(box);
     $('devRandom').onclick = randomize;
@@ -108,13 +108,13 @@
     $('devAmmo').value = bow ? (gear.quiver ? GEAR[gear.quiver].capacity : AMMO.base) : 0;   // pijlen: koker vol (niet meegeteld in het geld)
     for (const slot of Object.keys(SLOTS)) $('dev_gear_' + slot).value = gear[slot];
     plan = { xp, pts, bought: done.length, sig: JSON.stringify(v) + weapon + money };
-    $('devNote').textContent = `${done.length} ${done.length === 1 ? 'gevecht' : 'gevechten'} gewonnen, alle XP opgeraapt: ${xp} XP, niveau ${toRoman(level)}, ${pts} punten (willekeurig verdeeld). `
-      + `Verdiend ${money + spent} d, uitgegeven ${spent} d${bought.length ? ` aan ${bought.slice(0, -1).join(', ')}${bought.length > 1 ? ' en ' : ''}${bought[bought.length - 1]}` : ''}, over ${money} d.`;
+    $('devNote').textContent = `${done.length} ${done.length === 1 ? 'fight' : 'fights'} won, all XP picked up: ${xp} XP, level ${toRoman(level)}, ${pts} points (randomly spent). `
+      + `Earned ${money + spent} d, spent ${spent} d${bought.length ? ` on ${bought.slice(0, -1).join(', ')}${bought.length > 1 ? ' and ' : ''}${bought[bought.length - 1]}` : ''}, ${money} d left.`;
   }
   function note(ev) {
     if (ev && ev.target && ev.target.id === 'devFight') { plan = null; }
     const pts = Object.keys(STATS).reduce((a, k) => a + (+$('dev_' + k).value || 0), 0);
-    $('devNote').textContent = `${pts} punten verdeeld. Het spel telt dit als een gewone run: winnen en verliezen werken zoals normaal.`;
+    $('devNote').textContent = `${pts} points spent. The game counts this as a normal run: winning and losing work as usual.`;
   }
   // Alle vijanden, plus van elke klasse (geen slaaf of dier) de kampioen-versie.
   function foeTypes() {

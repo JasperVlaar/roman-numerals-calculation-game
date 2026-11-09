@@ -215,6 +215,6 @@ const SFX = (() => {
     // Wat er nu in de straat klinkt (console: SFX.street()).
     street() { return Object.fromEntries(Object.entries(amb).map(([k, s]) => [k, s.a.paused ? '–' : s.a.volume.toFixed(2)])); },
     // Welke bestanden gevonden zijn (handig om te controleren in de console: SFX.found()).
-    found() { return Object.fromEntries(Object.entries(ok).map(([k, l]) => [k, l.length + ' van ' + SOUNDS[k].length])); }
+    found() { return Object.fromEntries(Object.entries(ok).map(([k, l]) => [k, l.length + ' of ' + SOUNDS[k].length])); }
   };
 })();

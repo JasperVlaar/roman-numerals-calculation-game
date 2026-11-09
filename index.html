@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="nl">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -10,38 +10,38 @@
 <body>
 <div class="app fight">
   <header class="hud gutter">
-    <div class="goal"><span class="label" id="foeText">Tegen 1 slaaf</span><span class="goal-num" id="fightTitle">Gevecht I</span></div>
-    <div class="hp"><span class="label">Leven <span id="hpText">8 / 8</span></span><div class="hp-bar" id="hpBar"><div id="hpFill"></div></div>
-      <span class="label"><span id="lvlText">Niveau I</span> <span id="xpText">0 / 4 XP</span></span><div class="xp-bar"><div id="xpFill"></div></div></div>
+    <div class="goal"><span class="label" id="foeText"></span><span class="goal-num" id="fightTitle">Fight I</span></div>
+    <div class="hp"><span class="label">Health <span id="hpText">8 / 8</span></span><div class="hp-bar" id="hpBar"><div id="hpFill"></div></div>
+      <span class="label"><span id="lvlText">Level I</span> <span id="xpText">0 / 4 XP</span></span><div class="xp-bar"><div id="xpFill"></div></div></div>
     <dl class="stats">
-      <div class="slots"><dt>Wapens <small>(1, 2)</small></dt><dd>
-        <button id="slot_melee" class="slot on" title="Melee-wapen (toets 1)"><b>1</b><span>Vuisten</span></button>
-        <button id="slot_ranged" class="slot" title="Boog (toets 2)" disabled><b>2</b><span>—</span></button></dd></div>
+      <div class="slots"><dt>Weapons <small>(1, 2)</small></dt><dd>
+        <button id="slot_melee" class="slot on" title="Melee weapon (key 1)"><b>1</b><span>Fists</span></button>
+        <button id="slot_ranged" class="slot" title="Bow (key 2)" disabled><b>2</b><span>—</span></button></dd></div>
       <div><dt>Armor</dt><dd id="armor">0</dd></div>
       <div><dt>Denarii</dt><dd id="money">0</dd></div>
     </dl>
-    <button id="mute" class="mute" aria-pressed="true" title="Geluid aan of uit (M)">Geluid aan</button>
+    <button id="mute" class="mute" aria-pressed="true" title="Sound on or off (M)">Sound on</button>
   </header>
   <div class="stage" id="stage">
-    <canvas id="arena" aria-label="Arena met jou en je tegenstanders"></canvas>
+    <canvas id="arena" aria-label="Arena with you and your opponents"></canvas>
   </div>
 </div>
 
 <div class="overlay" id="start">
   <div class="panel">
-    <h1>De arena</h1>
+    <h1>The arena</h1>
     <ul class="keys">
-      <li><kbd>WASD</kbd> / <kbd>←↑→↓</kbd> / slepen</li>
-      <li><kbd>1</kbd> <kbd>2</kbd> wapen</li>
-      <li><kbd>Spatie</kbd> rollen</li>
-      <li><kbd>M</kbd> geluid</li>
+      <li><kbd>WASD</kbd> / <kbd>←↑→↓</kbd> / drag</li>
+      <li><kbd>1</kbd> <kbd>2</kbd> weapon</li>
+      <li><kbd>Space</kbd> roll</li>
+      <li><kbd>M</kbd> sound</li>
     </ul>
     <label class="vol"><span aria-hidden="true">🔊</span><input type="range" id="volume" min="0" max="100" step="1" aria-label="Volume"><output id="volumeOut">60</output></label>
-    <div class="diff" id="diff" role="group" aria-label="Moeilijkheid">
-      <button data-d="easy">Makkelijk</button><button data-d="normal">Normaal</button><button data-d="hard">Zwaar</button>
+    <div class="diff" id="diff" role="group" aria-label="Difficulty">
+      <button data-d="easy">Easy</button><button data-d="normal">Normal</button><button data-d="hard">Hard</button>
     </div>
-    <button id="startBtn" class="primary wide">Betreed de arena</button>
-    <p class="credits">Geluid: "Crowd Cheering - Strong Cheering and Strong Rhythmic Cheering" door <a href="https://freesound.org/people/GregorQuendel/sounds/481782/" target="_blank" rel="noopener">GregorQuendel</a> en "11575 male group booing" en "13206 panicked horse neigh" door <a href="https://freesound.org/people/Robinhood76/" target="_blank" rel="noopener">Robinhood76</a>, "horse_neigh-02" door <a href="https://freesound.org/people/n_audioman/sounds/321957/" target="_blank" rel="noopener">n_audioman</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>), ingekort; "Crowd Shouting" door freesound_community (via Pixabay).</p>
+    <button id="startBtn" class="primary wide">Enter the arena</button>
+    <p class="credits">Sound: "Crowd Cheering - Strong Cheering and Strong Rhythmic Cheering" by <a href="https://freesound.org/people/GregorQuendel/sounds/481782/" target="_blank" rel="noopener">GregorQuendel</a>, "11575 male group booing" and "13206 panicked horse neigh" by <a href="https://freesound.org/people/Robinhood76/" target="_blank" rel="noopener">Robinhood76</a>, "horse_neigh-02" by <a href="https://freesound.org/people/n_audioman/sounds/321957/" target="_blank" rel="noopener">n_audioman</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>), trimmed; "Crowd Shouting" by freesound_community (via Pixabay).</p>
   </div>
 </div>
 
@@ -51,8 +51,8 @@
     <div class="parchment">
       <h2 id="statsTitle"></h2>
       <ul class="statlist" id="statList"></ul>
-      <button id="statsBtn" class="seal">Naar de arena</button>
-      <button id="statsBack" class="scroll-link" hidden>Terug</button>
+      <button id="statsBtn" class="seal">To the arena</button>
+      <button id="statsBack" class="scroll-link" hidden>Back</button>
     </div>
     <div class="rod" aria-hidden="true"></div>
   </div>
@@ -60,26 +60,26 @@
 
 <div class="overlay" id="pause" hidden>
   <div class="panel judge">
-    <h2>Pauze</h2>
+    <h2>Paused</h2>
     <label class="vol"><span aria-hidden="true">🔊</span><input type="range" id="pauseVolume" min="0" max="100" step="1" aria-label="Volume"></label>
-    <button id="pauseBtn" class="primary wide">Verder</button>
+    <button id="pauseBtn" class="primary wide">Continue</button>
   </div>
 </div>
 
 <div class="overlay" id="result" hidden>
   <div class="panel judge">
-    <p class="eyebrow" id="resultEyebrow">Gevecht I</p>
-    <h2 id="resultTitle">Overwinning</h2>
+    <p class="eyebrow" id="resultEyebrow">Fight I</p>
+    <h2 id="resultTitle">Victory</h2>
     <p id="resultText" hidden></p>
     <p id="resultMoney" class="purse-delta"></p>
     <p id="townNote" hidden></p>
-    <button id="resultBtn" class="primary wide">Verder</button>
+    <button id="resultBtn" class="primary wide">Continue</button>
   </div>
 </div>
 
 <div class="overlay" id="judge" hidden>
   <div class="panel judge">
-    <p class="eyebrow">Caesar oordeelt</p>
+    <p class="eyebrow">Caesar judges</p>
     <!-- De loge van voren: Caesar onscherp op zijn troon onder de tent, publiek erachter, zijn hand scherp op de voorgrond.
          Het publiek (#sceneCrowd) wordt gevuld door judge.js. -->
     <div class="scene" id="scene">
@@ -121,9 +121,9 @@
 <rect x="0" y="0" width="480" height="320" fill="url(#gVignette)" pointer-events="none"/></svg>
       <div class="burst" id="burst"></div>
     </div>
-    <h2 id="judgeTitle">Caesar overweegt…</h2>
+    <h2 id="judgeTitle">Caesar ponders…</h2>
     <dl class="tally" id="judgeDetail" hidden></dl>
-    <button id="judgeBtn" class="primary wide" hidden>Verder</button>
+    <button id="judgeBtn" class="primary wide" hidden>Continue</button>
   </div>
 </div>
 
@@ -133,7 +133,7 @@
     <header class="town-bar">
       <p class="town-purse"><b id="townMoney">0</b> d<span id="townWeapon" hidden></span></p>
       <label class="vol small"><span aria-hidden="true">🔊</span><input type="range" id="townVolume" min="0" max="100" step="1" aria-label="Volume"></label>
-      <button id="townStats" class="town-stats">Je stats</button>
+      <button id="townStats" class="town-stats">Stats</button>
     </header>
     <div class="town-art" id="townArt"></div>
     <p id="townHint" hidden></p>
@@ -144,17 +144,17 @@
 <div class="overlay" id="pick" hidden>
   <div class="panel pick">
     <div class="choices" id="choices"></div>
-    <button id="pickBack" class="btn wide">Terug</button>
+    <button id="pickBack" class="btn wide">Back</button>
   </div>
 </div>
 
 <div class="overlay" id="shop" hidden>
   <div class="panel shop">
     <div class="shop-scene" id="shopScene"></div>
-    <div class="shop-head"><p class="eyebrow" id="shopEyebrow">Wapensmid</p><h2 id="shopMoney">0 d</h2></div>
+    <div class="shop-head"><p class="eyebrow" id="shopEyebrow">Weaponsmith</p><h2 id="shopMoney">0 d</h2></div>
     <ul class="wares" id="wares"></ul>
     <p id="shopNote" hidden></p>
-    <button id="shopBack" class="primary wide">Terug</button>
+    <button id="shopBack" class="primary wide">Back</button>
   </div>
 </div>
 

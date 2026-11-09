@@ -16,9 +16,9 @@ const C = {}; ['night','porphyry','bronze','sand','sand-2','ink','muted','blood'
 const PLAYER = { hp: 8, speed: 85, radius: 10, accel: 12, invuln: .6, weapon: 'fists' };
 // Stats: wat één punt doet. Raken en blokken zijn kansen; tegenstanders gebruiken dezelfde formules.
 const STATS = {
-  strength: { name: 'Strength', nl: 'Kracht',     desc: '+0,25 schade per klap' },
-  agility:  { name: 'Agility',  nl: 'Behendigheid', desc: '+3 loopsnelheid, en je schiet sneller met een boog' },
-  vitality: { name: 'Vitality', nl: 'Vitaliteit',  desc: '+1 leven' }
+  strength: { name: 'Strength', nl: 'Strength', desc: '+0.25 damage per hit' },
+  agility:  { name: 'Agility',  nl: 'Agility', desc: '+3 move speed, and you shoot faster with a bow' },
+  vitality: { name: 'Vitality', nl: 'Vitality', desc: '+1 health' }
 };
 // Attack en Defense (raak- en blokkans) staan voorlopig uit: elke klap binnen bereik raakt.
 // Terugzetten: hitBase .6 en blockBase .1, en de twee stats weer in STATS en S.stats.
@@ -35,24 +35,24 @@ const blockChance = def => Math.min(STAT_RULES.blockMax, STAT_RULES.blockBase + 
 // reach = hoe ver voorbij je eigen lijf je raakt; cooldown = seconden tussen twee slagen; price = in denarii bij de wapensmid.
 // Je begint met je vuisten, net als een slaaf: zelfde schade, zelfde bereik, ongeveer even vaak.
 const WEAPONS = {
-  fists: { name: 'Vuisten', kind: 'fists', dmg: 2, reach: 10, cooldown: 2, swing: .22, knock: 0, price: 0 },   // vuisten duwen niet terug
+  fists: { name: 'Fists', kind: 'fists', dmg: 2, reach: 10, cooldown: 2, swing: .22, knock: 0, price: 0 },   // vuisten duwen niet terug
   // hit: 'single' = één tegenstander; 'sweep' = iedereen binnen bereik in een boog voor je (arc = halve breedte, rad);
   // 'pierce' = iedereen op een smalle lijn recht voor je (width = halve breedte).
-  stick: { name: 'Stok', kind: 'stick', dmg: 2, reach: 21, cooldown: 2, swing: .22, knock: 85, price: 12, hit: 'sweep', arc: 1.6 },
+  stick: { name: 'Staff', kind: 'stick', dmg: 2, reach: 21, cooldown: 2, swing: .22, knock: 85, price: 12, hit: 'sweep', arc: 1.6 },
   gladius: { name: 'Gladius', kind: 'sword', dmg: 5, reach: 19, cooldown: 2, swing: .2, knock: 60, price: 40, hit: 'sweep', arc: .52 },   // arc .52 = ca. 60° breed
   // Hasta: speer. Groot bereik en duwt ver, maar trager.
   hasta: { name: 'Hasta', kind: 'spear', dmg: 6, reach: 22, cooldown: 2.3, swing: .26, knock: 120, price: 70, hit: 'pierce', width: 7 },
   // Bogen: schieten vanzelf op de dichtstbijzijnde tegenstander binnen range. Staat er iemand tegen je aan, dan sla je met je vuisten.
   // Behendigheid: per punt STAT_RULES.shoot korter wachten tussen twee pijlen (hoogstens tot shootMin × cooldown). Niet samen met een schild.
-  bow: { name: 'Korte boog', kind: 'bow', dmg: 2, range: 150, arrow: 300, reach: 0, cooldown: 1.8, swing: .25, knock: 20, price: 60 },
-  composite: { name: 'Composietboog', kind: 'bow', dmg: 3, range: 190, arrow: 340, reach: 0, cooldown: 1.4, swing: .25, knock: 30, price: 140 },
+  bow: { name: 'Short bow', kind: 'bow', dmg: 2, range: 150, arrow: 300, reach: 0, cooldown: 1.8, swing: .25, knock: 20, price: 60 },
+  composite: { name: 'Composite bow', kind: 'bow', dmg: 3, range: 190, arrow: 340, reach: 0, cooldown: 1.4, swing: .25, knock: 30, price: 140 },
   // Late wapens (after = pas te koop na zoveel gewonnen toernooien).
   // Sica: kort gebogen zwaard van de Thraciërs. Minder schade dan de gladius, maar veel sneller.
   sica: { name: 'Sica', kind: 'sword', dmg: 4, reach: 17, cooldown: 1.3, swing: .16, knock: 30, price: 150, hit: 'sweep', arc: .6, after: 2 },
   // Spatha: lang zwaard van de ruiterij. Zwaar, lang bereik, brede zwaai.
   spatha: { name: 'Spatha', kind: 'sword', dmg: 7, reach: 23, cooldown: 2.2, swing: .24, knock: 90, price: 240, hit: 'sweep', arc: .75, after: 3 },
   // Scythische boog: ver, hard en snel.
-  scythian: { name: 'Scythische boog', kind: 'bow', dmg: 4, range: 220, arrow: 380, reach: 0, cooldown: 1.3, swing: .25, knock: 40, price: 260, after: 3 }
+  scythian: { name: 'Scythian bow', kind: 'bow', dmg: 4, range: 220, arrow: 380, reach: 0, cooldown: 1.3, swing: .25, knock: 40, price: 260, after: 3 }
 };
 const isBow = k => !!k && WEAPONS[k].kind === 'bow';
 // Twee wapenvakken: melee (dichtbij) en ranged (boog). Wisselen met 1 en 2 duurt switchTime seconden;
@@ -64,14 +64,14 @@ const ARMS = { switchTime: 1, speedMul: 1 };
 const CHARIOT = { speed: 105, cruise: 55, accel: 2.4, turn: 4.2, turnSlow: .45, ram: 5, ramSpeed: 80, ramPush: 260, ramCd: .7, reach: 26 };
 // windup = hoe lang een tegenstander aanzet voor hij uithaalt; recover = even stilstaan erna.
 const FOES = {
-  slave: { name: 'slaaf', plural: 'slaven', hp: 14, dmg: 2, armor: 0, attack: 0, defense: 0, speed: 68, radius: 10, reach: 10, windup: .36, recover: .45, cooldown: 1.6, lunge: 9,
+  slave: { name: 'slave', plural: 'slaves', hp: 14, dmg: 2, armor: 0, attack: 0, defense: 0, speed: 68, radius: 10, reach: 10, windup: .36, recover: .45, cooldown: 1.6, lunge: 9,
            tunic: '#9c8a6c', hair: 'hair-2', skin: 'skin-2' },
   // Tiro: een nieuweling uit de gladiatorenschool, met slechte uitrusting (een leren kap, armor 1).
   // Vecht met een rudis, het houten oefenzwaard. Sneller en harder dan een slaaf, zet korter aan.
-  tiro: { name: 'tiro', plural: "tiro's", hp: 16, dmg: 3, armor: 1, attack: 0, defense: 0, speed: 74, radius: 11, reach: 13, windup: .32, recover: .4, cooldown: 1.4, lunge: 10, weapon: 'rudis',
+  tiro: { name: 'tiro', plural: 'tirones', hp: 16, dmg: 3, armor: 1, attack: 0, defense: 0, speed: 74, radius: 11, reach: 13, windup: .32, recover: .4, cooldown: 1.4, lunge: 10, weapon: 'rudis',
            tunic: '#8a6a48', belt: '#3b2a1e', hair: 'bronze', skin: 'skin-3', cap: true },
   // Tiro met stok: langer bereik en zijn klap duwt je ver weg (knock).
-  tiroStick: { name: 'tiro met stok', plural: "tiro's met stok", hp: 22, dmg: 3, armor: 1, attack: 0, defense: 0, speed: 72, radius: 11, reach: 16, windup: .4, recover: .45, cooldown: 1.7, lunge: 10, knock: 140, weapon: 'stick',
+  tiroStick: { name: 'tiro with staff', plural: 'tirones with staffs', hp: 22, dmg: 3, armor: 1, attack: 0, defense: 0, speed: 72, radius: 11, reach: 16, windup: .4, recover: .45, cooldown: 1.7, lunge: 10, knock: 140, weapon: 'stick',
            tunic: '#8a6a48', belt: '#3b2a1e', hair: 'bronze', skin: 'skin-3', cap: true },
   // Murmillo: zwaar en methodisch, met scutum, gladius en een helm met een vissenvin. Loopt langzaam op je af.
   // Schildmuur: zolang hij in dekking staat (gele rand) blokt hij elke klap die van voren komt (binnen shield.arc
@@ -86,7 +86,7 @@ const FOES = {
   // en schiet dan naar binnen voor een snelle snee. Pareren: soms duikt hij in elkaar (zilveren flits, parry.time s).
   // Sla je hem dan, dan stapt hij opzij en snijdt terug. Zijn sica haakt om je schild heen (hook: je schild blokt niet)
   // en laat je bloeden: bleed.dmg schade per seconde, bleed.time seconden lang; het stopt zodra jij hem raakt.
-  thraex: { name: 'Thraciër', plural: 'Thraciërs', hp: 14, dmg: 3, armor: 0, attack: 0, defense: 0, speed: 70, radius: 11, reach: 13, windup: .35, recover: .55, cooldown: 1.4, lunge: 14, weapon: 'sica', ai: 'thraex',
+  thraex: { name: 'Thracian', plural: 'Thracians', hp: 14, dmg: 3, armor: 0, attack: 0, defense: 0, speed: 70, radius: 11, reach: 13, windup: .35, recover: .55, cooldown: 1.4, lunge: 14, weapon: 'sica', ai: 'thraex',
            orbit: 30, dart: { speed: 220, time: .16 }, parry: { time: .8, cd: 4.5, step: 26, near: 30 }, hook: true, bleed: { dmg: 1, time: 3 },
            tunic: '#6a4a7a', belt: '#d49a48', hair: 'hair-1', skin: 'skin', helmet: 'thraex', parmula: true },
   // Hoplomachus: Griekse stijl, met een lange speer en een rond, hol bronzen schildje. Houdt je op speerafstand: komt je te
@@ -114,7 +114,7 @@ const FOES = {
            tunic: '#7a3a2a', belt: '#d49a48', hair: 'bronze', skin: 'skin-2', helmet: 'secutor', scutum: true },
   // Boogschutter: houdt afstand en schiet. Hij richt eerst (een rode lijn naar je toe, windup seconden), dan vliegt de pijl
   // naar waar je op dat moment stond: blijf bewegen. Kom je te dichtbij (flee), dan loopt hij weg.
-  archer: { name: 'boogschutter', plural: 'boogschutters', hp: 10, dmg: 2, armor: 0, attack: 0, defense: 0, speed: 60, radius: 10, reach: 0, windup: .7, recover: .35, cooldown: 2.6, lunge: 0,
+  archer: { name: 'archer', plural: 'archers', hp: 10, dmg: 2, armor: 0, attack: 0, defense: 0, speed: 60, radius: 10, reach: 0, windup: .7, recover: .35, cooldown: 2.6, lunge: 0,
            ranged: { min: 90, max: 180, flee: 60, arrow: 240, life: 1.4 },
            tunic: '#5f6d45', belt: '#3b2a1e', hair: 'hair-1', skin: 'skin' },
   // Dimachaerus: twee zwaarden, geen schild, een helm en scheenplaten. Glass cannon: weinig leven, maar een combo van
@@ -143,32 +143,32 @@ const FOES = {
            foot: { ai: 'melee', weapon: 'javelin', radius: 11, reach: 18, speed: 72, windup: .4, recover: .5, cooldown: 1.5, lunge: 8, dmg: 3 },
            tunic: '#4a6a4a', belt: '#d49a48', hair: 'hair-2', skin: 'skin-2' },
   // Zelfde, maar met twee paarden: sneller, taaier, draait trager.
-  essedarius2: { name: 'essedarius met twee paarden', plural: 'essedarii met twee paarden', hp: 12, dmg: 4, armor: 0, attack: 0, defense: 0, speed: 150, radius: 20, reach: 0, windup: .5, recover: .4, cooldown: 1.8, lunge: 0, knock: 240, ai: 'essedarius',
+  essedarius2: { name: 'essedarius with two horses', plural: 'essedarii with two horses', hp: 12, dmg: 4, armor: 0, attack: 0, defense: 0, speed: 150, radius: 20, reach: 0, windup: .5, recover: .4, cooldown: 1.8, lunge: 0, knock: 240, ai: 'essedarius',
            mount: { kind: 'chariot', horses: 2, hp: 26, color: '#5a3a26' }, turn: 1.5, loop: .62, hunt: { every: 6, time: 1.6 }, jav: { min: 60, max: 240, lead: .3 },
            foot: { ai: 'melee', weapon: 'javelin', radius: 11, reach: 18, speed: 72, windup: .4, recover: .5, cooldown: 1.5, lunge: 8, dmg: 3 },
            tunic: '#4a6a4a', belt: '#d49a48', hair: 'hair-2', skin: 'skin-2' },
   // Beer: traag en taai. Gaat op zijn achterpoten staan (rear: rode waaier voor hem, windup s) en haalt dan breed uit
   // (swipe.arc = halve hoek) met veel terugstoot. Onder rage van zijn leven wordt hij woest: sneller en korter aanzetten.
-  bear: { name: 'beer', plural: 'beren', hp: 40, dmg: 5, armor: 1, attack: 0, defense: 0, speed: 55, radius: 15, reach: 16, windup: .8, recover: .9, cooldown: 1.2, lunge: 8, knock: 300, animal: true, ai: 'bear',
+  bear: { name: 'bear', plural: 'bears', hp: 40, dmg: 5, armor: 1, attack: 0, defense: 0, speed: 55, radius: 15, reach: 16, windup: .8, recover: .9, cooldown: 1.2, lunge: 8, knock: 300, animal: true, ai: 'bear',
           swipe: { arc: .75 }, rage: { at: .5, speed: 85, windup: .55 }, tunic: '#6b4a2e', hair: 'hair-2', skin: 'skin-2' },
   // Olifant: baas-dier. Kan niet weggeduwd worden (heavy). Slurf: dichtbij een brede zwiep (trunk) die je ver wegslaat.
   // Stormloop: richten (rode baan, stampede.windup s) en dan rechtdoor tot de muur; vertrapt jou en ook andere vijanden
   // (stampede.trample schade). Tegen de muur: stun seconden verdoofd, en dan telt zijn armor niet.
-  elephant: { name: 'olifant', plural: 'olifanten', hp: 70, dmg: 6, armor: 2, attack: 0, defense: 0, speed: 42, radius: 24, reach: 20, windup: .6, recover: .8, cooldown: 1.6, lunge: 6, knock: 320, animal: true, heavy: true, ai: 'elephant',
+  elephant: { name: 'elephant', plural: 'elephants', hp: 70, dmg: 6, armor: 2, attack: 0, defense: 0, speed: 42, radius: 24, reach: 20, windup: .6, recover: .8, cooldown: 1.6, lunge: 6, knock: 320, animal: true, heavy: true, ai: 'elephant',
           trunk: { dmg: 3, arc: 1, knock: 360 }, stampede: { windup: 1, speed: 250, time: 2.6, cd: 6, min: 70, trample: 10 }, stun: 2.2, tunic: '#8a8a86', hair: 'hair-2', skin: 'skin-2' },
   // Tijger: komt later binnen (door de poort) en springt op je af. Hij duikt eerst in elkaar en kijkt in een vaste
   // richting (rode pijl, windup seconden); dan stormt hij die kant op (dash), heel ver. Stap of rol opzij.
-  tiger: { name: 'tijger', plural: 'tijgers', hp: 26, dmg: 4, armor: 0, attack: 0, defense: 0, speed: 62, radius: 12, reach: 0, windup: .8, recover: 1.1, cooldown: 1.2, lunge: 0, knock: 160, animal: true,
+  tiger: { name: 'tiger', plural: 'tigers', hp: 26, dmg: 4, armor: 0, attack: 0, defense: 0, speed: 62, radius: 12, reach: 0, windup: .8, recover: 1.1, cooldown: 1.2, lunge: 0, knock: 160, animal: true,
           dash: { range: 190, speed: 380, time: .5 }, tunic: '#d9782e', hair: 'hair-2', skin: 'skin-2' },
   // Leeuw: sluipt in een cirkel om je heen (orbit). Brult af en toe (roar): een ring om hem heen; sta je erin, dan loop
   // je slow.time seconden half zo snel. Springt (pounce: rode pijl, kort) als je met een ander bezig bent, of na
   // pounce.cd seconden. De sprong is kort: rol erdoorheen of stap opzij.
-  lion: { name: 'leeuw', plural: 'leeuwen', hp: 26, dmg: 5, armor: 0, attack: 0, defense: 0, speed: 66, radius: 13, reach: 0, windup: .5, recover: 1, cooldown: 1, lunge: 0, knock: 180, animal: true, ai: 'lion',
+  lion: { name: 'lion', plural: 'lions', hp: 26, dmg: 5, armor: 0, attack: 0, defense: 0, speed: 66, radius: 13, reach: 0, windup: .5, recover: 1, cooldown: 1, lunge: 0, knock: 180, animal: true, ai: 'lion',
           orbit: 85, roar: { windup: .7, radius: 115, cd: 6 }, slow: { time: 1.2, mul: .5 }, pounce: { range: 140, speed: 340, time: .32, cd: 2.8, busy: 1.2 },
           tunic: '#c9934a', hair: 'hair-2', skin: 'skin-2' },
   // Hyena: in een roedel. Bijten en wegrennen (flee s). Ruikt bloed: zit je in een net of heb je minder dan 'weak' van je
   // leven, dan bijten ze steeds door. En ze eten je XP-bolletjes op (smell = zo ver ruiken ze een bolletje) als ze kunnen.
-  hyena: { name: 'hyena', plural: "hyena's", hp: 6, dmg: 1, armor: 0, attack: 0, defense: 0, speed: 96, radius: 9, reach: 8, windup: .22, recover: .25, cooldown: 1.1, lunge: 6, animal: true, ai: 'hyena',
+  hyena: { name: 'hyena', plural: 'hyenas', hp: 6, dmg: 1, armor: 0, attack: 0, defense: 0, speed: 96, radius: 9, reach: 8, windup: .22, recover: .25, cooldown: 1.1, lunge: 6, animal: true, ai: 'hyena',
            flee: .8, weak: .35, smell: 90, tunic: '#9a8460', hair: 'hair-2', skin: 'skin-2' },
 };
 // Kampioen (primus palus): de beste van zijn school. Schrijf 'champion:<klasse>' (bijv. 'champion:murmillo') in STAGES:
@@ -177,7 +177,7 @@ const CHAMPION = { hp: 1.8, dmg: 1.3, armor: 1, size: 1.2, xp: 2.5 };
 function foeBase(type) {
   if (!type.startsWith('champion:')) return FOES[type];
   const b = FOES[type.slice(9)];
-  return { ...b, name: `kampioen (${b.name})`, plural: `kampioenen (${b.plural})`, hp: Math.round(b.hp * CHAMPION.hp), dmg: Math.round(b.dmg * CHAMPION.dmg),
+  return { ...b, name: `champion (${b.name})`, plural: `champions (${b.plural})`, hp: Math.round(b.hp * CHAMPION.hp), dmg: Math.round(b.dmg * CHAMPION.dmg),
            armor: b.armor + CHAMPION.armor, radius: Math.round(b.radius * CHAMPION.size), reach: Math.round(b.reach * CHAMPION.size), champ: true,
            mount: b.mount && { ...b.mount, hp: Math.round(b.mount.hp * CHAMPION.hp) } };
 }
@@ -228,7 +228,7 @@ const STAGES = [
       { kind: 'boss', foes: [['elephant', 1], ['dimachaerus', 1]], extra: { at: .5, foes: [['champion:murmillo', 1]] }, reward: 220 } ],
     tourney: { kind: 'tournament', rounds: [[['champion:thraex', 1], ['champion:hoplomachus', 1]], [['essedarius2', 1], ['sagittarius', 2]], { foes: [['elephant', 1], ['champion:secutor', 1]], extra: { after: 10, foes: [['lion', 1], ['bear', 1]] } }], reward: 500 } }
 ];
-const KINDS = { normal: 'Gevecht', boss: 'Tussenbaas', tournament: 'Toernooi' };
+const KINDS = { normal: 'Fight', boss: 'Mini-boss', tournament: 'Tournament' };
 // Tussen de rondes krijg je heal × je maximale leven terug. Ga je neer, dan beslist Caesar.
 // Kans op duim omhoog = mercyBase + mercyFavor × (schade die je uitdeelde / alle leven van alle tegenstanders), hoogstens mercyMax.
 // Duim omhoog: je leeft, maar het toernooi en de beloning zijn weg (geen boete); je mag het opnieuw proberen. Duim omlaag: dood, alles opnieuw vanaf gevecht I.
@@ -239,39 +239,39 @@ const fightIdx = () => S.finished ? stageOf().fights.length - 1 : Math.min(S.inS
 const fightNumber = () => STAGES.slice(0, Math.min(S.stage, STAGES.length - 1)).reduce((n, st) => n + st.fights.length, 0) + fightIdx() + 1;
 const fightOpen = () => S.finished || S.inStage < stageOf().fights.length;   // na 5 gevechten: eerst het toernooi
 const fightDef = () => S.test ? { kind: 'normal', foes: S.test, reward: 0 } : S.mode === 'tournament' ? stageOf().tourney : stageOf().fights[fightIdx()];   // S.test = testarena (spqr-menu)
-const fightTitle = () => S.test ? 'Testarena' : S.mode === 'tournament' ? `Toernooi ${toRoman(Math.min(S.stage, STAGES.length - 1) + 1)}` : `Gevecht ${toRoman(fightNumber())}`;
+const fightTitle = () => S.test ? 'Testarena' : S.mode === 'tournament' ? `Tournament ${toRoman(Math.min(S.stage, STAGES.length - 1) + 1)}` : `Fight ${toRoman(fightNumber())}`;
 // Een ronde is een lijst [[type, aantal], ...] of { foes, extra }. extra = versterking die door de poort binnenkomt:
 // { foes, at: 0,5 } = als de helft van de eerste groep verslagen is; { foes, after: 8 } = na 8 seconden.
 const roundsOf = def => (def.rounds || [def.extra ? { foes: def.foes, extra: def.extra } : def.foes]).map(r => Array.isArray(r) ? r : r.foes);
 const extraOf = def => def.rounds ? def.rounds.map(r => Array.isArray(r) ? null : r.extra || null) : [def.extra || null];
-const listSummary = list => list.map(([t, n]) => `${n} ${n > 1 ? foeBase(t).plural : foeBase(t).name}`).join(' en ');
+const listSummary = list => list.map(([t, n]) => `${n} ${n > 1 ? foeBase(t).plural : foeBase(t).name}`).join(' and ');
 // Na elk gevecht ga je de stad in; terug naar de arena door op de arena te klikken.
 const MONEY = { lossShare: .5 };
 // Uitrusting naast je wapen, in vakken: body (harnas), head (helm), shield (schild). Eén ding per vak.
 // armor = elke klap doet zoveel minder (maar altijd minstens 1); speed = loopsnelheid erbij of eraf;
 // knock = hoe ver je wordt weggeduwd (× dit getal); front = schild: pijlen van voren houdt het tegen, klappen van voren doen 1 minder.
 const GEAR = {
-  leather: { slot: 'body',   name: 'Leren harnas',      price: 35,  armor: 1, short: 'armor 1', desc: 'armor 1: elke klap 1 minder' },
-  galea:   { slot: 'head',   name: 'Galea',             price: 30,  knock: .5, short: '−50% wegduwen', desc: 'je wordt half zo ver weggeduwd' },
-  scutum:  { slot: 'shield', name: 'Scutum',            price: 50,  front: 1, short: 'van voren −1 · pijlen 0', desc: 'pijlen van voren houdt hij tegen; klappen van voren 1 minder' },
-  secutorHelm: { slot: 'head', name: 'Secutor-helm', price: 70, netMul: .5, speed: -8, short: '−50% net · −8 snelheid', desc: 'glad en rond: een net glijdt er twee keer zo snel af, maar je krijgt weinig lucht (−8 loopsnelheid)' },
-  lorica:  { slot: 'body',   name: 'Lorica segmentata', price: 120, armor: 2, speed: -8, short: 'armor 2 · −8 snelheid', desc: 'armor 2, maar −8 loopsnelheid' },
+  leather: { slot: 'body',   name: 'Leather armor',     price: 35,  armor: 1, short: 'armor 1', desc: 'armor 1: every hit does 1 less' },
+  galea:   { slot: 'head',   name: 'Galea',             price: 30,  knock: .5, short: '−50% knockback', desc: 'you get pushed back half as far' },
+  scutum:  { slot: 'shield', name: 'Scutum',            price: 50,  front: 1, short: 'front −1 · arrows 0', desc: 'stops arrows from the front; hits from the front do 1 less' },
+  secutorHelm: { slot: 'head', name: 'Secutor helmet', price: 70, netMul: .5, speed: -8, short: '−50% net · −8 speed', desc: 'smooth and round: a net slides off twice as fast, but you can barely breathe (−8 move speed)' },
+  lorica:  { slot: 'body',   name: 'Lorica segmentata', price: 120, armor: 2, speed: -8, short: 'armor 2 · −8 speed', desc: 'armor 2, but −8 move speed' },
   // Late uitrusting (after = pas te koop na zoveel gewonnen toernooien).
-  parma:   { slot: 'shield', name: 'Parma', price: 90, front: 1, arrows: false, roll: .25, after: 1, short: 'van voren −1 · rol 25% sneller', desc: 'klein rond schild: klappen van voren 1 minder (pijlen niet) en je kunt 25% sneller weer rollen' },
-  squamata: { slot: 'body', name: 'Lorica squamata', price: 300, armor: 3, speed: -6, after: 3, short: 'armor 3 · −6 snelheid', desc: 'schubbenharnas: armor 3, maar −6 loopsnelheid' },
-  quadriga: { slot: 'mount', name: 'Quadriga', price: 500, needsBow: true, mountSpeed: 1.2, ramMul: 1.6, after: 3, short: 'met boog (2) · sneller, harder omver', desc: 'vier paarden: 20% sneller en je rijdt 60% harder omver' },
-  quiver:  { slot: 'quiver', name: 'Pijlkoker', price: 30, capacity: 15, short: '15 pijlen', desc: '15 pijlen mee in plaats van 5' },
-  chariot: { slot: 'mount',  name: 'Strijdwagen', price: 250, needsBow: true, short: 'met boog (2)', desc: 'veel sneller en je rijdt tegenstanders omver; stilstaan kan niet; je rijdt als je de boog vasthoudt (vak 2), met je melee-wapen sta je naast de wagen' }
+  parma:   { slot: 'shield', name: 'Parma', price: 90, front: 1, arrows: false, roll: .25, after: 1, short: 'front −1 · roll 25% faster', desc: 'small round shield: hits from the front do 1 less (not arrows) and you can roll again 25% sooner' },
+  squamata: { slot: 'body', name: 'Lorica squamata', price: 300, armor: 3, speed: -6, after: 3, short: 'armor 3 · −6 speed', desc: 'scale armor: armor 3, but −6 move speed' },
+  quadriga: { slot: 'mount', name: 'Quadriga', price: 500, needsBow: true, mountSpeed: 1.2, ramMul: 1.6, after: 3, short: 'with bow (2) · faster, rams harder', desc: 'four horses: 20% faster and you run foes over 60% harder' },
+  quiver:  { slot: 'quiver', name: 'Quiver', price: 30, capacity: 15, short: '15 arrows', desc: 'carry 15 arrows instead of 5' },
+  chariot: { slot: 'mount',  name: 'Chariot', price: 250, needsBow: true, short: 'with bow (2)', desc: 'much faster and you run foes over; you cannot stand still; you ride while holding your bow (slot 2), with your melee weapon you stand next to the chariot' }
 };
-const SLOTS = { body: 'Harnas', head: 'Helm', shield: 'Schild', quiver: 'Pijlkoker', mount: 'Rijdier' };
+const SLOTS = { body: 'Armor', head: 'Helmet', shield: 'Shield', quiver: 'Quiver', mount: 'Mount' };
 // Pijlen koop je bij de boogmaker: price denarii per stuk. Zonder pijlkoker kun je er base meenemen.
 const AMMO = { base: 5, price: 2 };
 // De winkels in de straat. after = open na zoveel gewonnen toernooien (0 = vanaf het begin); wares = sleutels uit WEAPONS of GEAR.
 const SHOPS = {
-  smith:   { nl: 'Wapensmid',   la: 'Faber',      after: 0, wares: ['stick', 'gladius', 'hasta', 'sica', 'spatha'] },
-  armorer: { nl: 'Harnasmaker', la: 'Loricarius', after: 0, wares: ['leather', 'galea', 'secutorHelm', 'parma', 'scutum', 'lorica', 'squamata'] },
-  bowyer:  { nl: 'Boogmaker',   la: 'Arcuarius',  after: 1, wares: ['arrows', 'bow', 'composite', 'scythian', 'quiver'] },
-  stable:  { nl: 'Stallen',     la: 'Stabulum',   after: 2, wares: ['chariot', 'quadriga'] }
+  smith:   { nl: 'Weaponsmith', la: 'Faber',      after: 0, wares: ['stick', 'gladius', 'hasta', 'sica', 'spatha'] },
+  armorer: { nl: 'Armorer',     la: 'Loricarius', after: 0, wares: ['leather', 'galea', 'secutorHelm', 'parma', 'scutum', 'lorica', 'squamata'] },
+  bowyer:  { nl: 'Bowyer',      la: 'Arcuarius',  after: 1, wares: ['arrows', 'bow', 'composite', 'scythian', 'quiver'] },
+  stable:  { nl: 'Stables',     la: 'Stabulum',   after: 2, wares: ['chariot', 'quadriga'] }
 };
 // Hoeveel toernooien je gewonnen hebt (voor winkels en spullen met 'after').
 const tourneysWon = () => S.finished ? STAGES.length : S.stage;
@@ -306,7 +306,7 @@ const ROMAN = [[1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],[100,'C'],[90,'XC'],[5
 function toRoman(n) { if (n <= 0) return 'nulla'; let s = ''; for (const [v, r] of ROMAN) while (n >= v) { s += r; n -= v; } return s; }
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const denarii = n => `${n} ${n === 1 ? 'denarius' : 'denarii'}`;
-const fmt = n => n.toLocaleString('nl-NL', { maximumFractionDigits: 2 });   // 2,5 in plaats van 2.5
+const fmt = n => n.toLocaleString('en-US', { maximumFractionDigits: 2 });
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const TAU2 = Math.PI * 2;
 function lerpAngle(a, b, t) { const d = ((b - a + Math.PI * 3) % TAU2) - Math.PI; return a + d * t; }
@@ -321,7 +321,7 @@ function wear(key) {
     if (isBow(key)) S.ranged = key; else S.melee = key;
   } else {
     const g = GEAR[key];
-    if (g.needsBow && !S.ranged) return 'Koop eerst een boog: de strijdwagen gaat alleen met een boog.';
+    if (g.needsBow && !S.ranged) return 'Buy a bow first: the chariot only works with a bow.';
     S.gear[g.slot] = key;
   }
   syncWeapon();
@@ -431,9 +431,9 @@ function nextRound() {
 // Moeilijkheid: vooral hoe snel tegenstanders slaan. windup = langer aanzetten (meer tijd om weg te stappen),
 // cooldown = langer wachten tussen twee aanvallen, arrow = pijlsnelheid. Zwaar = de waarden in FOES.
 const DIFFICULTY = {
-  easy:   { nl: 'Makkelijk', windup: 1.8,  cooldown: 1.6,  arrow: .7 },
-  normal: { nl: 'Normaal',   windup: 1.35, cooldown: 1.25, arrow: .85 },
-  hard:   { nl: 'Zwaar',     windup: 1,    cooldown: 1,    arrow: 1 }
+  easy:   { nl: 'Easy', windup: 1.8,  cooldown: 1.6,  arrow: .7 },
+  normal: { nl: 'Normal',    windup: 1.35, cooldown: 1.25, arrow: .85 },
+  hard:   { nl: 'Hard',      windup: 1,    cooldown: 1,    arrow: 1 }
 };
 let difficulty = 'normal';
 try { difficulty = localStorage.getItem('rn-difficulty') || 'normal'; } catch (e) {}
@@ -569,7 +569,7 @@ function parried(f) {
 function blocked(def, att) {
   def.block = .3; def.blockA = Math.atan2(att.y - def.y, att.x - def.x);
   S.freeze = FEEL.hitstop * .6; S.shake = Math.max(S.shake, 2);
-  float(def.x, def.y - 20, 'geblokt', C.bronze);
+  float(def.x, def.y - 20, 'blocked', C.bronze);
   SFX.block();
 }
 function hitPlayer(f) {
@@ -2298,7 +2298,7 @@ function foeSummary() {
 function updateUI() {
   $('fightTitle').textContent = fightTitle();
   const def = fightDef(), rounds = roundsOf(def).length;
-  $('foeText').textContent = def.kind === 'tournament' ? `Ronde ${toRoman(S.round + 1)}/${toRoman(rounds)}` : '';
+  $('foeText').textContent = def.kind === 'tournament' ? `Round ${toRoman(S.round + 1)}/${toRoman(rounds)}` : '';
   $('money').textContent = S.money;
   for (const slot of ['melee', 'ranged']) {
     const b = $('slot_' + slot), key = S[slot];
@@ -2310,7 +2310,7 @@ function updateUI() {
   $('hpFill').style.transform = `scaleX(${P.hp / me.maxHp})`;
   $('hpBar').classList.toggle('low', P.hp / me.maxHp <= .3);
   const lv = levelOf(S.xp), lo = LEVELS[lv - 2] || 0, hi = LEVELS[lv - 1];
-  $('lvlText').textContent = `Niveau ${toRoman(lv)}`;
+  $('lvlText').textContent = `Level ${toRoman(lv)}`;
   $('xpText').textContent = hi ? `${S.xp} / ${hi} XP` : `${S.xp} XP`;
   $('xpFill').style.transform = `scaleX(${hi ? (S.xp - lo) / (hi - lo) : 1})`;
 }
@@ -2320,16 +2320,16 @@ function openResult() {
   const won = S.over === 'won', def = fightDef();
   if (!won && def.kind === 'tournament') { openMercy(); return; }
   $('resultEyebrow').textContent = fightTitle();
-  $('resultTitle').textContent = won ? 'Overwinning' : 'Verloren';
+  $('resultTitle').textContent = won ? 'Victory' : 'Defeat';
   const total = S.orbs.length;
   $('resultText').textContent = won
-    ? `Je had nog ${P.hp} van de ${me.maxHp} leven over en raapte ${S.gained} van de ${total} XP op. `
-      + (S.levelUps ? `Niveau ${toRoman(levelOf(S.xp))}: je hebt ${S.points} ${S.points === 1 ? 'punt' : 'punten'} te verdelen.` : `Nog ${LEVELS[levelOf(S.xp) - 1] - S.xp} XP tot het volgende niveau.`)
-      + (def.kind === 'tournament' ? ` Je overleefde alle ${toRoman(def.rounds.length)} rondes van het toernooi.` : '')
-    : 'Het publiek joelt. Je mag het nog eens proberen. De XP uit dit gevecht is weg; je stats blijven zoals ze waren.';
+    ? `You had ${P.hp} of ${me.maxHp} health left and picked up ${S.gained} of ${total} XP. `
+      + (S.levelUps ? `Level ${toRoman(levelOf(S.xp))}: you have ${S.points} ${S.points === 1 ? 'point' : 'points'} to spend.` : `${LEVELS[levelOf(S.xp) - 1] - S.xp} XP to the next level.`)
+      + (def.kind === 'tournament' ? ` You survived all ${toRoman(def.rounds.length)} rounds of the tournament.` : '')
+    : 'The crowd jeers. You may try again. The XP from this fight is lost; your stats stay as they were.';
   $('resultMoney').textContent = won ? `+${S.delta} d` : S.delta ? `−${-S.delta} d` : '';
   $('resultMoney').classList.toggle('loss', !won);
-  $('resultBtn').textContent = 'Verder';
+  $('resultBtn').textContent = 'Continue';
   $('result').hidden = false; $('resultBtn').focus();
 }
 // Na de uitslag ga je altijd de stad in. Terug naar de arena: klik in de stad op de arena.
@@ -2345,11 +2345,11 @@ function openMercy() {
   const ok = Math.random() < chance;
   S.spared = ok;
   const d = $('judgeDetail'), b = $('judgeBtn');
-  d.hidden = true; d.innerHTML = `<dt>Ronde</dt><dd>${toRoman(S.round + 1)} van ${toRoman(def.rounds.length)}</dd>
-    <dt>Schade uitgedeeld</dt><dd>${fmt(S.dealt)} van ${S.poolHp}</dd>
-    <dt>Gunst van het publiek</dt><dd>${Math.round(chance * 100)}%</dd>
-    <dt>Uitslag</dt><dd class="${ok ? 'good' : 'bad'}">${ok ? 'Je leeft. Het toernooi is voorbij, geen beloning.' : 'Mors. Je begint opnieuw bij gevecht I.'}</dd>`;
-  b.textContent = ok ? 'Verder' : 'Opnieuw'; b.dataset.ok = ok ? '1' : '';
+  d.hidden = true; d.innerHTML = `<dt>Round</dt><dd>${toRoman(S.round + 1)} of ${toRoman(def.rounds.length)}</dd>
+    <dt>Damage dealt</dt><dd>${fmt(S.dealt)} of ${S.poolHp}</dd>
+    <dt>Favor of the crowd</dt><dd>${Math.round(chance * 100)}%</dd>
+    <dt>Verdict</dt><dd class="${ok ? 'good' : 'bad'}">${ok ? 'You live. The tournament is over, no reward.' : 'Mors. You start over at fight I.'}</dd>`;
+  b.textContent = ok ? 'Continue' : 'Start over'; b.dataset.ok = ok ? '1' : '';
   b.hidden = false; b.style.visibility = 'hidden';
   $('judgeTitle').textContent = '';
   $('judge').hidden = false;
@@ -2412,7 +2412,7 @@ document.querySelectorAll('#diff button').forEach(b => b.onclick = () => {
 });
 showDifficulty();
 // Geluid aan/uit: knop rechtsboven, of de toets M.
-function showMute() { const b = $('mute'); b.textContent = SFX.muted ? 'Geluid uit' : 'Geluid aan'; b.setAttribute('aria-pressed', String(!SFX.muted)); }
+function showMute() { const b = $('mute'); b.textContent = SFX.muted ? 'Sound off' : 'Sound on'; b.setAttribute('aria-pressed', String(!SFX.muted)); }
 $('slot_melee').onclick = () => { switchTo('melee'); $('slot_melee').blur(); };
 $('slot_ranged').onclick = () => { switchTo('ranged'); $('slot_ranged').blur(); };
 $('mute').onclick = () => { SFX.init(); SFX.setMuted(!SFX.muted); if (!SFX.muted && SFX.volume === 0) SFX.setVolume(.6); showVolume(); };
@@ -2429,22 +2429,22 @@ function openStats(mode = 'town') {
 }
 function statEffect(k, n) {
   const v = { ...S.stats, [k]: n };
-  return { strength: `${fmt(WEAPONS[S.melee].dmg + STAT_RULES.dmg * v.strength)} schade`,
-           agility: `snelheid ${PLAYER.speed + STAT_RULES.speed * v.agility}`,
-           vitality: `${PLAYER.hp + STAT_RULES.hp * v.vitality} leven` }[k];
+  return { strength: `${fmt(WEAPONS[S.melee].dmg + STAT_RULES.dmg * v.strength)} damage`,
+           agility: `speed ${PLAYER.speed + STAT_RULES.speed * v.agility}`,
+           vitality: `${PLAYER.hp + STAT_RULES.hp * v.vitality} health` }[k];
 }
 function renderStats() {
   const list = $('statList'); list.innerHTML = '';
   for (const [k, d] of Object.entries(STATS)) {
     const li = document.createElement('li');
     li.innerHTML = `<div><b>${d.nl}</b><span class="eff">${statEffect(k, S.stats[k])}</span></div>
-      <div class="stepper"><button aria-label="${d.nl} omlaag" ${added[k] ? '' : 'disabled'}>−</button><output aria-label="${S.stats[k]}">${S.stats[k] ? toRoman(S.stats[k]) : '–'}</output><button aria-label="${d.nl} omhoog" ${S.points ? '' : 'disabled'}>+</button></div>`;
+      <div class="stepper"><button aria-label="${d.nl} down" ${added[k] ? '' : 'disabled'}>−</button><output aria-label="${S.stats[k]}">${S.stats[k] ? toRoman(S.stats[k]) : '–'}</output><button aria-label="${d.nl} up" ${S.points ? '' : 'disabled'}>+</button></div>`;
     const [minus, plus] = li.querySelectorAll('button');
     minus.onclick = () => { added[k]--; S.stats[k]--; S.points++; renderStats(); };
     plus.onclick = () => { added[k]++; S.stats[k]++; S.points--; renderStats(); };
     list.appendChild(li);
   }
-  $('statsBtn').textContent = statsMode === 'arena' ? 'Naar de arena' : 'Verder';
+  $('statsBtn').textContent = statsMode === 'arena' ? 'To the arena' : 'Continue';
   $('statsTitle').textContent = S.points ? toRoman(S.points) : '';
 }
 $('statsBtn').onclick = () => {

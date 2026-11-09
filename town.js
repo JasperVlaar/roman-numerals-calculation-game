@@ -254,14 +254,15 @@ const TOWN = (() => {
     el('rect', { x, y, width: w, height: h, rx: 4 * s, fill: open ? '#3a2a1e' : '#2e2420', stroke: open ? '#d49a48' : '#6d6458', 'stroke-width': 2.2 * s, class: 'sign' }, g);
     const t1 = el('text', { x: ax, y: y + h * .45, 'text-anchor': 'middle', 'font-family': 'Cinzel, Georgia, serif', 'font-weight': 700, 'font-size': 19 * s, 'letter-spacing': 2 * s, fill: open ? '#e2b35e' : '#8d8172' }, g);
     t1.textContent = def.nl.toUpperCase();
+    if (def.nl.length > 9) t1.setAttribute('font-size', 19 * s * 9 / def.nl.length);   // lange naam: kleiner, zodat hij op het bord past
     const t2 = el('text', { x: ax, y: y + h * .8, 'text-anchor': 'middle', 'font-family': 'Alegreya Sans, sans-serif', 'font-size': 13 * s, fill: open ? '#f5ead6' : '#8d8172' }, g);
-    t2.textContent = open ? '' : def.after ? `na toernooi ${toRoman(def.after)}` : '';
+    t2.textContent = open ? '' : def.after ? `after tournament ${toRoman(def.after)}` : '';
     if (open) t1.setAttribute('y', y + h * .62);   // één regel: midden op het bord
     // klikvlak: gevel, luifel en bord samen
     const hit = el('polygon', { class: 'hl', points: poly([pt(side, sp.x0, 0), pt(side, sp.x1, 0), out(side, sp.x1, .54, 70), [side < 0 ? x + w : x, y], [side < 0 ? x : x + w, y], pt(side, sp.x0, .66)]) }, g);
     g.insertBefore(hit, g.firstChild);
-    el('title', {}, g).textContent = open ? `${def.nl} (${def.la})` : `${def.nl}: nog dicht`;
-    if (open) { g.setAttribute('tabindex', '0'); g.setAttribute('role', 'button'); g.setAttribute('aria-label', `${def.nl} binnengaan`); }
+    el('title', {}, g).textContent = open ? `${def.nl} (${def.la})` : `${def.nl}: still closed`;
+    if (open) { g.setAttribute('tabindex', '0'); g.setAttribute('role', 'button'); g.setAttribute('aria-label', `Enter the ${def.nl.toLowerCase()}`); }
     return g;
   }
 
@@ -369,14 +370,14 @@ const TOWN = (() => {
     el('rect', { x, y, width: w, height: h, rx: 6, fill: due ? '#4a1512' : '#3a2a1e', stroke: due ? '#d4463b' : '#d49a48', 'stroke-width': 2.2, class: 'sign' }, g);
     const t1 = el('text', { x: 480, y: y + 32, 'text-anchor': 'middle', 'font-family': 'Cinzel, Georgia, serif', 'font-weight': 700, 'font-size': 20, 'letter-spacing': 4, fill: '#e2b35e' }, g);
     t1.textContent = 'ARENA';
-    const sub = due ? `Toernooi ${toRoman(S.stage + 1)}` : fightLabel();
-    g.setAttribute('aria-label', `Naar de arena: ${sub}`);
+    const sub = due ? `Tournament ${toRoman(S.stage + 1)}` : fightLabel();
+    g.setAttribute('aria-label', `To the arena: ${sub}`);
     el('title', {}, g).textContent = sub;
   }
   // Het eerstvolgende gewone gevecht (of de herkansing).
   function fightLabel() {
     const retry = S.over === 'lost' && S.mode === 'fight';
-    return `Gevecht ${toRoman(fightNumber())}${retry ? ' (opnieuw)' : S.finished ? ' (herhaling)' : ''}`;
+    return `Fight ${toRoman(fightNumber())}${retry ? ' (retry)' : S.finished ? ' (rematch)' : ''}`;
   }
   // Voortgang in dit blok: één bolletje per gewonnen gevecht.
   function pips() {
@@ -398,20 +399,20 @@ const TOWN = (() => {
       }));
     } else {
       box.appendChild(card({
-        title: `Gevecht ${toRoman(fightNumber() + 1)}`,
+        title: `Fight ${toRoman(fightNumber() + 1)}`,
         lines: [pips()],
         locked: true
       }));
     }
     // Toernooi
     if (S.finished) {
-      box.appendChild(card({ title: 'Toernooi', lines: [], locked: true }));
+      box.appendChild(card({ title: 'Tournament', lines: [], locked: true }));
     } else {
       const t = st.tourney, boss = roundsOf(t).at(-1);
       const retry = S.over === 'lost' && S.mode === 'tournament', early = S.inStage < n;
       box.appendChild(card({
-        title: `Toernooi ${toRoman(S.stage + 1)}${retry ? ' (opnieuw)' : ''}`,
-        lines: [`${toRoman(t.rounds.length)} rondes · ${listSummary(boss)}`, `${t.reward} d`],
+        title: `Tournament ${toRoman(S.stage + 1)}${retry ? ' (retry)' : ''}`,
+        lines: [`${toRoman(t.rounds.length)} rounds · ${listSummary(boss)}`, `${t.reward} d`],
         cls: 'deadly', go: () => go('tournament')
       }));
     }
@@ -437,8 +438,8 @@ const TOWN = (() => {
     const CAT = { x: 610, y: 470, s: 1.15, purr: 6 };   // plek (rechts op straat) en hoe lang hij blijft liggen na een aai
     let g = null, back = false, timer = 0;
     function draw(svg) {
-      g = el('g', { class: 'cat', tabindex: 0, role: 'button', 'aria-label': 'Aai de kat' }, svg);
-      el('title', {}, g).textContent = 'Aai de kat';
+      g = el('g', { class: 'cat', tabindex: 0, role: 'button', 'aria-label': 'Pet the cat' }, svg);
+      el('title', {}, g).textContent = 'Pet the cat';
       pose(); g.addEventListener('click', pet);
       g.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); pet(); } });
     }
@@ -517,7 +518,7 @@ const TOWN = (() => {
 
   function render() {
     const host = $('townArt'); host.innerHTML = '';
-    const svg = el('svg', { viewBox: `0 0 ${VB.w} ${VB.h}`, class: 'town-svg', role: 'group', 'aria-label': 'De straat naar de arena' }, host);
+    const svg = el('svg', { viewBox: `0 0 ${VB.w} ${VB.h}`, class: 'town-svg', role: 'group', 'aria-label': 'The street to the arena' }, host);
     defs(svg); sky(svg);
     arenaSpot(svg);
     street(svg); walls(svg);
@@ -565,25 +566,25 @@ const TOWN = (() => {
         info = it.short; cmp = '';
       } else if (it.kind === 'bow') {
         const cd = it.cooldown * Math.max(STAT_RULES.shootMin, 1 - STAT_RULES.shoot * S.stats.agility);
-        info = `${fmt(it.dmg)} schade · bereik ${it.range} · ${fmt(Math.round(cd * 100) / 100)} s`; cmp = '';
+        info = `${fmt(it.dmg)} damage · range ${it.range} · ${fmt(Math.round(cd * 100) / 100)} s`; cmp = '';
       } else {
         const now = WEAPONS[S.melee], diff = it.dmg - now.dmg;
-        info = `${fmt(it.dmg)} schade · bereik ${it.reach}`; cmp = diff && !worn ? `${diff > 0 ? '+' : ''}${fmt(diff)}` : '';
+        info = `${fmt(it.dmg)} damage · reach ${it.reach}`; cmp = diff && !worn ? `${diff > 0 ? '+' : ''}${fmt(diff)}` : '';
       }
       // kan het samen met wat je nu hebt?
-      const clash = isGear && it.needsBow && !S.ranged ? 'koop eerst een boog' : '';
+      const clash = isGear && it.needsBow && !S.ranged ? 'buy a bow first' : '';
       const locked = !owned && !itemOpen(key);   // pas te koop na een later toernooi
       const li = document.createElement('li');
       li.innerHTML = `${SHOPART.icon(key)}<div><b>${it.name}</b><span>${info}${cmp ? ` <i class="eff">${cmp}</i>` : ''}</span></div>`;
       if (worn) li.classList.add('worn');
       const b = document.createElement('button'); b.className = 'btn';
       if (worn && key === 'quiver') { b.textContent = '✓'; b.disabled = true; }   // afdoen zou pijlen kosten
-      else if (worn && isGear) { b.textContent = 'Doe af'; b.onclick = () => { S.gear[it.slot] = null; changed(); }; }
+      else if (worn && isGear) { b.textContent = 'Take off'; b.onclick = () => { S.gear[it.slot] = null; changed(); }; }
       else if (worn) { b.textContent = '✓'; b.disabled = true; }
-      else if (owned && clash) { b.textContent = 'Doe aan'; b.disabled = true; b.title = clash; }
-      else if (owned) { b.textContent = isGear ? 'Doe aan' : 'Neem mee'; b.onclick = () => equip(key); }
-      else if (locked) { b.textContent = `na ${toRoman(it.after)}`; b.disabled = true; b.title = `te koop na toernooi ${toRoman(it.after)}`; li.classList.add('locked'); }
-      else { b.textContent = `${it.price} d`; b.disabled = !rich || !!clash; if (clash) b.title = clash; b.setAttribute('aria-label', `${it.name} kopen voor ${it.price} denarii`); b.onclick = () => buy(key); }
+      else if (owned && clash) { b.textContent = 'Wear'; b.disabled = true; b.title = clash; }
+      else if (owned) { b.textContent = isGear ? 'Wear' : 'Take'; b.onclick = () => equip(key); }
+      else if (locked) { b.textContent = `after ${toRoman(it.after)}`; b.disabled = true; b.title = `for sale after tournament ${toRoman(it.after)}`; li.classList.add('locked'); }
+      else { b.textContent = `${it.price} d`; b.disabled = !rich || !!clash; if (clash) b.title = clash; b.setAttribute('aria-label', `Buy ${it.name} for ${it.price} denarii`); b.onclick = () => buy(key); }
       li.appendChild(b); list.appendChild(li);
     }
     const priceOf = k => (GEAR[k] || WEAPONS[k]).price;
@@ -605,9 +606,9 @@ const TOWN = (() => {
   // Pijlen: aanvullen tot je koker vol is (of zoveel als je kunt betalen).
   function arrowRow() {
     const li = document.createElement('li'), room = me.ammoMax - S.ammo, n = Math.min(room, Math.floor(S.money / AMMO.price));
-    li.innerHTML = `${SHOPART.icon('arrows')}<div><b>Pijlen</b><span>${S.ammo}/${me.ammoMax}</span></div>`;
+    li.innerHTML = `${SHOPART.icon('arrows')}<div><b>Arrows</b><span>${S.ammo}/${me.ammoMax}</span></div>`;
     const b = document.createElement('button'); b.className = 'btn';
-    if (!room) { b.textContent = 'Vol'; b.disabled = true; }
+    if (!room) { b.textContent = 'Full'; b.disabled = true; }
     else { b.textContent = n ? `+${n} · ${n * AMMO.price} d` : `${AMMO.price} d`; b.disabled = !n; b.onclick = () => { S.money -= n * AMMO.price; S.ammo += n; SFX.hit(); changed(); }; }
     li.appendChild(b); return li;
   }
