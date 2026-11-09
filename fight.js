@@ -56,12 +56,12 @@ const WEAPONS = {
 };
 const isBow = k => !!k && WEAPONS[k].kind === 'bow';
 // Twee wapenvakken: melee (dichtbij) en ranged (boog). Wisselen met 1 en 2 duurt switchTime seconden;
-// met een boog in je handen loop je speedMul zo snel (de strijdwagen niet).
-const ARMS = { switchTime: 1, speedMul: .4 };
+// met een boog in je handen loop je speedMul zo snel (1 = gewoon tempo; de strijdwagen telt niet mee).
+const ARMS = { switchTime: 1, speedMul: 1 };
 // Strijdwagen: speed = topsnelheid, cruise = zo hard rijd je als je niet stuurt (stilstaan kan niet), turn = draaien (rad/s, sneller als je langzaam gaat),
 // turnSlow = bij een scherpe bocht remt hij af tot dit deel van de topsnelheid, zodat je kunt bijsturen;
 // ram = schade als je iemand omverrijdt met meer dan ramSpeed (paarden voorop: reach); ramCd = zoveel seconden voor je dezelfde weer kunt raken.
-const CHARIOT = { speed: 120, cruise: 55, accel: 2.4, turn: 4.2, turnSlow: .45, ram: 5, ramSpeed: 80, ramPush: 260, ramCd: .7, reach: 26 };
+const CHARIOT = { speed: 105, cruise: 55, accel: 2.4, turn: 4.2, turnSlow: .45, ram: 5, ramSpeed: 80, ramPush: 260, ramCd: .7, reach: 26 };
 // windup = hoe lang een tegenstander aanzet voor hij uithaalt; recover = even stilstaan erna.
 const FOES = {
   slave: { name: 'slaaf', plural: 'slaven', hp: 14, dmg: 2, armor: 0, attack: 0, defense: 0, speed: 68, radius: 10, reach: 10, windup: .36, recover: .45, cooldown: 1.6, lunge: 9,
@@ -1587,12 +1587,13 @@ function drawArrows() {
 }
 function drawFoe(f, now) {
   const d = f.d;
+  if (f.state === 'dead' && d.animal) { drawDeadAnimal(f, now); return; }
   if (f.state === 'dead') { drawFallen(f, d.radius, d.tunic, C[d.skin], f.dead); return; }
   const wind = f.state === 'windup' ? 1 - f.t / d.windup : 0;
   if (f.mount) { drawMounted(f, wind, now); return; }
   if (d.ranged) { drawArcher(f, wind); return; }
   if (f.state === 'aimJav') drawJavTarget(f.target.x, f.target.y, 1 - f.t / (d.hasta ? d.hasta.windup : d.windup));
-  if (d.dash) { drawTiger(f, wind); return; }
+  if (d.dash) { drawTiger(f, wind, now); return; }
   if (d.ai === 'lion') { drawLion(f, wind, now); return; }
   if (d.ai === 'hyena') { drawHyena(f, wind, now); return; }
   if (d.ai === 'bear') { drawBear(f, wind, now); return; }
@@ -1939,33 +1940,125 @@ function drawScutumFoe(f, r, blocks = true) {
 }
 // Leeuw van bovenaf: lang lijf, manen om de kop, staart. Bij het richten een rode pijl in de richting waarin hij gaat springen.
 // Katachtige van bovenaf (tijger en leeuw): lang lijf, kop, staart. opts: kleur, strepen, manen.
-function drawCat(f, wind, o) {
-  const d = f.d, r = d.radius, fl = f.flash > 0;
+/* ---------- Dieren, van bovenaf getekend met de kop naar +x ---------- */
+const EDGE = 'rgba(30,15,8,.8)';
+// Loopbeweging van een dier: fase van de poten en hoeveel het nu loopt (0–1), uit hoe ver het sinds de vorige frame bewoog.
+function gait(f, stride) {
+  const d = f.lx === undefined || S.paused ? 0 : Math.hypot(f.x - f.lx, f.y - f.ly);
+  f.lx = f.x; f.ly = f.y;
+  f.gph = (f.gph || 0) + Math.min(d, 12) / stride * Math.PI;
+  f.gamt = (f.gamt || 0) * .85 + Math.min(1, d * .8) * .15;
+  return [f.gph, f.state === 'dead' ? 0 : f.gamt];
+}
+// Eén silhouet uit een paar ellipsen: eerst de rand van alles, dan de vulling, zodat er binnenin geen lijnen staan.
+function blob(parts, fill, lw = 2.6) {
+  const p = new Path2D();
+  for (const [x, y, rx, ry, rot = 0] of parts) { p.moveTo(x + rx * Math.cos(rot), y + rx * Math.sin(rot)); p.ellipse(x, y, rx, ry, rot, 0, TAU2); }
+  ctx.lineWidth = lw; ctx.strokeStyle = EDGE; ctx.stroke(p); ctx.fillStyle = fill; ctx.fill(p);
+  return p;
+}
+// Vier poten die onder het lijf uitsteken; schuin tegenover elkaar lopen ze gelijk op.
+function paws(list, ph, amt, swing, color, rx, ry) {
+  ctx.fillStyle = color; ctx.strokeStyle = EDGE; ctx.lineWidth = 1.2;
+  for (const [x, y, k] of list) { ctx.beginPath(); ctx.ellipse(x + Math.sin(ph + k) * swing * amt, y, rx, ry, 0, 0, TAU2); ctx.fill(); ctx.stroke(); }
+}
+// Staart als kromme vanaf het achterlijf; geeft het puntje terug.
+function tailPath(x0, len, sway) {
+  ctx.beginPath(); ctx.moveTo(x0, 0); ctx.bezierCurveTo(x0 - len * .4, sway * .2, x0 - len * .7, sway, x0 - len, sway * .7);
+  return [x0 - len, sway * .7];
+}
+function eyes(x, y, dead, size = 1.3) {
+  size = Math.max(.8, size);
+  ctx.fillStyle = '#1a0e08'; ctx.strokeStyle = '#1a0e08'; ctx.lineWidth = 1;
+  for (const s of [-1, 1]) {
+    if (dead) { ctx.beginPath(); ctx.moveTo(x - size, s * y); ctx.lineTo(x + size, s * y); ctx.stroke(); }
+    else { ctx.beginPath(); ctx.arc(x, s * y, size, 0, TAU2); ctx.fill(); }
+  }
+}
+// Grote kat (tijger en leeuw): lang lijf met schouders en heupen, staart, poten die meelopen, brede kop.
+function drawCat(f, wind, o, now) {
+  const d = f.d, r = d.radius, fl = f.flash > 0, dead = f.state === 'dead', wf = c => fl ? '#fff' : c;
+  const [ph, amt] = gait(f, r * 1.1);
   ctx.save(); ctx.translate(f.x, f.y);
-  ctx.fillStyle = 'rgba(40,20,8,.28)'; ctx.beginPath(); ctx.ellipse(3, 4, r * 1.6, r * .9, f.face, 0, TAU2); ctx.fill();
+  ctx.fillStyle = 'rgba(40,20,8,.28)'; ctx.beginPath(); ctx.ellipse(3, 4, r * 1.6, r * .85, f.face, 0, TAU2); ctx.fill();
   ctx.rotate(f.face);
   const crouch = wind > 0 ? 1 - .15 * wind : 1, stretch = f.state === 'dash' ? 1.15 : 1;
   ctx.scale(stretch, crouch);
-  ctx.strokeStyle = fl ? '#fff' : o.tail; ctx.lineWidth = 3; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(-r * 1.3, 0); ctx.quadraticCurveTo(-r * 2, r * .6 * Math.sin(performance.now() / 200), -r * 2.3, r * .2); ctx.stroke();   // staart
-  ctx.lineCap = 'butt'; ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(30,15,8,.75)';
-  ctx.fillStyle = fl ? '#fff' : (wind > 0 ? mix(o.body, C.blood, .4 * wind) : o.body);
-  ctx.beginPath(); ctx.ellipse(-r * .2, 0, r * 1.35, r * .75, 0, 0, TAU2); ctx.fill(); ctx.stroke();   // lijf
-  if (o.stripes && !fl) {   // tijgerstrepen dwars over de rug
-    ctx.strokeStyle = '#1e1410'; ctx.lineWidth = 2; ctx.lineCap = 'round';
-    for (const x of [-1.15, -.75, -.35, .05, .45]) { ctx.beginPath(); ctx.moveTo(r * x, -r * .62); ctx.quadraticCurveTo(r * (x + .12), 0, r * x, r * .62); ctx.stroke(); }
-    ctx.lineCap = 'butt'; ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(30,15,8,.75)';
+  const body = wind > 0 ? mix(o.body, C.blood, .4 * wind) : o.body, dark = mix(o.body, '#000000', .28);
+  // staart
+  const sway = dead ? r * .4 : Math.sin(now / 260 + (f.seed ??= Math.random() * 6)) * r * .5;
+  ctx.lineCap = 'round';
+  const [tx, ty] = tailPath(-r * 1.05, r * 1.3, sway);
+  ctx.strokeStyle = EDGE; ctx.lineWidth = 4.8; ctx.stroke();
+  ctx.strokeStyle = wf(o.tail); ctx.lineWidth = 2.8; ctx.stroke();
+  if (o.stripes && !fl) { ctx.strokeStyle = '#1e1410'; ctx.lineWidth = 2.4; ctx.setLineDash([1.6, 3.6]); ctx.stroke(); ctx.setLineDash([]); }
+  ctx.lineCap = 'butt';
+  if (o.tuft) { ctx.fillStyle = wf(o.tuft); ctx.strokeStyle = EDGE; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.ellipse(tx - 1, ty, r * .2, r * .15, 0, 0, TAU2); ctx.fill(); ctx.stroke(); }
+  else if (!fl) { ctx.fillStyle = '#1e1410'; ctx.beginPath(); ctx.arc(tx, ty, 1.6, 0, TAU2); ctx.fill(); }
+  // poten
+  paws([[r * .72, -r * .5, 0], [r * .72, r * .5, Math.PI], [-r * .78, -r * .45, Math.PI], [-r * .78, r * .45, 0]], ph, amt, r * .3, wf(dark), r * .22, r * .15);
+  // lijf: heupen, middel, schouders
+  const p = blob([[-r * .62, 0, r * .52, r * .44], [-r * .1, 0, r * .8, r * .4], [r * .4, 0, r * .55, r * .5]], wf(body));
+  if (!fl) {
+    ctx.save(); ctx.clip(p);
+    ctx.fillStyle = 'rgba(0,0,0,.09)'; ctx.beginPath(); ctx.ellipse(-r * .1, 0, r * 1.2, r * .16, 0, 0, TAU2); ctx.fill();   // ruglijn
+    ctx.fillStyle = 'rgba(255,240,210,.12)'; ctx.beginPath(); ctx.ellipse(0, -r * .32, r * 1.1, r * .14, 0, 0, TAU2); ctx.fill();   // licht op de flank
+    if (o.stripes) {   // strepen als wiggen vanaf de ruggengraat naar de flank
+      ctx.fillStyle = '#1e1410';
+      for (const [x, l, w] of [[-1.08, .45, .05], [-.84, .62, .045], [-.62, .4, .04], [-.42, .6, .05], [-.2, .45, .04], [.02, .62, .05], [.25, .42, .04], [.46, .58, .045], [.66, .4, .035]]) for (const s of [-1, 1]) {
+        const xx = x + (s > 0 ? .1 : 0), ll = s > 0 ? .95 - l : l + .05, bend = s > 0 ? .1 : .06;   // links en rechts verspringen en verschillen in lengte
+        ctx.beginPath(); ctx.moveTo(r * (xx - w), s * r * .08);
+        ctx.quadraticCurveTo(r * (xx + bend), s * r * ll * .55, r * (xx - .04), s * r * (ll + .04));
+        ctx.quadraticCurveTo(r * (xx + bend - w * 1.4), s * r * ll * .5, r * (xx + w), s * r * .08); ctx.closePath(); ctx.fill();
+      }
+    }
+    ctx.restore();
   }
-  if (o.mane) { ctx.fillStyle = fl ? '#fff' : o.mane; ctx.beginPath(); ctx.arc(r * .9, 0, r * .78, 0, TAU2); ctx.fill(); ctx.stroke(); }   // manen
-  ctx.fillStyle = fl ? '#fff' : o.head; ctx.beginPath(); ctx.ellipse(r * 1.15, 0, r * .48, r * .42, 0, 0, TAU2); ctx.fill(); ctx.stroke();   // kop
-  if (o.stripes && !fl) { ctx.fillStyle = '#f4ead8'; ctx.beginPath(); ctx.ellipse(r * 1.42, 0, r * .16, r * .2, 0, 0, TAU2); ctx.fill(); }   // witte snoet
-  if (o.roar) { ctx.fillStyle = '#5a1c16'; ctx.beginPath(); ctx.ellipse(r * 1.5, 0, r * .14 * o.roar, r * .12, 0, 0, TAU2); ctx.fill(); }   // open bek
-  ctx.fillStyle = '#2a1a12'; for (const s2 of [-1, 1]) { ctx.beginPath(); ctx.arc(r * 1.3, s2 * r * .17, 1.3, 0, TAU2); ctx.fill(); }
+  const hx = r * 1.05;
+  // manen van de leeuw: ruige krans om de kop
+  if (o.mane) {
+    const parts = [];
+    for (let i = 0; i < 14; i++) { const a = i / 14 * TAU2; parts.push([hx - r * .12 + Math.cos(a) * r * .5, Math.sin(a) * r * .55, r * .26, r * .2, a]); }
+    const m = blob(parts, wf(o.mane));
+    if (!fl) {
+      ctx.save(); ctx.clip(m); ctx.strokeStyle = mix(o.mane, '#000000', .3); ctx.lineWidth = 1; ctx.lineCap = 'round';
+      for (let i = 0; i < 18; i++) { const a = i / 18 * TAU2 + .1; ctx.beginPath(); ctx.moveTo(hx - r * .12 + Math.cos(a) * r * .45, Math.sin(a) * r * .5); ctx.lineTo(hx - r * .12 + Math.cos(a + .12) * r * .78, Math.sin(a + .12) * r * .8); ctx.stroke(); }
+      ctx.lineCap = 'butt'; ctx.restore();
+    }
+  }
+  // oren (achter de kop)
+  for (const s of [-1, 1]) {
+    ctx.fillStyle = wf(o.mane ? mix(o.head, '#000000', .2) : '#1e1410'); ctx.strokeStyle = EDGE; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.ellipse(hx - r * .2, s * r * .33, r * .14, r * .12, 0, 0, TAU2); ctx.fill(); ctx.stroke();
+    if (o.stripes && !fl) { ctx.fillStyle = '#f4ead8'; ctx.beginPath(); ctx.arc(hx - r * .22, s * r * .34, r * .05, 0, TAU2); ctx.fill(); }   // witte vlek achter op het oor
+  }
+  // kop met wangen en snuit
+  const hp = blob([[hx, 0, r * .4, r * .37], [hx + r * .3, 0, r * .2, r * .22]].concat(o.ruff ? [[hx + r * .02, -r * .28, r * .22, r * .15, -.4], [hx + r * .02, r * .28, r * .22, r * .15, .4]] : []), wf(o.head));
+  if (!fl) {
+    ctx.save(); ctx.clip(hp);
+    if (o.ruff) { ctx.fillStyle = '#f4ead8'; for (const s of [-1, 1]) { ctx.beginPath(); ctx.ellipse(hx + r * .08, s * r * .34, r * .2, r * .12, s * .4, 0, TAU2); ctx.fill(); } }   // witte wangen
+    if (o.stripes) {   // strepen op het voorhoofd
+      ctx.strokeStyle = '#1e1410'; ctx.lineWidth = 1.1; ctx.lineCap = 'round';
+      ctx.lineWidth = .8;
+      for (const s of [-1, 1]) for (const k of [0, 1]) { ctx.beginPath(); ctx.moveTo(hx - r * (.32 - k * .1), s * r * (.1 + k * .04)); ctx.lineTo(hx - r * (.2 - k * .1), s * r * (.17 + k * .05)); ctx.stroke(); }
+      ctx.lineCap = 'butt';
+    }
+    ctx.fillStyle = o.muzzle; ctx.beginPath(); ctx.ellipse(hx + r * .32, 0, r * .17, r * .2, 0, 0, TAU2); ctx.fill();   // lichte snuit
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(255,255,255,.45)'; ctx.lineWidth = .5;   // snorharen
+    for (const s of [-1, 1]) for (const k of [-.05, .05]) { ctx.beginPath(); ctx.moveTo(hx + r * .38, s * r * .15); ctx.lineTo(hx + r * (.46 + k), s * r * (.32 + k)); ctx.stroke(); }
+  }
+  if (o.roar) {   // open bek met tanden
+    ctx.fillStyle = '#5a1c16'; ctx.beginPath(); ctx.ellipse(hx + r * .5, 0, r * .12 * o.roar, r * .14, 0, 0, TAU2); ctx.fill();
+    ctx.fillStyle = '#f4ead8'; for (const s of [-1, 1]) { ctx.beginPath(); ctx.arc(hx + r * .5, s * r * .1, 1, 0, TAU2); ctx.fill(); }
+  }
+  ctx.fillStyle = wf('#4a2a22'); ctx.beginPath(); ctx.moveTo(hx + r * .5, 0); ctx.lineTo(hx + r * .42, -r * .07); ctx.lineTo(hx + r * .42, r * .07); ctx.closePath(); ctx.fill();   // neus
+  eyes(hx + r * .1, r * .15, dead, r * .085);
   ctx.restore();
 }
-function drawTiger(f, wind) {
+function drawTiger(f, wind, now) {
   if (wind > 0) drawChargeArrow(f, f.d.dash.speed * f.d.dash.time, wind);
-  drawCat(f, wind, { body: f.d.tunic, head: '#e08a3e', tail: '#b85e22', stripes: true });
+  drawCat(f, wind, { body: f.d.tunic, head: '#e08a3e', tail: '#d9782e', muzzle: '#f4ead8', stripes: true, ruff: true }, now);
 }
 // Leeuw: bij het brullen een ring om hem heen (zo ver reikt de brul); bij de sprong een korte rode pijl.
 function drawLion(f, wind, now) {
@@ -1975,12 +2068,12 @@ function drawLion(f, wind, now) {
     ctx.strokeStyle = `rgba(212,70,59,${.15 + .5 * k})`; ctx.lineWidth = 2 + 2 * k; ctx.setLineDash([6, 6]);
     ctx.beginPath(); ctx.arc(f.x, f.y, d.roar.radius, 0, TAU2); ctx.stroke(); ctx.setLineDash([]);
   }
-  if (f.roared > 0) {   // de brul: een golf die naar buiten gaat
+  if (f.roared > 0 && f.state !== 'dead') {   // de brul: een golf die naar buiten gaat
     const k = 1 - f.roared / .5;
     ctx.strokeStyle = `rgba(245,234,214,${.6 * (1 - k)})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(f.x, f.y, d.roar.radius * (.3 + .7 * k), 0, TAU2); ctx.stroke();
   }
   if (f.state === 'windup') drawChargeArrow(f, d.pounce.speed * d.pounce.time, 1 - f.t / d.windup);
-  drawCat(f, wind, { body: d.tunic, head: '#d8a45a', tail: '#9a6a2e', mane: '#7a4a1e', roar: f.state === 'roar' ? 1 + Math.sin(now / 60) * .3 : 0 });
+  drawCat(f, wind, { body: d.tunic, head: '#d8a45a', tail: '#c08a48', tuft: '#5a3416', mane: '#7a4a1e', muzzle: '#ecd6ae', roar: f.state === 'roar' ? 1 + Math.sin(now / 60) * .3 : 0 }, now);
 }
 // Rode waaier voor een brede klap (beer, slurf van de olifant).
 function drawFan(f, len, arc, k) {
@@ -1988,30 +2081,56 @@ function drawFan(f, len, arc, k) {
   ctx.fillStyle = `rgba(212,70,59,${.1 + .3 * k})`; ctx.strokeStyle = `rgba(212,70,59,${.3 + .5 * k})`; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, len, -arc, arc); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
 }
-// Beer van bovenaf: dik bruin lijf, ronde kop met oortjes en snuit. Op de achterpoten: groter, met klauwen naar voren.
+// Beer van bovenaf: ruige vacht, schouderbult, ronde kop met oortjes en snuit. Op de achterpoten: groter, klauwen naar voren.
 function drawBear(f, wind, now) {
-  const d = f.d, r = d.radius, fl = f.flash > 0, up = f.state === 'windup';
+  const d = f.d, r = d.radius, fl = f.flash > 0, dead = f.state === 'dead', up = f.state === 'windup', wf = c => fl ? '#fff' : c;
+  const [ph, amt] = gait(f, r * .9);
   if (up) drawFan(f, d.reach + r + d.lunge + PLAYER.radius, d.swipe.arc, wind);
   ctx.save(); ctx.translate(f.x, f.y);
-  ctx.fillStyle = 'rgba(40,20,8,.28)'; ctx.beginPath(); ctx.ellipse(3, 4, r * 1.3, r * .9, f.face, 0, TAU2); ctx.fill();
+  ctx.fillStyle = 'rgba(40,20,8,.28)'; ctx.beginPath(); ctx.ellipse(3, 4, r * 1.3, r * .95, f.face, 0, TAU2); ctx.fill();
   ctx.rotate(f.face); const sc = up ? 1 + .15 * wind : 1; ctx.scale(sc, sc);
-  ctx.strokeStyle = 'rgba(30,15,8,.75)'; ctx.lineWidth = 1.4;
-  const body = fl ? '#fff' : f.raged ? mix(d.tunic, '#8e1f1a', .3) : d.tunic;
-  ctx.fillStyle = body; ctx.beginPath(); ctx.ellipse(-r * .2, 0, r * 1.15, r * .9, 0, 0, TAU2); ctx.fill(); ctx.stroke();
+  const body = f.raged ? mix(d.tunic, '#8e1f1a', .3) : d.tunic, dark = mix(body, '#000000', .3);
+  paws([[-r * .85, -r * .55, Math.PI], [-r * .85, r * .55, 0]], ph, amt, r * .25, wf(dark), r * .26, r * .2);   // achterpoten
   const paw = up ? r * .8 : f.lunge > 0 ? r * (.6 + .6 * f.lunge) : r * .45;   // voorpoten
-  for (const s2 of [-1, 1]) {
-    ctx.fillStyle = body; ctx.beginPath(); ctx.ellipse(paw, s2 * r * .7, r * .3, r * .24, 0, 0, TAU2); ctx.fill(); ctx.stroke();
-    if (!fl) { ctx.strokeStyle = '#f4ead8'; ctx.lineWidth = 1; for (const k of [-1, 0, 1]) { ctx.beginPath(); ctx.moveTo(paw + r * .28, s2 * r * .7 + k * 2.2); ctx.lineTo(paw + r * .42, s2 * r * .7 + k * 2.6); ctx.stroke(); } ctx.strokeStyle = 'rgba(30,15,8,.75)'; ctx.lineWidth = 1.4; }
+  for (const s of [-1, 1]) {
+    const px = paw + (up || f.lunge > 0 ? 0 : Math.sin(ph + (s > 0 ? Math.PI : 0)) * r * .22 * amt);
+    ctx.fillStyle = wf(dark); ctx.strokeStyle = EDGE; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.ellipse(px, s * r * .72, r * .3, r * .24, 0, 0, TAU2); ctx.fill(); ctx.stroke();
+    if (!fl) { ctx.strokeStyle = '#f4ead8'; ctx.lineWidth = 1.1; ctx.lineCap = 'round'; for (const k of [-1, 0, 1]) { ctx.beginPath(); ctx.moveTo(px + r * .26, s * r * .72 + k * 2.4); ctx.lineTo(px + r * .42, s * r * .72 + k * 2.9); ctx.stroke(); } ctx.lineCap = 'butt'; }
   }
-  ctx.fillStyle = fl ? '#fff' : mix(d.tunic, '#000000', .15); ctx.beginPath(); ctx.arc(r * .75, 0, r * .52, 0, TAU2); ctx.fill(); ctx.stroke();   // kop
-  for (const s2 of [-1, 1]) { ctx.beginPath(); ctx.arc(r * .55, s2 * r * .42, r * .16, 0, TAU2); ctx.fill(); ctx.stroke(); }   // oortjes
-  ctx.fillStyle = fl ? '#fff' : '#b08a62'; ctx.beginPath(); ctx.ellipse(r * 1.15, 0, r * .22, r * .18, 0, 0, TAU2); ctx.fill();   // snuit
-  ctx.fillStyle = '#1a0c08'; ctx.beginPath(); ctx.arc(r * 1.3, 0, r * .07, 0, TAU2); ctx.fill();
+  // lijf met ruige rand; woedend staan de haren meer overeind
+  const p = new Path2D(), jag = f.raged ? .1 : .06, n = 40;
+  for (let i = 0; i <= n; i++) {
+    const a = i / n * TAU2, k = 1 + (i % 2 ? jag : 0) + Math.sin(i * 2.3) * .02;
+    const x = -r * .15 + Math.cos(a) * r * 1.12 * k, y = Math.sin(a) * r * .86 * k;
+    i ? p.lineTo(x, y) : p.moveTo(x, y);
+  }
+  ctx.lineWidth = 2.6; ctx.strokeStyle = EDGE; ctx.lineJoin = 'round'; ctx.stroke(p); ctx.fillStyle = wf(body); ctx.fill(p); ctx.lineJoin = 'miter';
+  if (!fl) {
+    ctx.save(); ctx.clip(p);
+    ctx.fillStyle = mix(body, '#e8c890', .22); ctx.beginPath(); ctx.ellipse(r * .25, 0, r * .48, r * .55, 0, 0, TAU2); ctx.fill();   // schouderbult, lichter
+    ctx.strokeStyle = mix(body, '#000000', .25); ctx.lineWidth = 1; ctx.lineCap = 'round';   // vachtplukken
+    for (const [x, y] of [[-.9, -.4], [-.7, .3], [-.5, -.15], [-.3, .45], [-.15, -.45], [0, .1], [-.85, .05], [-.45, .15], [-.6, -.5], [.05, -.2]]) {
+      ctx.beginPath(); ctx.moveTo(r * x, r * y); ctx.quadraticCurveTo(r * (x - .1), r * (y + .05), r * (x - .2), r * y); ctx.stroke();
+    }
+    ctx.lineCap = 'butt'; ctx.restore();
+  }
+  // kop
+  const hx = r * .78, head = mix(body, '#000000', .12);
+  for (const s of [-1, 1]) { ctx.fillStyle = wf(head); ctx.strokeStyle = EDGE; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(hx - r * .2, s * r * .4, r * .16, 0, TAU2); ctx.fill(); ctx.stroke();
+    if (!fl) { ctx.fillStyle = mix(body, '#000000', .45); ctx.beginPath(); ctx.arc(hx - r * .19, s * r * .41, r * .08, 0, TAU2); ctx.fill(); } }   // oortjes
+  blob([[hx, 0, r * .5, r * .48], [hx + r * .4, 0, r * .25, r * .2]], wf(head));
+  if (!fl) {
+    ctx.fillStyle = '#b08a62'; ctx.beginPath(); ctx.ellipse(hx + r * .45, 0, r * .2, r * .17, 0, 0, TAU2); ctx.fill();   // lichte snuit
+    if (up || f.raged) { ctx.fillStyle = '#5a1c16'; ctx.beginPath(); ctx.ellipse(hx + r * .62, 0, r * .07, r * .1, 0, 0, TAU2); ctx.fill(); }   // bek open
+  }
+  ctx.fillStyle = '#1a0c08'; ctx.beginPath(); ctx.ellipse(hx + r * .6, 0, r * .07, r * .09, 0, 0, TAU2); ctx.fill();   // neus
+  eyes(hx + r * .15, r * .2, dead, 1.5);
   ctx.restore();
 }
-// Olifant van bovenaf: groot grijs lijf, kop met flaporen, slagtanden en een slurf. Bij de stormloop een rode baan.
+// Olifant van bovenaf: groot grijs lijf met rimpels, kop met twee bulten, flaporen, slagtanden en een slurf die smaller wordt.
 function drawElephant(f, wind, now) {
-  const d = f.d, r = d.radius, fl = f.flash > 0;
+  const d = f.d, r = d.radius, fl = f.flash > 0, dead = f.state === 'dead', wf = c => fl ? '#fff' : c;
+  const [ph, amt] = gait(f, r * .7);
   if (f.state === 'aim') {   // rode baan tot de muur
     const k = 1 - f.t / d.stampede.windup;
     ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.aim);
@@ -2026,41 +2145,116 @@ function drawElephant(f, wind, now) {
   }
   ctx.save(); ctx.translate(f.x, f.y);
   ctx.fillStyle = 'rgba(40,20,8,.3)'; ctx.beginPath(); ctx.ellipse(4, 5, r * 1.3, r * .95, f.face, 0, TAU2); ctx.fill();
-  ctx.rotate(f.face); ctx.strokeStyle = 'rgba(30,15,8,.75)'; ctx.lineWidth = 1.6;
-  const skin = fl ? '#fff' : d.tunic;
-  ctx.strokeStyle = fl ? '#fff' : '#5a5a56'; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(-r * 1.2, 0); ctx.lineTo(-r * 1.45, Math.sin(now / 300) * 3); ctx.stroke();   // staart
-  ctx.strokeStyle = 'rgba(30,15,8,.75)'; ctx.lineWidth = 1.6;
-  ctx.fillStyle = skin; ctx.beginPath(); ctx.ellipse(-r * .2, 0, r * 1.05, r * .85, 0, 0, TAU2); ctx.fill(); ctx.stroke();   // lijf
+  ctx.rotate(f.face);
+  const skin = d.tunic, dark = mix(skin, '#000000', .25);
+  // staart met kwastje
+  const sway = dead ? 3 : Math.sin(now / 300) * 4;
+  ctx.strokeStyle = wf(dark); ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(-r * 1.15, 0); ctx.quadraticCurveTo(-r * 1.35, sway * .5, -r * 1.5, sway); ctx.stroke(); ctx.lineCap = 'butt';
+  ctx.fillStyle = wf('#3a3a36'); ctx.beginPath(); ctx.ellipse(-r * 1.53, sway, 3, 2, 0, 0, TAU2); ctx.fill();
+  // poten: ronde voeten met teennagels
+  const run = f.state === 'run' ? 1 : amt;
+  for (const [x, y, k] of [[r * .5, -r * .66, 0], [r * .5, r * .66, Math.PI], [-r * .7, -r * .62, Math.PI], [-r * .7, r * .62, 0]]) {
+    const px = x + Math.sin(ph + k) * r * .18 * run;
+    ctx.fillStyle = wf(dark); ctx.strokeStyle = EDGE; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.arc(px, y, r * .22, 0, TAU2); ctx.fill(); ctx.stroke();
+    if (!fl) { ctx.fillStyle = '#e8e0cc'; for (const t of [-.5, 0, .5]) { ctx.beginPath(); ctx.arc(px + Math.cos(t) * r * .18, y + Math.sin(t) * r * .18, 1.4, 0, TAU2); ctx.fill(); } }
+  }
+  // lijf met rimpels en een ruggengraat
+  const p = blob([[-r * .2, 0, r * 1.05, r * .82]], wf(skin), 3);
+  if (!fl) {
+    ctx.save(); ctx.clip(p);
+    ctx.fillStyle = 'rgba(255,255,255,.07)'; ctx.beginPath(); ctx.ellipse(-r * .2, -r * .45, r * .9, r * .3, 0, 0, TAU2); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,.08)'; ctx.beginPath(); ctx.ellipse(-r * .2, r * .5, r * .95, r * .3, 0, 0, TAU2); ctx.fill();
+    ctx.strokeStyle = 'rgba(30,20,15,.22)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(-r * 1.15, 0); ctx.quadraticCurveTo(-r * .3, -r * .04, r * .5, 0); ctx.stroke();   // ruggengraat
+    ctx.lineWidth = .9;
+    for (const x of [-.95, -.7, -.45, -.2, .05]) for (const s of [-1, 1]) {   // rimpels dwars over de rug
+      ctx.beginPath(); ctx.moveTo(r * x, s * r * .12); ctx.quadraticCurveTo(r * (x + .08), s * r * .4, r * (x - .02), s * r * .7); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  // flaporen
   const flap = f.state === 'run' || f.state === 'aim' ? Math.sin(now / 70) * .25 : Math.sin(now / 500) * .08;
-  for (const s2 of [-1, 1]) { ctx.save(); ctx.translate(r * .55, s2 * r * .35); ctx.rotate(s2 * (.5 + flap)); ctx.fillStyle = fl ? '#fff' : '#9a9a94'; ctx.beginPath(); ctx.ellipse(-r * .1, s2 * r * .35, r * .35, r * .5, 0, 0, TAU2); ctx.fill(); ctx.stroke(); ctx.restore(); }   // flaporen
-  ctx.fillStyle = skin; ctx.beginPath(); ctx.ellipse(r * .7, 0, r * .45, r * .4, 0, 0, TAU2); ctx.fill(); ctx.stroke();   // kop
-  ctx.strokeStyle = '#f4ead8'; ctx.lineWidth = 2.6; ctx.lineCap = 'round';
-  for (const s2 of [-1, 1]) { ctx.beginPath(); ctx.moveTo(r * 1, s2 * r * .2); ctx.quadraticCurveTo(r * 1.35, s2 * r * .3, r * 1.45, s2 * r * .15); ctx.stroke(); }   // slagtanden
-  const sw = f.lunge > 0 ? Math.sin(f.lunge * Math.PI) * 1.2 : f.state === 'windup' ? -wind * .8 : Math.sin(now / 400) * .2;
-  ctx.strokeStyle = fl ? '#fff' : '#7a7a74'; ctx.lineWidth = r * .22;
-  ctx.beginPath(); ctx.moveTo(r * 1.05, 0); ctx.quadraticCurveTo(r * 1.5, sw * r * .4, r * 1.75, sw * r * .9); ctx.stroke();   // slurf
+  for (const s of [-1, 1]) {
+    ctx.save(); ctx.translate(r * .55, s * r * .35); ctx.rotate(s * (.5 + flap));
+    const e = blob([[-r * .1, s * r * .36, r * .36, r * .52]], wf(mix(skin, '#ffffff', .08)), 2.6);
+    if (!fl) {
+      ctx.save(); ctx.clip(e);
+      ctx.strokeStyle = 'rgba(160,110,105,.55)'; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.ellipse(-r * .1, s * r * .36, r * .33, r * .49, 0, 0, TAU2); ctx.stroke();   // roze rand
+      ctx.strokeStyle = 'rgba(30,20,15,.25)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(r * .1, s * r * .05); ctx.quadraticCurveTo(-r * .2, s * r * .3, -r * .1, s * r * .7); ctx.stroke();   // vouw
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+  // kop met twee bulten op het voorhoofd
+  const hx = r * .72;
+  blob([[hx, 0, r * .42, r * .38], [hx - r * .08, -r * .16, r * .3, r * .24], [hx - r * .08, r * .16, r * .3, r * .24]], wf(skin));
+  if (!fl) { ctx.strokeStyle = 'rgba(30,20,15,.25)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(hx - r * .35, 0); ctx.lineTo(hx + r * .1, 0); ctx.stroke(); }
+  eyes(hx + r * .12, r * .32, dead, 1.6);
+  // slagtanden
+  ctx.lineCap = 'round';
+  for (const s of [-1, 1]) {
+    ctx.beginPath(); ctx.moveTo(r * 1, s * r * .2); ctx.quadraticCurveTo(r * 1.35, s * r * .32, r * 1.48, s * r * .14);
+    ctx.strokeStyle = EDGE; ctx.lineWidth = 4.2; ctx.stroke(); ctx.strokeStyle = wf('#f4ead8'); ctx.lineWidth = 2.6; ctx.stroke();
+  }
+  // slurf: smaller naar het puntje, met ringen
+  const sw = f.lunge > 0 ? Math.sin(f.lunge * Math.PI) * 1.2 : f.state === 'windup' ? -wind * .8 : dead ? .4 : Math.sin(now / 400) * .2;
+  const P0 = [r * 1.02, 0], P1 = [r * 1.5, sw * r * .4], P2 = [r * 1.78, sw * r * .9], q = t => [(1 - t) ** 2 * P0[0] + 2 * (1 - t) * t * P1[0] + t * t * P2[0], (1 - t) ** 2 * P0[1] + 2 * (1 - t) * t * P1[1] + t * t * P2[1]];
+  const pts = []; for (let i = 0; i <= 14; i++) { const t = i / 14; pts.push([...q(t), r * (.15 - .07 * t)]); }
+  ctx.fillStyle = EDGE; for (const [x, y, w] of pts) { ctx.beginPath(); ctx.arc(x, y, w + 1.3, 0, TAU2); ctx.fill(); }
+  ctx.fillStyle = wf(mix(skin, '#000000', .08)); for (const [x, y, w] of pts) { ctx.beginPath(); ctx.arc(x, y, w, 0, TAU2); ctx.fill(); }
+  if (!fl) {
+    ctx.strokeStyle = 'rgba(30,20,15,.3)'; ctx.lineWidth = .8;
+    for (let i = 2; i < 14; i += 2) { const [x, y, w] = pts[i], [x2, y2] = pts[i + 1], a = Math.atan2(y2 - y, x2 - x) + Math.PI / 2; ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * w * .9, y + Math.sin(a) * w * .9); ctx.lineTo(x - Math.cos(a) * w * .9, y - Math.sin(a) * w * .9); ctx.stroke(); }
+  }
   ctx.lineCap = 'butt'; ctx.restore();
 }
-// Hyena van bovenaf: kleiner, grijsbruin met donkere vlekken, donkere snuit, hoge schouders (manen-streep).
+// Hyena van bovenaf: hoge schouders en een smal achterlijf, gevlekt, borstelige manen over de rug, grote ronde oren, donkere snuit.
 function drawHyena(f, wind, now) {
-  const d = f.d, r = d.radius, fl = f.flash > 0;
+  const d = f.d, r = d.radius, fl = f.flash > 0, dead = f.state === 'dead', wf = c => fl ? '#fff' : c;
+  const [ph, amt] = gait(f, r * .9);
   ctx.save(); ctx.translate(f.x, f.y);
   ctx.fillStyle = 'rgba(40,20,8,.25)'; ctx.beginPath(); ctx.ellipse(2, 3, r * 1.5, r * .8, f.face, 0, TAU2); ctx.fill();
   ctx.rotate(f.face);
-  ctx.strokeStyle = fl ? '#fff' : '#4a3a2a'; ctx.lineWidth = 2.2; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(-r * 1.3, 0); ctx.lineTo(-r * 1.9, r * .25 * Math.sin(now / 120)); ctx.stroke(); ctx.lineCap = 'butt';   // staart
-  ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(30,15,8,.75)';
-  ctx.fillStyle = fl ? '#fff' : (wind > 0 ? mix(d.tunic, C.blood, .5 * wind) : d.tunic);
-  ctx.beginPath(); ctx.ellipse(-r * .15, 0, r * 1.3, r * .7, 0, 0, TAU2); ctx.fill(); ctx.stroke();
+  const body = wind > 0 ? mix(d.tunic, C.blood, .5 * wind) : d.tunic, dark = '#3e3024';
+  // korte borstelige staart
+  const sway = dead ? 2 : Math.sin(now / 120 + (f.seed ??= Math.random() * 6)) * r * .25;
+  ctx.fillStyle = wf('#4a3a2a'); ctx.strokeStyle = EDGE; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.ellipse(-r * 1.3, sway, r * .38, r * .17, sway * .05, 0, TAU2); ctx.fill(); ctx.stroke();
+  paws([[r * .62, -r * .5, 0], [r * .62, r * .5, Math.PI], [-r * .7, -r * .38, Math.PI], [-r * .7, r * .38, 0]], ph, amt, r * .3, wf('#5a4a36'), r * .22, r * .14);
+  const p = blob([[-r * .6, 0, r * .45, r * .36], [-r * .05, 0, r * .72, r * .42], [r * .38, 0, r * .48, r * .5]], wf(body), 2);
   if (!fl) {
-    ctx.fillStyle = '#3e3024'; for (const [x, y] of [[-.9, -.3], [-.5, .35], [-.2, -.25], [.15, .3], [-.7, .1]]) { ctx.beginPath(); ctx.arc(r * x, r * y, r * .12, 0, TAU2); ctx.fill(); }   // vlekken
-    ctx.strokeStyle = '#3e3024'; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(r * .55, 0); ctx.lineTo(-r * .4, 0); ctx.stroke(); ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(30,15,8,.75)';   // manen
+    ctx.save(); ctx.clip(p); ctx.fillStyle = dark;
+    for (const [x, y, s] of [[-.95, -.2, .1], [-.8, .22, .12], [-.6, -.32, .11], [-.5, .1, .09], [-.35, .38, .12], [-.3, -.15, .1], [-.1, .25, .11], [-.05, -.38, .12], [.15, .05, .09], [.25, -.3, .11], [.35, .4, .1], [-.7, -.05, .08], [.5, -.12, .08]]) {
+      ctx.beginPath(); ctx.ellipse(r * x, r * y, r * s, r * s * .8, x * 3, 0, TAU2); ctx.fill();   // vlekken
+    }
+    ctx.restore();
+    ctx.fillStyle = 'rgba(42,32,24,.75)'; ctx.beginPath(); ctx.moveTo(r * .8, 0);   // borstelige manen over nek en rug, aflopend naar achteren
+    for (let i = 0; i <= 8; i++) ctx.lineTo(r * (.75 - i * .15), -r * (i % 2 ? .13 : .07) * (1 - i / 10));
+    for (let i = 8; i >= 0; i--) ctx.lineTo(r * (.75 - i * .15), r * (i % 2 ? .13 : .07) * (1 - i / 10));
+    ctx.closePath(); ctx.fill();
   }
-  ctx.fillStyle = fl ? '#fff' : '#a8936c'; ctx.beginPath(); ctx.ellipse(r * 1.05, 0, r * .45, r * .36, 0, 0, TAU2); ctx.fill(); ctx.stroke();   // kop
-  ctx.fillStyle = '#2a2018'; ctx.beginPath(); ctx.ellipse(r * 1.42, 0, r * .18 + (f.chew > 0 ? Math.sin(now / 40) * 1 : 0), r * .16, 0, 0, TAU2); ctx.fill();   // snuit
-  for (const s2 of [-1, 1]) { ctx.fillStyle = fl ? '#fff' : '#6e5a3e'; ctx.beginPath(); ctx.arc(r * .85, s2 * r * .36, r * .16, 0, TAU2); ctx.fill(); }   // ronde oren
+  const hx = r * .98;
+  for (const s of [-1, 1]) {   // grote ronde oren
+    ctx.fillStyle = wf('#6e5a3e'); ctx.strokeStyle = EDGE; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(hx - r * .18, s * r * .36, r * .2, 0, TAU2); ctx.fill(); ctx.stroke();
+    if (!fl) { ctx.fillStyle = dark; ctx.beginPath(); ctx.arc(hx - r * .16, s * r * .37, r * .1, 0, TAU2); ctx.fill(); }
+  }
+  blob([[hx, 0, r * .38, r * .33], [hx + r * .35, 0, r * .25, r * .2]], wf('#a8936c'), 2);
+  ctx.fillStyle = wf('#2a2018'); ctx.beginPath(); ctx.ellipse(hx + r * .45, 0, r * .18 + (f.chew > 0 ? Math.sin(now / 40) * 1 : 0), r * .16, 0, 0, TAU2); ctx.fill();   // donkere snuit, kauwt
+  eyes(hx + r * .12, r * .13, dead, r * .085);
   ctx.restore();
 }
+// Dood dier: plas bloed, het dier ligt stil en vervaagt.
+function drawDeadAnimal(f, now) {
+  const r = f.d.radius, a = Math.max(0, Math.min(1, f.dead * 1.4));
+  ctx.save(); ctx.globalAlpha = a;
+  ctx.fillStyle = 'rgba(90,20,15,.35)'; ctx.beginPath(); ctx.ellipse(f.x + 2, f.y + 2, r * 1.4, r * .95, f.face, 0, TAU2); ctx.fill();
+  const draw = { tiger: drawTiger, lion: drawLion, hyena: drawHyena, bear: drawBear, elephant: drawElephant }[ANIMAL_KIND(f.d)];
+  ctx.translate(f.x, f.y); ctx.rotate(f.face); ctx.scale(1, .78); ctx.rotate(-f.face + .45); ctx.translate(-f.x, -f.y);   // op zijn zij
+  ctx.filter = 'saturate(.55) brightness(.92)';
+  if (draw) draw(f, 0, now);
+  ctx.filter = 'none';
+  ctx.restore();
+}
+const ANIMAL_KIND = d => d.dash ? 'tiger' : d.ai;
 // Boogschutter: boog voor het lijf; bij het richten een rode stippellijn naar je toe die steeds feller wordt.
 function drawArcher(f, wind) {
   const d = f.d, r = d.radius;
