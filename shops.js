@@ -27,6 +27,14 @@ const SHOPART = (() => {
       ${[14, 19, 24, 29].map(y => `<path d="M11 ${y} Q20 ${y + 2.5} 29 ${y}" fill="none" stroke="#5c5a62" stroke-width="1.8"/>`).join('')}
       <ellipse cx="11" cy="11" rx="5.5" ry="4" fill="#b8b2a6" ${line}/><ellipse cx="29" cy="11" rx="5.5" ry="4" fill="#b8b2a6" ${line}/>
       <circle cx="20" cy="17" r="1.6" fill="#d49a48"/>`,
+    sica: `<path d="M12 30 Q22 26 28 12 Q30 8 31 10 Q28 24 15 32 Z" fill="#e4e0d4" ${line}/><path d="M9 31 L14 28" stroke="#d49a48" stroke-width="3" stroke-linecap="round"/>`,
+    spatha: `<path d="M19 6 L21 6 L22 29 L18 29 Z" fill="#e4e0d4" ${line}/><path d="M13 29 H27" stroke="#d49a48" stroke-width="3" stroke-linecap="round"/><path d="M20 30 V36" stroke="#3b2a1e" stroke-width="3"/><circle cx="20" cy="37" r="2" fill="#d49a48"/>`,
+    scythian: `<path d="M10 8 Q22 12 16 20 Q22 28 10 32" fill="none" stroke="#2a1a12" stroke-width="2.6"/><path d="M10 8 L10 32" stroke="#f5ead6" stroke-width=".9"/><path d="M8 20 H33" stroke="#6b4526" stroke-width="1.6"/><path d="M33 20 l-4 -2.5 v5 Z" fill="#9aa0a6"/>`,
+    parma: `<circle cx="20" cy="20" r="12" fill="#d49a48" ${line}/><circle cx="20" cy="20" r="7" fill="none" stroke="#8e1f1a" stroke-width="2"/><circle cx="20" cy="20" r="2.4" fill="#5a3a1c"/>`,
+    squamata: `<path d="M10 10 Q20 6 30 10 L28 32 Q20 35 12 32 Z" fill="#8f8a80" ${line}/>${[13, 18, 23, 28].map(y => [12, 17, 22, 27].map(x => `<path d="M${x - 2.5} ${y} q2.5 3 5 0" fill="none" stroke="#5a554c" stroke-width="1"/>`).join('')).join('')}`,
+    quadriga: `<path d="M3 26 H16 L18 18 H6 Z" fill="#8e1f1a" stroke="#d49a48" stroke-width="1.4"/><circle cx="10" cy="29" r="5" fill="none" stroke="#3b2a1e" stroke-width="2"/>${[0, 1, 2, 3].map(i => `<path d="M${20 + i * 4} ${22 - i} q2 -8 6 -7 q1 2 -1 4 l-1 6 Z" fill="#${i % 2 ? '7a5232' : '5a3a26'}" ${line}/>`).join('')}`,
+    secutorHelm: `<ellipse cx="20" cy="21" rx="11" ry="12" fill="#cdb98a" ${line}/><ellipse cx="16" cy="16" rx="4" ry="2.4" fill="#fff" opacity=".45"/>
+      <path d="M20 9 V33" stroke="#9a8250" stroke-width="2.4"/><circle cx="16.5" cy="22" r="1.4" fill="#1a0c08"/><circle cx="23.5" cy="22" r="1.4" fill="#1a0c08"/>`,
     galea: `<path d="M9 26 Q9 11 20 11 Q31 11 31 26 L27 26 L27 31 L23 31 L23 24 L17 24 L17 31 L13 31 L13 26 Z" fill="#d49a48" ${line}/>
       <path d="M10 10 Q20 0 31 10 Q20 6 10 10 Z" fill="#b8352c" ${line}/><path d="M12 9 l1 -3 M16 6 l0.5 -3 M20 5 V2 M24 6 l-0.5 -3 M28 9 l-1 -3" stroke="#7e1f1b" stroke-width="1"/>
       <path d="M9 26 H31" stroke="#a8742f" stroke-width="1.6"/>`,

@@ -68,3 +68,28 @@ Alle bronnen uit `sounds/Creative Commons/`; bewerkt met ffmpeg (ingekort, mono,
 | `clopping.mp3` | "horse clip-clopping downhill" door swiftoid (182504), 3–25 s, langzaam in en uit | komt elke 20–45 s langs op straat |
 
 Licentie: CC0 (map `sounds/Creative Commons/`), geen naamsvermelding nodig. Op het startscherm staan alleen de geluiden uit `Attribution 4.0` (CC BY 4.0) en Pixabay.
+
+## Nieuwe vijanden
+
+Volumes staan in `MIX` in `sound.js`. Ontbreekt een bestand, dan klinkt de terugval.
+
+| Bestand | Wanneer | Bron en bewerking |
+|---|---|---|
+| `whoosh-2.wav` … `whoosh-8.wav` | stok, net gooien, werpspeer (willekeurige variant) | "wooshes" door wavjunctioncom (512683), 7 losse zwiepen geknipt, gelijk in volume |
+| `net-charge.wav` | retiarius maakt zich klaar om te gooien | "rope tightening" door eugeneeverett (596513), 0,5–1,4 s |
+| `block.wav` | klap op een schild | "wood hit" door ian_g (547414), vanaf 0,12 s |
+| `shield-break.wav` | scutum van de murmillo breekt | barrel-break, 0,03–1,1 s |
+| `crash.wav` | strijdwagen breekt, speer van de hoplomachus breekt | "wood break" door boaay (520720), 0–0,6 s, veel zachter |
+| `horse-fall-1.mp3`, `horse-fall-2.mp3` | paard valt | "13206 panicked horse neigh" door Robinhood76 (759006, CC BY 4.0) en "horse_neigh-02" door n_audioman (321957, CC BY 4.0) |
+| `gallop.mp3` | eques zet een charge in | "srs foley horse galloping" door stephensaldanha (165532), 1–3 s, zacht |
+| `tiger.mp3` | tijger komt binnen | "tiger roar" door videog (149190), piek aan het eind afgevlakt |
+| `lion.mp3` | leeuw komt binnen, brult | "lions two" door bidone (69571), 12,52–14 s |
+| `bear.mp3` | beer komt binnen of wordt woest | "grizzly bear growl eating" door nivatius (519599), 46,7–51,2 s |
+| `elephant-1/2/3.mp3` | olifant komt binnen of stormt | "voice elephant" door vataaa (148873), de drie roepen los |
+| `hyena-1/2/3.mp3`, `hyena-pack.mp3` | hyena's komen binnen of eten | "hyena laugh 1" door sounagix (680844); origineel, +3 en −2 halve tonen, en drie lachen over elkaar |
+| `roll.wav` | jij rolt | "woosh plastic perforated steak spatula 6" door sadiquecat (742905), 0,2–0,6 s, iets zachter dan de stok |
+| `net.wav` | je zit in het net | **nog niet** |
+
+Naamsvermelding op het startscherm alleen voor CC BY 4.0 (Robinhood76, n_audioman, GregorQuendel) en Pixabay.
+
+Dieren en paarden laten zich horen zodra ze de arena in komen; bij de start van een gevecht pas na het aftellen.

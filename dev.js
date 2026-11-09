@@ -40,9 +40,15 @@
         <label>Denarii<input type="number" min="0" max="9999" step="1" id="devMoney" value="0"></label>
       </div>
       <p class="muted small" id="devNote"></p>
+      <h3 class="dev-h">Testarena</h3>
+      <div class="dev-grid dev-test">
+        ${[0, 1, 2].map(i => `<label>Vijand ${i + 1}<select id="devFoe${i}"><option value="">—</option>${foeTypes()}</select></label><label>Aantal<input type="number" min="1" max="20" step="1" id="devFoeN${i}" value="1"></label>`).join('')}
+        <label class="dev-check"><input type="checkbox" id="devGod"> Onsterfelijk</label>
+      </div>
       <div class="dev-row">
         <button class="btn" id="devRandom">Willekeurig</button>
         <button class="btn" id="devTown">Naar de stad</button>
+        <button class="btn" id="devTest">Test</button>
         <button class="primary" id="devGo">Vecht</button>
       </div>
       <button class="btn wide" id="devClose">Sluiten (Esc)</button>
@@ -50,6 +56,11 @@
     document.body.appendChild(box);
     $('devRandom').onclick = randomize;
     $('devGo').onclick = () => apply(true);
+    $('devTest').onclick = () => {
+      const list = [0, 1, 2].map(i => [$('devFoe' + i).value, Math.max(1, Math.round(+$('devFoeN' + i).value || 1))]).filter(([t]) => t);
+      if (list.length) apply(true, list);
+    };
+    $('devFoe0').value = 'murmillo';
     $('devTown').onclick = () => apply(false);
     $('devClose').onclick = close;
     $('devFight').onchange = randomize;   // ander gevecht: meteen logische stats, wapen en geld
@@ -68,7 +79,7 @@
     });
     return done;
   }
-  const xpOf = def => [...roundsOf(def), ...extraOf(def).filter(Boolean).map(e => e.foes)].flat().reduce((n, [t, c]) => n + (XP.perFoe[t] || 3) * c, 0);
+  const xpOf = def => [...roundsOf(def), ...extraOf(def).filter(Boolean).map(e => e.foes)].flat().reduce((n, [t, c]) => n + foeXp(t) * c, 0);
   function randomize() {
     // Wat je kunt kopen, goedkoopste eerst; een winkel telt pas mee als hij op dat moment open is.
     const done = history(), priceOf = k => (GEAR[k] || WEAPONS[k]).price;
@@ -79,7 +90,7 @@
       xp += xpOf(def); money += def.reward || 0;
       if (def.kind === 'tournament') tourneys++;
       for (const k of [...wish]) {
-        if (shopAt(k).after > tourneys || money < priceOf(k)) continue;
+        if (shopAt(k).after > tourneys || ((GEAR[k] || WEAPONS[k]).after || 0) > tourneys || money < priceOf(k)) continue;
         money -= priceOf(k); spent += priceOf(k); bought.push((GEAR[k] || WEAPONS[k]).name.toLowerCase()); wish = wish.filter(x => x !== k);
         owned.push(k); if (GEAR[k]) gear[GEAR[k].slot] = k;   // duurder = beter: het laatst gekochte stuk per vak draag je
       }
@@ -105,11 +116,16 @@
     const pts = Object.keys(STATS).reduce((a, k) => a + (+$('dev_' + k).value || 0), 0);
     $('devNote').textContent = `${pts} punten verdeeld. Het spel telt dit als een gewone run: winnen en verliezen werken zoals normaal.`;
   }
-  function apply(fight) {
+  // Alle vijanden, plus van elke klasse (geen slaaf of dier) de kampioen-versie.
+  function foeTypes() {
+    const keys = Object.keys(FOES), champs = keys.filter(k => !['slave', 'archer'].includes(k) && !FOES[k].animal).map(k => 'champion:' + k);
+    return [...keys, ...champs].map(k => `<option value="${k}">${foeBase(k).name}</option>`).join('');
+  }
+  function apply(fight, test = null) {
     const [type, si, fi] = $('devFight').value.split(':').map((v, i) => i ? +v : v);
     for (const id of ['start', 'result', 'stats', 'town', 'shop', 'pick', 'judge']) $(id).hidden = true;
     judgeEnd();
-    S.stage = si; S.finished = false;
+    S.stage = si; S.finished = false; S.test = test; S.god = $('devGod').checked;
     S.inStage = type === 't' ? STAGES[si].fights.length : fi;   // bij een toernooi: alsof je het blok al hebt gehad
     S.mode = type === 't' ? 'tournament' : 'fight';
     for (const k of Object.keys(STATS)) S.stats[k] = Math.max(0, Math.round(+$('dev_' + k).value || 0));

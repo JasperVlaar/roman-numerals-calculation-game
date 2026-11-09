@@ -572,6 +572,7 @@ const TOWN = (() => {
       }
       // kan het samen met wat je nu hebt?
       const clash = isGear && it.needsBow && !S.ranged ? 'koop eerst een boog' : '';
+      const locked = !owned && !itemOpen(key);   // pas te koop na een later toernooi
       const li = document.createElement('li');
       li.innerHTML = `${SHOPART.icon(key)}<div><b>${it.name}</b><span>${info}${cmp ? ` <i class="eff">${cmp}</i>` : ''}</span></div>`;
       if (worn) li.classList.add('worn');
@@ -581,6 +582,7 @@ const TOWN = (() => {
       else if (worn) { b.textContent = '✓'; b.disabled = true; }
       else if (owned && clash) { b.textContent = 'Doe aan'; b.disabled = true; b.title = clash; }
       else if (owned) { b.textContent = isGear ? 'Doe aan' : 'Neem mee'; b.onclick = () => equip(key); }
+      else if (locked) { b.textContent = `na ${toRoman(it.after)}`; b.disabled = true; b.title = `te koop na toernooi ${toRoman(it.after)}`; li.classList.add('locked'); }
       else { b.textContent = `${it.price} d`; b.disabled = !rich || !!clash; if (clash) b.title = clash; b.setAttribute('aria-label', `${it.name} kopen voor ${it.price} denarii`); b.onclick = () => buy(key); }
       li.appendChild(b); list.appendChild(li);
     }

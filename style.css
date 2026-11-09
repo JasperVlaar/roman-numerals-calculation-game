@@ -314,3 +314,9 @@ button:disabled{opacity:.4;cursor:default}
 .town-svg .cat-eyes{animation:catBlink 5.5s infinite;transform-box:fill-box;transform-origin:center}
 @keyframes catBlink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
 @media (prefers-reduced-motion:reduce){.town-svg .cat-eyes{animation:none}}
+.dev-h{margin:14px 0 6px;font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold,#d49a48)}
+.panel.dev .dev-check{flex-direction:row;align-items:center;gap:8px;align-self:end;height:40px}
+.panel.dev .dev-check input{height:auto}
+.dev-grid.dev-test{grid-template-columns:2fr 1fr}
+.panel.dev{max-height:94vh;overflow-y:auto}
+.wares li.locked{opacity:.55}

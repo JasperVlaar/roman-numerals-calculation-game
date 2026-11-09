@@ -14,13 +14,33 @@ const SFX = (() => {
     cheerBig: ['assets/sound/cheer-big.mp3'],                     // groot gejuich: iemand valt, Pugnate!, jij wint
     boo:      ['assets/sound/boo.mp3'],                           // gejoel: jij verliest
     hit:      ['assets/sound/hit-1.wav', 'assets/sound/hit-2.wav'],   // een klap raakt; twee opnames die elkaar afwisselen (.wav: geen vertraging aan het begin)
-    whoosh:   ['assets/sound/whoosh.wav'],                        // zwiep van de stok
+    whoosh:   ['assets/sound/whoosh.wav', 'assets/sound/whoosh-2.wav', 'assets/sound/whoosh-3.wav', 'assets/sound/whoosh-4.wav', 'assets/sound/whoosh-5.wav', 'assets/sound/whoosh-6.wav', 'assets/sound/whoosh-7.wav', 'assets/sound/whoosh-8.wav'],   // zwiep van de stok (8 varianten)
     meow:     ['assets/sound/meow.wav'],                          // de kat in de straat
     hurt:     ['assets/sound/hurt.wav'],                          // jij wordt geraakt: "oof"
-    block:    ['assets/sound/block.wav']                          // een klap wordt geblokt
+    block:    ['assets/sound/block.wav'],                         // een klap wordt geblokt (metaal op schild)
+    // ----- Nieuwe vijanden. Ontbreekt een bestand, dan klinkt de terugval uit FALLBACK (of niets). -----
+    roll:        ['assets/sound/roll.wav'],          // jij rolt: stof en een zwiep
+    netCharge:   ['assets/sound/net-charge.wav'],    // retiarius maakt zich klaar om te gooien: touw dat strak trekt
+    netThrow:    ['assets/sound/whoosh.wav', 'assets/sound/whoosh-2.wav', 'assets/sound/whoosh-3.wav', 'assets/sound/whoosh-4.wav', 'assets/sound/whoosh-5.wav', 'assets/sound/whoosh-6.wav', 'assets/sound/whoosh-7.wav', 'assets/sound/whoosh-8.wav'],   // retiarius gooit zijn net (de zwiepen)
+    net:         ['assets/sound/net.wav'],           // je zit in het net (touw dat strak trekt)
+    javelin:     ['assets/sound/whoosh.wav', 'assets/sound/whoosh-2.wav', 'assets/sound/whoosh-3.wav', 'assets/sound/whoosh-4.wav', 'assets/sound/whoosh-5.wav', 'assets/sound/whoosh-6.wav', 'assets/sound/whoosh-7.wav', 'assets/sound/whoosh-8.wav'],   // werpspeer of lans vliegt (voorlopig de zwiepen)
+    woodBreak:   ['assets/sound/crash.wav'],         // speer van de hoplomachus breekt (zelfde houtbreuk als de wagen)
+    shieldBreak: ['assets/sound/shield-break.wav'],  // scutum van de murmillo breekt
+    crash:       ['assets/sound/crash.wav'],         // wagen breekt, olifant tegen de muur
+    horseFall:   ['assets/sound/horse-fall-1.mp3', 'assets/sound/horse-fall-2.mp3'],   // paard valt neer
+    gallop:      ['assets/sound/gallop.mp3'],        // eques zet een charge in
+    horse:       ['assets/sound/horse.mp3'],         // paard hinnikt als het de arena in komt (zelfde als in de stallen)
+    tiger:       ['assets/sound/tiger.mp3'],         // tijger komt binnen
+    lion:        ['assets/sound/lion.mp3'],          // leeuw komt binnen en brult
+    bear:        ['assets/sound/bear.mp3'],          // beer komt binnen of wordt woest
+    elephant:    ['assets/sound/elephant-1.mp3', 'assets/sound/elephant-2.mp3', 'assets/sound/elephant-3.mp3'],   // olifant komt binnen of stormt
+    hyena:       ['assets/sound/hyena-1.mp3', 'assets/sound/hyena-2.mp3', 'assets/sound/hyena-3.mp3', 'assets/sound/hyena-pack.mp3']   // hyena's: één lach, verschoven in toonhoogte en tempo, plus een roedel
   };
+  // Terugval als een bestand (nog) ontbreekt.
+  const FALLBACK = { roll: 'whoosh', netThrow: 'whoosh', javelin: 'whoosh', woodBreak: 'hit', shieldBreak: 'hit', crash: 'hit', horseFall: 'horse', gallop: 'horse', block: 'hit' };
   // Volumes (0 tot 1). Pas hier aan als iets te hard of te zacht is.
-  const MIX = { crowd: { calm: .25, fight: .42, town: 0 }, cheer: .7, cheerBig: .9, boo: .7, hit: .6, hurt: .7, block: .5, whoosh: .45, meow: .3, purr: .7 };
+  const MIX = { crowd: { calm: .25, fight: .42, town: 0 }, cheer: .7, cheerBig: .9, boo: .7, hit: .6, hurt: .7, block: .5, whoosh: .45, meow: .3, purr: .7,
+                roll: .4, netCharge: .55, netThrow: .45, net: .6, javelin: .45, woodBreak: .8, shieldBreak: .7, crash: .8, horseFall: .6, gallop: .35, horse: .45, tiger: .8, lion: .85, bear: .75, elephant: .85, hyena: .55 };
   // De straat: achtergrond per werkplaats. street = volume op straat (0 = daar niet te horen), inside = in die winkel;
   // chunk = zoveel seconden spelen (vanaf een willekeurig punt), pause = zoveel seconden stil daarna. whole = het hele bestand afspelen.
   // loop = continu (vogeltjes). shop = hoort bij die winkel (ook als die nog dicht is, wordt er binnen gewerkt).
@@ -34,7 +54,7 @@ const SFX = (() => {
   };
   const PURR = 'assets/sound/purr-loop.wav';
   const MAX_AT_ONCE = 2;   // zoveel juich- of joelgeluiden tegelijk; daarna faadt de oudste snel weg
-  const GAP = { cheer: .35, cheerBig: 1.5, boo: 1.5, meow: 6 };   // seconden: niet opnieuw starten binnen deze tijd
+  const GAP = { cheer: .35, cheerBig: 1.5, boo: 1.5, meow: 6, horse: 1.2, tiger: 1.5, lion: 1.5, bear: 1.5, elephant: 1.5, hyena: 2.5, gallop: .8 };   // seconden: niet opnieuw starten binnen deze tijd
 
   const lastStart = {};
   let started = false, muted = false, crowd = null, crowdTarget = MIX.crowd.calm, fade = null;
@@ -154,6 +174,8 @@ const SFX = (() => {
     town(place, shops) { if (!started) return; setPlace(place, shops); },
     whoosh() { play('whoosh', MIX.whoosh); },
     meow() { play('meow', MIX.meow); },
+    // Elk geluid uit SOUNDS bij naam; ontbreekt het bestand, dan de terugval.
+    fx(kind) { const k = ok[kind] && ok[kind].length ? kind : FALLBACK[kind]; if (k && ok[k] && ok[k].length) play(k, MIX[kind] ?? MIX[k] ?? .6); },
     purr(on) {
       if (!started) return;
       if (!purr) { purr = new Audio(encodeURI(PURR)); purr.loop = true; purr.onerror = () => {}; }
@@ -189,7 +211,7 @@ const SFX = (() => {
     boo(a = .5) { play('boo', MIX.boo * (.4 + .6 * a), true); },
     hit() { play('hit', MIX.hit); },
     hurt() { play('hit', MIX.hit * .8); play('hurt', MIX.hurt); },   // jij geraakt: de klap én je "oof"
-    block() { play('block', MIX.block); },
+    block() { this.fx('block'); },
     // Wat er nu in de straat klinkt (console: SFX.street()).
     street() { return Object.fromEntries(Object.entries(amb).map(([k, s]) => [k, s.a.paused ? '–' : s.a.volume.toFixed(2)])); },
     // Welke bestanden gevonden zijn (handig om te controleren in de console: SFX.found()).
