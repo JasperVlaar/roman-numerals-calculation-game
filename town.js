@@ -302,6 +302,23 @@ const TOWN = (() => {
     el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: '#3b3034', 'stroke-width': 2.5 }, g);   // dwarsbalk
   }
 
+  // Zelfgemaakt vuur (assets/zelfgemaakt/vuur.js). De onderkant loopt van punt a naar punt b (volgt dus het schuine
+  // bovenvlak van de haard in perspectief); de vlammen staan recht omhoog, tall × zo hoog als de breedte zou geven.
+  // Elke vlam beweegt los: ze rekken en buigen om hun voet heen, elk in een eigen tempo (zie .tongue in style.css).
+  function fire(parent, a, b, tall = 1) {
+    const A = window.ART && ART.vuur; if (!A) return;
+    const [, , vw, vh] = A.viewBox.split(' ').map(Number), dx = b[0] - a[0], dy = b[1] - a[1], k = Math.hypot(dx, dy) / vw * tall;
+    const g = el('g', { class: 'fire', transform: `matrix(${dx / vw} ${dy / vw} 0 ${k} ${a[0]} ${a[1] - vh * .97 * k})` }, parent);
+    g.innerHTML = A.markup;
+    g.querySelectorAll('path').forEach((p, i) => {
+      p.setAttribute('vector-effect', 'non-scaling-stroke'); p.style.strokeWidth = '1px';   // lijn blijft even dik, hoe klein het vuur ook is
+      if (A.bed.includes(i + 1)) { p.classList.add('fire-bed'); return; }
+      p.classList.add('tongue');
+      p.style.setProperty('--d', (.5 + (i * 37 % 10) / 22).toFixed(2) + 's');     // tempo per vlam
+      p.style.setProperty('--dl', (-(i * 53 % 10) / 10).toFixed(2) + 's');        // en niet allemaal tegelijk
+    });
+  }
+
   // Wat je in een open winkel ziet.
   const contents = {
     bowyer(g, Q, side, s) {
@@ -345,6 +362,8 @@ const TOWN = (() => {
     smith(g, Q, side, s) {
       const [fx, fy] = Q(.28, .22);
       el('ellipse', { cx: fx, cy: fy, rx: 70 * s, ry: 55 * s, fill: 'url(#tForge)', class: 'forge' }, g);
+      const [ax, ay] = Q(.13, .17), [bx, by] = Q(.43, .17);
+      fire(g, [ax, ay], [bx, by], .95);   // zelfgetekend vuur op de haard
       el('polygon', { points: poly([Q(.12, .02), Q(.44, .02), Q(.4, .2), Q(.16, .2)]), fill: '#3b3034' }, g);   // haard
       // aambeeld
       el('polygon', { points: poly([Q(.5, 0), Q(.6, 0), Q(.58, .12), Q(.52, .12)]), fill: '#2a2226' }, g);

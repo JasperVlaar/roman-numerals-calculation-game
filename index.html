@@ -4,26 +4,32 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Roman Numerals</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Alegreya+Sans:wght@400;500;700&family=IM+Fell+English:ital@0;1&display=swap">
+<!-- Alleen IM Fell English (perkament van het Stats-scherm) komt nog van Google; Cinzel en Alegreya Sans zitten in assets/fonts -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="app fight">
-  <header class="hud gutter">
-    <div class="goal"><span class="label" id="foeText"></span><span class="goal-num" id="fightTitle">Fight I</span></div>
-    <div class="hp"><span class="label">Health <span id="hpText">8 / 8</span></span><div class="hp-bar" id="hpBar"><div id="hpFill"></div></div>
-      <span class="label"><span id="lvlText">Level I</span> <span id="xpText">0 / 4 XP</span></span><div class="xp-bar"><div id="xpFill"></div></div></div>
-    <dl class="stats">
-      <div class="slots"><dt>Weapons <small>(1, 2)</small></dt><dd>
-        <button id="slot_melee" class="slot on" title="Melee weapon (key 1)"><b>1</b><span>Fists</span></button>
-        <button id="slot_ranged" class="slot" title="Bow (key 2)" disabled><b>2</b><span>—</span></button></dd></div>
-      <div><dt>Armor</dt><dd id="armor">0</dd></div>
-      <div><dt>Denarii</dt><dd id="money">0</dd></div>
-    </dl>
-    <button id="mute" class="mute" aria-pressed="true" title="Sound on or off (M)">Sound on</button>
-  </header>
   <div class="stage" id="stage">
     <canvas id="arena" aria-label="Arena with you and your opponents"></canvas>
+    <!-- Wastablet linksonder: gevecht, leven, XP en je wapens (toetsen 1 en 2) -->
+    <div class="inv" id="hud">
+      <p class="inv-title"><span id="fightTitle">Fight I</span> <span class="inv-sub" id="foeText"></span></p>
+      <div class="inv-row" title="Health">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21C5 15.5 2.5 12 2.5 8.3 2.5 5.5 4.7 3.5 7.3 3.5c2 0 3.6 1.1 4.7 2.8 1.1-1.7 2.7-2.8 4.7-2.8 2.6 0 4.8 2 4.8 4.8 0 3.7-2.5 7.2-9.5 12.7z" fill="#d4463b" stroke="#1e0f08" stroke-width="1.4" stroke-linejoin="round"/></svg>
+        <div class="bar hp-bar" id="hpBar"><div id="hpFill"></div></div><span class="inv-num" id="hpText">8 / 8</span>
+      </div>
+      <div class="inv-row" title="Experience">
+        <span class="inv-lvl" id="lvlText">I</span>
+        <div class="bar xp-bar"><div id="xpFill"></div></div><span class="inv-num" id="xpText">0 / 4</span>
+      </div>
+      <div class="inv-slots">
+        <button id="slot_melee" class="slot on" title="Melee weapon (key 1)"><b>1</b><i class="slot-ico"></i><span></span></button>
+        <button id="slot_ranged" class="slot" title="Bow (key 2)" disabled><b>2</b><i class="slot-ico"></i><span></span></button>
+        <div class="inv-armor" title="Armor"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3.5Q12 1.6 19 3.5V20.5Q12 22.4 5 20.5Z" fill="#8a5a32" stroke="#1e0f08" stroke-width="1.4" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="#d49a48" stroke="#1e0f08" stroke-width="1.2"/></svg><span id="armor">0</span></div>
+      </div>
+      <span id="money" hidden></span>
+    </div>
   </div>
 </div>
 
@@ -36,7 +42,7 @@
       <li><kbd>Space</kbd> roll</li>
       <li><kbd>M</kbd> sound</li>
     </ul>
-    <label class="vol"><span aria-hidden="true">🔊</span><input type="range" id="volume" min="0" max="100" step="1" aria-label="Volume"><output id="volumeOut">60</output></label>
+    <label class="vol"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h4l6-5v16l-6-5H3z" fill="#d49a48"/><path d="M16 8.5c1.6 1.9 1.6 5.1 0 7M18.5 6c3 3.3 3 8.7 0 12" fill="none" stroke="#d49a48" stroke-width="2" stroke-linecap="round"/><path d="M3 9h4l6-5v16l-6-5H3z" fill="none" stroke="#1e0f08" stroke-width="1.4" stroke-linejoin="round"/></svg><input type="range" id="volume" min="0" max="100" step="1" aria-label="Volume"><output id="volumeOut">60</output></label>
     <div class="diff" id="diff" role="group" aria-label="Difficulty">
       <button data-d="easy">Easy</button><button data-d="normal">Normal</button><button data-d="hard">Hard</button>
     </div>
@@ -61,7 +67,7 @@
 <div class="overlay" id="pause" hidden>
   <div class="panel judge">
     <h2>Paused</h2>
-    <label class="vol"><span aria-hidden="true">🔊</span><input type="range" id="pauseVolume" min="0" max="100" step="1" aria-label="Volume"></label>
+    <div class="vol-row"><button id="mute" class="mute" aria-pressed="true" title="Sound on or off (M)"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h4l6-5v16l-6-5H3z" fill="#d49a48"/><path d="M16 8.5c1.6 1.9 1.6 5.1 0 7M18.5 6c3 3.3 3 8.7 0 12" fill="none" stroke="#d49a48" stroke-width="2" stroke-linecap="round"/><path d="M3 9h4l6-5v16l-6-5H3z" fill="none" stroke="#1e0f08" stroke-width="1.4" stroke-linejoin="round"/></svg></button><label class="vol"><input type="range" id="pauseVolume" min="0" max="100" step="1" aria-label="Volume"></label></div>
     <button id="pauseBtn" class="primary wide">Continue</button>
   </div>
 </div>
@@ -132,7 +138,7 @@
   <div class="town">
     <header class="town-bar">
       <p class="town-purse"><b id="townMoney">0</b> d<span id="townWeapon" hidden></span></p>
-      <label class="vol small"><span aria-hidden="true">🔊</span><input type="range" id="townVolume" min="0" max="100" step="1" aria-label="Volume"></label>
+      <label class="vol small"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h4l6-5v16l-6-5H3z" fill="#d49a48"/><path d="M16 8.5c1.6 1.9 1.6 5.1 0 7M18.5 6c3 3.3 3 8.7 0 12" fill="none" stroke="#d49a48" stroke-width="2" stroke-linecap="round"/><path d="M3 9h4l6-5v16l-6-5H3z" fill="none" stroke="#1e0f08" stroke-width="1.4" stroke-linejoin="round"/></svg><input type="range" id="townVolume" min="0" max="100" step="1" aria-label="Volume"></label>
       <button id="townStats" class="town-stats">Stats</button>
     </header>
     <div class="town-art" id="townArt"></div>
@@ -165,6 +171,7 @@
 <script src="sound.js"></script>
 <script src="fight.js"></script>
 <script src="shops.js"></script>
+<script src="assets/zelfgemaakt/vuur.js"></script>
 <script src="town.js"></script>
 <script src="dev.js"></script>
 </body>

@@ -2298,11 +2298,13 @@ function foeSummary() {
 function updateUI() {
   $('fightTitle').textContent = fightTitle();
   const def = fightDef(), rounds = roundsOf(def).length;
-  $('foeText').textContent = def.kind === 'tournament' ? `Round ${toRoman(S.round + 1)}/${toRoman(rounds)}` : '';
+  $('foeText').textContent = def.kind === 'tournament' ? `· Round ${toRoman(S.round + 1)}/${toRoman(rounds)}` : '';
   $('money').textContent = S.money;
-  for (const slot of ['melee', 'ranged']) {
-    const b = $('slot_' + slot), key = S[slot];
-    b.querySelector('span').textContent = key ? WEAPONS[key].name + (slot === 'ranged' ? ` · ${S.ammo}/${me.ammoMax}` : '') : '—';
+  for (const slot of ['melee', 'ranged']) {   // vakken in de wastablet: icoon van het wapen, en bij de boog hoeveel pijlen
+    const b = $('slot_' + slot), key = S[slot], ico = b.querySelector('.slot-ico');
+    if (ico.dataset.key !== (key || '') && typeof SHOPART !== 'undefined') { ico.dataset.key = key || ''; ico.innerHTML = key ? SHOPART.icon(key) : ''; }   // shops.js laadt na dit bestand
+    b.querySelector('span').textContent = key && slot === 'ranged' ? `${S.ammo}/${me.ammoMax}` : '';
+    b.title = `${key ? WEAPONS[key].name : slot === 'ranged' ? 'No bow' : ''} (key ${slot === 'melee' ? 1 : 2})`;
     b.disabled = !key; b.classList.toggle('on', S.active === slot && !S.switching); b.classList.toggle('to', S.switching > 0 && S.switchTo === slot);
   }
   $('armor').textContent = me.armor;
@@ -2310,8 +2312,8 @@ function updateUI() {
   $('hpFill').style.transform = `scaleX(${P.hp / me.maxHp})`;
   $('hpBar').classList.toggle('low', P.hp / me.maxHp <= .3);
   const lv = levelOf(S.xp), lo = LEVELS[lv - 2] || 0, hi = LEVELS[lv - 1];
-  $('lvlText').textContent = `Level ${toRoman(lv)}`;
-  $('xpText').textContent = hi ? `${S.xp} / ${hi} XP` : `${S.xp} XP`;
+  $('lvlText').textContent = toRoman(lv); $('lvlText').title = `Level ${toRoman(lv)}`;
+  $('xpText').textContent = hi ? `${S.xp} / ${hi}` : `${S.xp}`;
   $('xpFill').style.transform = `scaleX(${hi ? (S.xp - lo) / (hi - lo) : 1})`;
 }
 function openResult() {
@@ -2412,7 +2414,7 @@ document.querySelectorAll('#diff button').forEach(b => b.onclick = () => {
 });
 showDifficulty();
 // Geluid aan/uit: knop rechtsboven, of de toets M.
-function showMute() { const b = $('mute'); b.textContent = SFX.muted ? 'Sound off' : 'Sound on'; b.setAttribute('aria-pressed', String(!SFX.muted)); }
+function showMute() { const b = $('mute'); b.setAttribute('aria-pressed', String(!SFX.muted)); b.title = (SFX.muted ? 'Sound off' : 'Sound on') + ' (M)'; }
 $('slot_melee').onclick = () => { switchTo('melee'); $('slot_melee').blur(); };
 $('slot_ranged').onclick = () => { switchTo('ranged'); $('slot_ranged').blur(); };
 $('mute').onclick = () => { SFX.init(); SFX.setMuted(!SFX.muted); if (!SFX.muted && SFX.volume === 0) SFX.setVolume(.6); showVolume(); };
