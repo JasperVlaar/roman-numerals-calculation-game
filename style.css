@@ -233,17 +233,21 @@ button:disabled{opacity:.4;cursor:default}
 body.arena-pick #pick{background:radial-gradient(ellipse at center,rgba(10,6,8,.15),rgba(10,6,8,.55));backdrop-filter:none}
 body.arena-pick .inv,body.arena-pick .top-hud,body.arena-pick .goal-intro,body.arena-pick .hint{display:none}
 /* Uitleg bij iets nieuws: kleine wastablet onderin het midden, vervaagt na een paar seconden */
-.hint{position:absolute;right:16px;bottom:16px;z-index:3;display:flex;gap:22px;padding:10px 16px 12px;pointer-events:none;
-  background:var(--tex-grain),var(--wax);border:5px solid var(--wood);outline:2px solid var(--wood-edge);border-radius:4px;box-shadow:inset 0 0 0 2px var(--wood-edge),0 6px 18px rgba(0,0,0,.45);
+/* Uitleg zonder kader, vlak bij de speler (fight.js placeHint zet left/top). Donkere rand om de tekst: leesbaar op het zand. */
+.hint{position:absolute;left:50%;top:60%;transform:translateX(-50%);z-index:3;display:flex;gap:22px;padding:0;pointer-events:none;white-space:nowrap;
   animation:hintIn .45s cubic-bezier(.2,.9,.3,1.15);transition:opacity .5s}
 .hint.gone{opacity:0}
 .hint section{display:grid;grid-template-columns:max-content max-content;gap:5px 10px;align-items:center}
 .hint h4{grid-column:1/-1;margin:0 0 3px;font-family:var(--f-display);font-weight:700;font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:var(--coin)}
 .hint-ico{display:flex;gap:1px}
 .hint-ico img{width:28px;height:28px;display:block;filter:sepia(.35) brightness(.96) drop-shadow(0 1px 0 rgba(0,0,0,.6))}
-.hint span:not(.hint-ico){color:var(--wax-ink);font-size:13px}
-@keyframes hintIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-@media (max-width:900px){.hint{flex-direction:column;gap:10px;bottom:auto;top:110px}}
+.hint span:not(.hint-ico){color:#fff3d6;font-size:14px;font-weight:600;text-shadow:0 0 3px #1e0f08,0 0 3px #1e0f08,0 1px 2px #1e0f08}
+.hint h4{text-shadow:0 0 3px #1e0f08,0 0 3px #1e0f08}
+.hint .hint-ico img{filter:sepia(.35) brightness(.96) drop-shadow(0 0 1.5px #1e0f08) drop-shadow(0 1px 1px #1e0f08)}
+.hint h4{font-size:15px}
+.hint.hurt-hint section{grid-template-columns:max-content max-content}
+@keyframes hintIn{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translateX(-50%)}}
+@media (max-width:900px){.hint{flex-direction:column;gap:10px}}
 .panel.pick{width:min(480px,100%)}
 .panel.pick h2{margin:-8px 0 2px}
 .choice{display:flex;flex-direction:column;align-items:flex-start;gap:3px;width:100%;padding:14px 16px;text-align:left;border-radius:14px;border:1px solid var(--line);background:var(--stone-2);color:var(--ink);cursor:pointer;transition:border-color .15s,background .15s}
@@ -285,6 +289,10 @@ body.arena-pick .inv,body.arena-pick .top-hud,body.arena-pick .goal-intro,body.a
 .town-svg .cat{cursor:pointer}
 .town-svg .cat:focus{outline:none}
 .town-svg .cat:focus-visible,.town-svg .cat:hover{filter:drop-shadow(0 0 6px rgba(240,197,106,.7))}
+/* Met controller geselecteerd: een duidelijke gouden rand die zacht klopt, net als de uithangborden van de winkels */
+body.pad .town-svg .cat:focus{filter:drop-shadow(0 0 1.5px #f0c56a) drop-shadow(0 0 1.5px #f0c56a) drop-shadow(0 0 10px rgba(240,180,90,.95)) brightness(1.12);animation:catFocus 1.2s ease-in-out infinite alternate}
+@keyframes catFocus{from{filter:drop-shadow(0 0 1.5px #f0c56a) drop-shadow(0 0 1.5px #f0c56a) drop-shadow(0 0 6px rgba(240,180,90,.7)) brightness(1.05)}to{filter:drop-shadow(0 0 2px #ffe08a) drop-shadow(0 0 2px #ffe08a) drop-shadow(0 0 14px rgba(255,200,100,1)) brightness(1.18)}}
+@media (prefers-reduced-motion:reduce){body.pad .town-svg .cat:focus{animation:none}}
 .town-svg .cat.petted{animation:catWiggle .35s ease-out}
 .town-svg .cat-tail{animation:catTail 2.4s ease-in-out infinite alternate;transform-box:fill-box;transform-origin:0% 100%}
 .town-svg .purr-text{animation:purrText 1.4s ease-in-out infinite}

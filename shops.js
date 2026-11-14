@@ -28,6 +28,7 @@ const SHOPART = (() => {
       <ellipse cx="11" cy="11" rx="5.5" ry="4" fill="#b8b2a6" ${line}/><ellipse cx="29" cy="11" rx="5.5" ry="4" fill="#b8b2a6" ${line}/>
       <circle cx="20" cy="17" r="1.6" fill="#d49a48"/>`,
     sica: `<path d="M12 30 Q22 26 28 12 Q30 8 31 10 Q28 24 15 32 Z" fill="#e4e0d4" ${line}/><path d="M9 31 L14 28" stroke="#d49a48" stroke-width="3" stroke-linecap="round"/>`,
+    falx: `<path d="M13 31 Q12 18 24 9 Q30 6 32 9 Q22 13 18 30 Z" fill="#e4e0d4" ${line}/><path d="M10 31 L17 30" stroke="#d49a48" stroke-width="3" stroke-linecap="round"/><path d="M12 32 L9 37" stroke="#3b2a1e" stroke-width="3" stroke-linecap="round"/>`,
     spatha: `<path d="M19 6 L21 6 L22 29 L18 29 Z" fill="#e4e0d4" ${line}/><path d="M13 29 H27" stroke="#d49a48" stroke-width="3" stroke-linecap="round"/><path d="M20 30 V36" stroke="#3b2a1e" stroke-width="3"/><circle cx="20" cy="37" r="2" fill="#d49a48"/>`,
     scythian: `<path d="M10 8 Q22 12 16 20 Q22 28 10 32" fill="none" stroke="#2a1a12" stroke-width="2.6"/><path d="M10 8 L10 32" stroke="#f5ead6" stroke-width=".9"/><path d="M8 20 H33" stroke="#6b4526" stroke-width="1.6"/><path d="M33 20 l-4 -2.5 v5 Z" fill="#9aa0a6"/>`,
     parma: `<circle cx="20" cy="20" r="12" fill="#d49a48" ${line}/><circle cx="20" cy="20" r="7" fill="none" stroke="#8e1f1a" stroke-width="2"/><circle cx="20" cy="20" r="2.4" fill="#5a3a1c"/>`,

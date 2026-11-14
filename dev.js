@@ -136,9 +136,10 @@
         owned.push(k); if (GEAR[k]) gear[GEAR[k].slot] = k;   // duurder = beter: het laatst gekochte stuk per vak draag je
       }
     }
-    // Wapen: met strijdwagen de beste boog (en dan geen schild), anders het sterkste wapen voor dichtbij.
+    // Wapen: met strijdwagen de beste boog (en dan geen schild), anders het beste wapen voor dichtbij. Beste = duurste
+    // (wat je het laatst gekocht hebt), niet de hoogste schade: de stok doet minder schade dan vuisten, maar raakt breed en duwt.
     const bows = owned.filter(k => WEAPONS[k] && isBow(k)), melee = owned.filter(k => WEAPONS[k] && !isBow(k));
-    const best = list => list.sort((a, b) => WEAPONS[b].dmg - WEAPONS[a].dmg)[0];
+    const best = list => list.sort((a, b) => WEAPONS[b].price - WEAPONS[a].price)[0];
     const weapon = best(melee), bow = bows.length ? best(bows) : '';
     if (!bow) gear.mount = '';
     const level = levelOf(xp), pts = POINTS.start + (level - 1) * POINTS.perLevel;
@@ -159,7 +160,7 @@
   }
   // Alle vijanden, plus van elke klasse (geen slaaf of dier) de kampioen-versie.
   function foeTypes() {
-    const keys = Object.keys(FOES), champs = keys.filter(k => !['slave', 'archer'].includes(k) && !FOES[k].animal).map(k => 'champion:' + k);
+    const keys = Object.keys(FOES), champs = keys.filter(k => !['slave', 'archer', 'bestiarius'].includes(k) && !FOES[k].animal && !FOES[k].swarm).map(k => 'champion:' + k);
     return [...keys, ...champs].map(k => `<option value="${k}">${foeBase(k).name}</option>`).join('');
   }
   function apply(fight, test = null) {

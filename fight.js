@@ -30,14 +30,14 @@ const POINTS = { start: 0, perLevel: 2 };
 // XP-drempels (totaal) voor niveau II, III, IV, ... Gevecht I, II, III leveren 5, 10, 15 XP op.
 const LEVELS = [4, 12, 24, 40, 60, 85, 115, 150, 190, 235, 285, 340, 400, 470, 550, 640, 740, 850, 970, 1100, 1240, 1390, 1550, 1720, 1900, 2090, 2300];   // tot niveau XXVIII: genoeg voor alle 5 blokken
 // life = na zoveel seconden verdwijnt een bolletje; de laatste 'fade' seconden knippert en vervaagt het.
-const XP = { life: 7.8, fade: 3, perFoe: { slave: 5, archer: 5, tiro: 10, tiroStick: 12, murmillo: 15, thraex: 14, hoplomachus: 15, retiarius: 15, secutor: 16, dimachaerus: 14, tiger: 15, lion: 16, hyena: 2, eques: 18, sagittarius: 16, essedarius: 18, essedarius2: 22, bear: 20, elephant: 40 } /* kampioen: ×CHAMPION.xp van zijn klasse */, speed: [70, 150], friction: 3.5, settle: .3, pickup: 6, magnet: 26, pull: 160, collect: 5 };
+const XP = { life: 7.8, fade: 3, perFoe: { noxius: 1, noxiusClub: 2, slave: 5, archer: 5, tiro: 10, tiroStick: 12, murmillo: 15, thraex: 14, hoplomachus: 15, retiarius: 15, secutor: 16, dimachaerus: 14, tiger: 15, lion: 16, hyena: 2, eques: 18, sagittarius: 16, essedarius: 18, essedarius2: 22, bear: 20, elephant: 40 } /* kampioen: ×CHAMPION.xp van zijn klasse */, speed: [70, 150], friction: 3.5, settle: .3, pickup: 6, magnet: 26, pull: 160, collect: 5 };
 const levelOf = xp => 1 + LEVELS.filter(t => xp >= t).length;
 const hitChance = att => Math.min(STAT_RULES.hitMax, STAT_RULES.hitBase + STAT_RULES.hit * att);
 const blockChance = def => Math.min(STAT_RULES.blockMax, STAT_RULES.blockBase + STAT_RULES.block * def);
 // reach = hoe ver voorbij je eigen lijf je raakt; cooldown = seconden tussen twee slagen; price = in denarii bij de wapensmid.
 // Je begint met je vuisten, net als een slaaf: zelfde schade, zelfde bereik, ongeveer even vaak.
 const WEAPONS = {
-  fists: { name: 'Fists', kind: 'fists', dmg: 2, reach: 10, cooldown: .8, swing: .22, knock: 0, price: 0, arc: .7 },   // vuisten duwen niet terug
+  fists: { name: 'Fists', kind: 'fists', dmg: 3.2, reach: 10, cooldown: .8, swing: .22, knock: 0, price: 0, arc: .7 },   // vuisten duwen niet terug
   // hit: 'single' = één tegenstander; 'sweep' = iedereen binnen bereik in een boog voor je (arc = halve breedte, rad);
   // 'pierce' = iedereen op een smalle lijn recht voor je (width = halve breedte). Zonder hit: de dichtstbijzijnde binnen arc voor je.
   // cooldown = seconden tussen twee slagen (je slaat zelf; Attack speed maakt dit korter).
@@ -53,6 +53,8 @@ const WEAPONS = {
   // Sica: kort gebogen zwaard van de Thraciërs. Minder schade dan de gladius, maar veel sneller.
   sica: { name: 'Sica', kind: 'sword', dmg: 4, reach: 17, cooldown: .6, swing: .16, knock: 30, price: 150, hit: 'sweep', arc: .6, after: 2 },
   // Spatha: lang zwaard van de ruiterij. Zwaar, lang bereik, brede zwaai.
+  // Falx: gebogen zwaard met een brede zwaai (±70°): het wapen tegen groepen.
+  falx: { name: 'Falx', kind: 'sword', dmg: 5, reach: 21, cooldown: 1, swing: .26, knock: 70, price: 200, hit: 'sweep', arc: 1.2, after: 2 },
   spatha: { name: 'Spatha', kind: 'sword', dmg: 7, reach: 23, cooldown: .95, swing: .24, knock: 90, price: 240, hit: 'sweep', arc: .75, after: 3 },
   // Scythische boog: ver, hard en snel.
   scythian: { name: 'Scythian bow', kind: 'bow', dmg: 4, range: 220, arrow: 380, reach: 0, cooldown: .9, swing: .25, knock: 40, price: 260, after: 3 }
@@ -69,6 +71,13 @@ const CHARIOT = { speed: 105, cruise: 55, accel: 2.4, turn: 4.2, turnSlow: .45, 
 const FOES = {
   slave: { name: 'slave', plural: 'slaves', hp: 14, dmg: 2, armor: 0, attack: 0, defense: 0, speed: 68, radius: 10, reach: 10, windup: .36, recover: .45, cooldown: 1.6, lunge: 9,
            tunic: '#9c8a6c', hair: 'hair-2', skin: 'skin-2' },
+  // Voetvolk (noxii): veroordeelden die in groepen de arena in moesten. Zwak per stuk (leven 3 × ATTACK.foeHp = 6, schade 1,
+  // altijd minstens 1 ook met harnas), een duidelijke aanloop, maar met velen. speedVar = loopsnelheid per stuk tussen
+  // speed × [a, b], zodat een groep uiteenvalt in golfjes. swarm = telt mee voor 'drukte remt' (CROWDED).
+  noxius: { name: 'noxius', plural: 'noxii', hp: 3, dmg: 1, armor: 0, attack: 0, defense: 0, speed: 72, speedVar: [.82, 1.18], radius: 9, reach: 9, windup: .55, recover: .5, cooldown: 1.7, lunge: 8, swarm: true,
+            tunic: '#7d6e58', hair: 'hair-2', skin: 'skin-3' },
+  noxiusClub: { name: 'noxius with club', plural: 'noxii with clubs', hp: 4, dmg: 1, armor: 0, attack: 0, defense: 0, speed: 68, speedVar: [.85, 1.15], radius: 9, reach: 13, windup: .6, recover: .55, cooldown: 1.9, lunge: 9, knock: 80, weapon: 'stick', swarm: true,
+                tunic: '#6e604c', hair: 'hair-1', skin: 'skin-2' },
   // Tiro: een nieuweling uit de gladiatorenschool, met slechte uitrusting (een leren kap, armor 1).
   // Vecht met een rudis, het houten oefenzwaard. Sneller en harder dan een slaaf, zet korter aan.
   tiro: { name: 'tiro', plural: 'tirones', hp: 16, dmg: 3, armor: 1, attack: 0, defense: 0, speed: 74, radius: 11, reach: 13, windup: .32, recover: .4, cooldown: 1.4, lunge: 10, weapon: 'rudis',
@@ -117,8 +126,12 @@ const FOES = {
            tunic: '#7a3a2a', belt: '#d49a48', hair: 'bronze', skin: 'skin-2', helmet: 'secutor', scutum: true },
   // Boogschutter: houdt afstand en schiet. Hij richt eerst (een rode lijn naar je toe, windup seconden), dan vliegt de pijl
   // naar waar je op dat moment stond: blijf bewegen. Kom je te dichtbij (flee), dan loopt hij weg.
+  // Sta je echt vlakbij (dagger.near, ruimte tussen jullie), dan stopt hij met schieten en pakt hij zijn dolk (swap s);
+  // ben je weer verder dan dagger.far, dan pakt hij zijn boog weer. Met de dolk steekt hij als een slaaf, maar zwakker.
+  // Wordt hij leave s niet geraakt (je let niet op hem), dan rent hij weg (hoogstens run s) en zoekt hij een plek om te schieten.
   archer: { name: 'archer', plural: 'archers', hp: 10, dmg: 2, armor: 0, attack: 0, defense: 0, speed: 60, radius: 10, reach: 0, windup: .7, recover: .35, cooldown: 2.6, lunge: 0,
            ranged: { min: 90, max: 180, flee: 60, arrow: 240, life: 1.4 },
+           dagger: { near: 40, far: 80, swap: .35, dmg: 1, reach: 11, lunge: 8, windup: .4, recover: .5, cooldown: 1.3, leave: 2.5, run: 3 },
            tunic: '#5f6d45', belt: '#3b2a1e', hair: 'hair-1', skin: 'skin' },
   // Dimachaerus: twee zwaarden, geen schild, een helm en scheenplaten. Glass cannon: weinig leven, maar een combo van
   // 'combo' klappen kort na elkaar (elke 'gap' s). Raak je hem terwijl hij aanzet of zijn combo slaat, dan wankelt hij even (flinch s) en is de combo weg.
@@ -198,45 +211,61 @@ const foeXp = t => t.startsWith('champion:') ? Math.round((XP.perFoe[t.slice(9)]
 const STAGES = [
   { fights: [
       { kind: 'normal', foes: [['slave', 1]], reward: 5 },
-      { kind: 'normal', foes: [['slave', 2]], reward: 8 },
+      // Twee slaven, maar één is oud en traag (70%): je kunt hem ontlopen en eerst de ander aanpakken.
+      { kind: 'normal', foes: [['slave', 1], ['slave', 1, { speed: .7 }]], reward: 8 },
       { kind: 'normal', foes: [['slave', 2], ['archer', 1]], reward: 12 },
-      { kind: 'normal', type: 'team', allies: [['tiro', 1]], foes: [['tiro', 2], ['archer', 1], ['slave', 2]], reward: 18 },
+      { kind: 'normal', type: 'team', allies: [['tiro', 1], ['slave', 2]], foes: [['tiro', 2], ['archer', 1], ['slave', 2]], reward: 18 },
       { kind: 'boss', foes: [['murmillo', 1], ['slave', 2]], reward: 25 } ],
     tourney: { kind: 'tournament', rounds: [[['slave', 3]], { type: 'ffa', foes: [['slave', 3], ['archer', 2]] }, [['champion:murmillo', 1]]], reward: 60 } },
-  // Blok 2: de Thraciër en de hoplomachus komen erbij, en de klassieke paringen met de murmillo.
+  // Vanaf blok 2 bouwt de chaos rustig op (plan-chaos): voetvolk (noxii) in golven, hyenaroedels, en een vast ritme per blok:
+  // 1 opbouw-chaos, 2 duel, 3 speciaal, 4 grote chaos, 5 tussenbaas; toernooi: chaos → speciaal → eindbaas.
+  // Blok 2: de Thraciër en de hoplomachus komen erbij. Eerste voetvolk en de eerste roedel hyena's (6). Brood van het publiek.
   { fights: [
-      { kind: 'normal', foes: [['thraex', 1], ['slave', 2]], reward: 20 },
-      { kind: 'normal', foes: [['hoplomachus', 1], ['archer', 2]], extra: { at: .5, foes: [['tiro', 2]] }, hatches: [{ after: 9, foes: [['tiger', 1]] }], reward: 22 },
-      { kind: 'normal', foes: [['slave', 10]], extra: { at: .5, foes: [['hyena', 4]] }, reward: 25 },
-      { kind: 'normal', foes: [['murmillo', 1], ['thraex', 1]], extra: { at: .5, foes: [['tiro', 2]] }, reward: 30 },
-      { kind: 'boss', foes: [['hoplomachus', 1], ['thraex', 1]], extra: { at: .5, foes: [['murmillo', 1]] }, reward: 40 } ],
-    tourney: { kind: 'tournament', rounds: [{ type: 'hunt', foes: [['hyena', 3]], hatches: [{ after: 4, foes: [['tiger', 1]] }, { after: 10, foes: [['hyena', 2]] }] }, [['murmillo', 1], ['slave', 4]], { foes: [['champion:hoplomachus', 1]], extra: { after: 8, foes: [['tiger', 1]] } }], reward: 120 } },
-  // Blok 3: na toernooi II gaan de stallen open. De retiarius en de secutor (zijn vaste tegenstander) komen erbij.
+      { kind: 'normal', foes: [['thraex', 1], ['noxius', 3]], waves: { every: 9, foes: [['noxius', 2]], max: 2 }, reward: 20 },
+      { kind: 'normal', foes: [['hoplomachus', 1]], reward: 22 },   // duel
+      { kind: 'normal', type: 'hunt', foes: [['hyena', 6]], hatches: [{ after: 10, foes: [['tiger', 1]] }], reward: 25 },
+      { kind: 'normal', foes: [['slave', 10]], extra: { at: .5, foes: [['hyena', 6]] }, reward: 30 },   // de tien slaven, nu met een roedel
+      { kind: 'boss', foes: [['hoplomachus', 1], ['thraex', 1]], extra: { at: .5, foes: [['murmillo', 1], ['noxius', 3]] }, reward: 40 } ],
+    tourney: { kind: 'tournament', rounds: [
+      { foes: [['tiro', 2], ['noxius', 5]], waves: { every: 8, foes: [['noxius', 2]], max: 2 } },
+      { type: 'hunt', foes: [['hyena', 6]], hatches: [{ after: 6, foes: [['tiger', 1]] }] },
+      { foes: [['champion:hoplomachus', 1]], extra: { after: 8, foes: [['tiger', 1]] } }], reward: 120 } },
+  // Blok 3: na toernooi II gaan de stallen open. De retiarius en de secutor komen erbij. Voetvolk 4–9, roedels van 6–8.
   { fights: [
-      { kind: 'normal', foes: [['retiarius', 1], ['slave', 2]], reward: 35 },
+      { kind: 'normal', foes: [['retiarius', 1], ['noxius', 4], ['noxiusClub', 1]], waves: { every: 9, foes: [['noxius', 3]], max: 2 }, reward: 35 },
+      { kind: 'normal', foes: [['dimachaerus', 1]], reward: 40 },   // duel
       // Overleven: alleen met snelle tegenstanders die je moet ontwijken (sprints, sprongen, roedels), niet met trage die je ontloopt.
-      { kind: 'normal', foes: [['secutor', 1], ['hyena', 2]], goal: { kind: 'survive', time: 40 }, waves: { every: 12, foes: [['hyena', 2]], max: 2 },
-        hatches: [{ after: 10, foes: [['tiger', 1]] }, { after: 22, foes: [['lion', 1]] }], reward: 40 },
-      { kind: 'normal', type: 'escort', foes: [['hyena', 4]], hatches: [{ after: 5, foes: [['tiger', 1]] }, { after: 12, foes: [['lion', 1]] }, { after: 18, foes: [['hyena', 3]] }], reward: 45 },
-      { kind: 'normal', foes: [['retiarius', 1], ['secutor', 1], ['archer', 1]], extra: { at: .4, foes: [['dimachaerus', 1], ['tiger', 1]] }, goal: { kind: 'hold', time: 20 }, reward: 55 },
-      { kind: 'boss', foes: [['murmillo', 1], ['retiarius', 1]], extra: { at: .5, foes: [['secutor', 1], ['hoplomachus', 1]] }, reward: 70 } ],
-    tourney: { kind: 'tournament', rounds: [[['thraex', 1], ['hoplomachus', 1]], { type: 'ffa', foes: [['slave', 6], ['archer', 2], ['dimachaerus', 1], ['murmillo', 1]] }, { foes: [['champion:secutor', 1], ['retiarius', 1]], extra: { after: 8, foes: [['lion', 2]] } }], reward: 200 } },
-  // Blok 4: de bereden vechters. Ruiters en strijdwagens: ontwijken (rollen) en het paard of de wagen raken.
+      { kind: 'normal', foes: [['secutor', 1], ['hyena', 6]], goal: { kind: 'survive', time: 40 }, waves: { every: 14, foes: [['hyena', 4]], max: 2 },
+        hatches: [{ after: 10, foes: [['tiger', 1]] }, { after: 22, foes: [['lion', 1]] }], reward: 45 },
+      { kind: 'normal', foes: [['murmillo', 1], ['noxius', 6], ['noxiusClub', 2]], goal: { kind: 'hold', time: 20 }, extra: { at: .5, foes: [['hyena', 8]] }, reward: 55 },
+      { kind: 'boss', foes: [['murmillo', 1], ['retiarius', 1]], extra: { at: .5, foes: [['secutor', 1], ['hoplomachus', 1], ['noxius', 4]] }, reward: 70 } ],
+    tourney: { kind: 'tournament', rounds: [
+      { foes: [['thraex', 1], ['noxius', 6]], waves: { every: 9, foes: [['noxius', 3]], max: 2 } },
+      { type: 'escort', foes: [['hyena', 6]], hatches: [{ after: 8, foes: [['hyena', 4]] }, { after: 16, foes: [['lion', 1]] }] },
+      { foes: [['champion:secutor', 1], ['retiarius', 1]], extra: { after: 8, foes: [['lion', 2]] } }], reward: 200 } },
+  // Blok 4: de bereden vechters. Voetvolk 8–14, twee roedels van 8 tegelijk.
   { fights: [
-      { kind: 'normal', foes: [['eques', 1], ['tiro', 2]], reward: 80 },
-      { kind: 'normal', foes: [['sagittarius', 1], ['slave', 4]], extra: { at: .5, foes: [['hyena', 3]] }, reward: 90 },
-      { kind: 'normal', foes: [['essedarius', 1], ['archer', 2]], extra: { at: .5, foes: [['thraex', 1]] }, reward: 100 },
-      { kind: 'normal', type: 'team', allies: [['murmillo', 1], ['archer', 1]], foes: [['eques', 2]], extra: { at: .5, foes: [['essedarius2', 1]] }, reward: 110 },
-      { kind: 'boss', foes: [['essedarius2', 1], ['sagittarius', 1]], extra: { at: .5, foes: [['eques', 1], ['dimachaerus', 1]] }, reward: 130 } ],
-    tourney: { kind: 'tournament', rounds: [{ type: 'hunt', foes: [['lion', 1], ['hyena', 3]], hatches: [{ after: 8, foes: [['tiger', 1]] }] }, [['sagittarius', 2], ['slave', 4]], { foes: [['champion:eques', 1], ['essedarius', 1]], extra: { after: 8, foes: [['lion', 1], ['tiger', 1]] } }], reward: 320 } },
-  // Blok 5: de grote dieren en de beste gladiatoren. Het slottoernooi eindigt met een olifant.
+      { kind: 'normal', foes: [['eques', 1], ['noxius', 6], ['noxiusClub', 2]], waves: { every: 9, foes: [['noxius', 4]], max: 2 }, reward: 80 },
+      { kind: 'normal', foes: [['essedarius', 1]], reward: 90 },   // duel
+      { kind: 'normal', type: 'team', allies: [['murmillo', 1], ['archer', 1]], foes: [['eques', 2], ['noxius', 6]], extra: { at: .5, foes: [['essedarius2', 1]] }, reward: 100 },
+      { kind: 'normal', foes: [['sagittarius', 1], ['noxius', 8], ['noxiusClub', 2]], hatches: [{ after: 10, foes: [['hyena', 8]] }, { after: 10, foes: [['hyena', 8]] }], reward: 110 },
+      { kind: 'boss', foes: [['essedarius2', 1], ['sagittarius', 1]], extra: { at: .5, foes: [['eques', 1], ['dimachaerus', 1], ['noxius', 6]] }, reward: 130 } ],
+    tourney: { kind: 'tournament', rounds: [
+      { type: 'ffa', foes: [['noxius', 8], ['tiro', 3], ['dimachaerus', 1], ['murmillo', 1]] },
+      { type: 'hunt', foes: [['lion', 1]], hatches: [{ after: 3, foes: [['hyena', 8]] }, { after: 3, foes: [['hyena', 8]] }] },
+      { foes: [['champion:eques', 1], ['essedarius', 1]], extra: { after: 8, foes: [['lion', 1], ['tiger', 1]] } }], reward: 320 } },
+  // Blok 5: de grote dieren en de beste gladiatoren. Voetvolk 12–25, twee roedels van 10 tegelijk. Het slottoernooi eindigt met een olifant.
   { fights: [
-      { kind: 'normal', foes: [['bear', 1], ['tiro', 2]], reward: 150 },
-      { kind: 'normal', foes: [['murmillo', 1], ['secutor', 1], ['retiarius', 1]], extra: { at: .5, foes: [['bear', 1]] }, goal: { kind: 'timed', time: 75 }, reward: 160 },
-      { kind: 'normal', foes: [['elephant', 1], ['slave', 6]], goal: { kind: 'trample', count: 4 }, waves: { every: 9, foes: [['slave', 2]], max: 4 }, reward: 170 },
-      { kind: 'normal', foes: [['eques', 1], ['sagittarius', 1], ['champion:thraex', 1]], extra: { at: .5, foes: [['bear', 1], ['hyena', 4]] }, goal: { kind: 'champion' }, reward: 185 },
-      { kind: 'boss', foes: [['elephant', 1], ['dimachaerus', 1]], extra: { at: .5, foes: [['champion:murmillo', 1]] }, reward: 220 } ],
-    tourney: { kind: 'tournament', rounds: [[['champion:thraex', 1], ['champion:hoplomachus', 1]], [['essedarius2', 1], ['sagittarius', 2]], { foes: [['elephant', 1], ['champion:secutor', 1]], extra: { after: 10, foes: [['lion', 1], ['bear', 1]] } }], reward: 500 } }
+      { kind: 'normal', foes: [['bear', 1], ['noxius', 6], ['noxiusClub', 2]], goal: { kind: 'timed', time: 90 }, waves: { every: 10, foes: [['noxius', 4]], max: 2 }, reward: 150 },
+      { kind: 'normal', foes: [['champion:thraex', 1]], reward: 160 },   // duel
+      { kind: 'normal', foes: [['elephant', 1], ['noxius', 12]], goal: { kind: 'trample', count: 6 }, waves: { every: 9, foes: [['noxius', 4]], max: 3 }, reward: 170 },
+      { kind: 'normal', foes: [['eques', 1], ['sagittarius', 1], ['champion:murmillo', 1], ['noxius', 10], ['noxiusClub', 4]], goal: { kind: 'champion' },
+        hatches: [{ after: 12, foes: [['hyena', 10]] }, { after: 12, foes: [['hyena', 10]] }], reward: 185 },
+      { kind: 'boss', foes: [['elephant', 1], ['dimachaerus', 1], ['noxius', 8]], extra: { at: .5, foes: [['champion:murmillo', 1], ['noxius', 6]] }, reward: 220 } ],
+    tourney: { kind: 'tournament', rounds: [
+      { foes: [['champion:thraex', 1], ['champion:hoplomachus', 1], ['noxius', 12], ['noxiusClub', 3]], waves: { every: 10, foes: [['noxius', 5]], max: 2 } },
+      { foes: [['essedarius2', 1], ['sagittarius', 2], ['noxius', 10]] },
+      { foes: [['elephant', 1], ['champion:secutor', 1]], extra: { after: 10, foes: [['lion', 1], ['bear', 1]] } }], reward: 500 } }
 ];
 const KINDS = { normal: 'Fight', boss: 'Mini-boss', tournament: 'Tournament' };
 // Tussen de rondes krijg je heal × je maximale leven terug. Ga je neer, dan beslist Caesar.
@@ -269,7 +298,8 @@ const MONEY = { lossShare: .5 };
 // knock = hoe ver je wordt weggeduwd (× dit getal); front = schild: pijlen van voren houdt het tegen, klappen van voren doen 1 minder.
 const GEAR = {
   leather: { slot: 'body',   name: 'Leather armor',     price: 35,  armor: 1, short: 'armor 1', desc: 'armor 1: every hit does 1 less' },
-  galea:   { slot: 'head',   name: 'Galea',             price: 30,  knock: .5, short: '−50% knockback', desc: 'you get pushed back half as far' },
+  // Galea: na een klap ben je langer onaantastbaar (invuln × dit getal). Tegen groepen: vijf tikjes tegelijk worden er minder.
+  galea:   { slot: 'head',   name: 'Galea',             price: 30,  invuln: 1.6, short: '+60% recovery', desc: 'after a hit, nothing can hurt you for 60% longer (1 s instead of 0.6 s): strong in a crowd' },
   scutum:  { slot: 'shield', name: 'Scutum',            price: 50,  front: 1, short: 'front −1 · arrows 0', desc: 'stops arrows from the front; hits from the front do 1 less' },
   secutorHelm: { slot: 'head', name: 'Secutor helmet', price: 70, netMul: .5, speed: -8, short: '−50% net · −8 speed', desc: 'smooth and round: a net slides off twice as fast, but you can barely breathe (−8 move speed)' },
   lorica:  { slot: 'body',   name: 'Lorica segmentata', price: 120, armor: 2, speed: -8, short: 'armor 2 · −8 speed', desc: 'armor 2, but −8 move speed' },
@@ -285,7 +315,7 @@ const SLOTS = { body: 'Armor', head: 'Helmet', shield: 'Shield', quiver: 'Quiver
 const AMMO = { base: 5, price: 2 };
 // De winkels in de straat. after = open na zoveel gewonnen toernooien (0 = vanaf het begin); wares = sleutels uit WEAPONS of GEAR.
 const SHOPS = {
-  smith:   { nl: 'Weaponsmith', la: 'Faber',      after: 0, wares: ['stick', 'gladius', 'hasta', 'sica', 'spatha'] },
+  smith:   { nl: 'Weaponsmith', la: 'Faber',      after: 0, wares: ['stick', 'gladius', 'hasta', 'sica', 'falx', 'spatha'] },
   armorer: { nl: 'Armorer',     la: 'Loricarius', after: 0, wares: ['leather', 'galea', 'secutorHelm', 'parma', 'scutum', 'lorica', 'squamata'] },
   bowyer:  { nl: 'Bowyer',      la: 'Arcuarius',  after: 1, wares: ['arrows', 'bow', 'composite', 'scythian', 'quiver'] },
   stable:  { nl: 'Stables',     la: 'Stabulum',   after: 2, wares: ['chariot', 'quadriga'] }
@@ -350,7 +380,19 @@ const TYPES = { hunt: 'Hunt', escort: 'Protect the bestiarius', team: 'Team figh
 // Haak (sica van de Thraciër) tegen je schild: geen schade, maar hij trekt je pull ver naar zich toe en je schild is
 // open seconden weg (witte rand: kwetsbaar). Dan kunnen anderen je raken; de Thraciër zelf moet eerst opnieuw aanvallen.
 const HOOK = { pull: 260, open: 1.1 };
-const BLOCK = { arc: 1.2, shieldSpeed: .5, heavy: 200, break: .6, perfect: .2, stagger: .8, window: .25, recover: .35, cd: .7, riposte: 1.2, riposteMul: 2 };
+// Drukte remt: elke voetvolker (swarm) die tegen je aan staat maakt je per zoveel trager, hoogstens tot min.
+const CROWDED = { per: .1, min: .6, touch: 4 };
+// Brood van het publiek. Opwinding komt van doden (gewone tegenstander 1, voetvolk .3, gevangen dier 1), parades (.6) en
+// perfecte blokken (.4); per seconde zakt hij met decay. Bij need vliegt er brood van de tribune het zand op, vlak bij de actie.
+// Een voller publiek raakt sneller opgewonden (× 0,4 + 0,6 × vulling) en gooit bij een volle arena 2 tegelijk.
+// heal = leven per brood, life = zo lang ligt het er, max = hoogstens zoveel tegelijk op het zand, pick = oprapen binnen.
+// In een vrij gevecht (ffa) en een teamgevecht gaan de tegenstanders (geen dieren, niet bereden, niet je maten) ook voor brood
+// binnen foeRange; zij krijgen heal × ATTACK.foeHp.
+const BREAD = { need: 4, decay: .08, heal: 2, life: 8, flight: .9, max: 4, pick: 12, foeRange: 160 };
+// Schildstoot: slaan terwijl je je schild ophoudt. Duwt alles voor je (binnen arc, tot reach voorbij je lijf) weg, ze wankelen
+// stagger s en krijgen dmg schade. cd = wachttijd.
+const BASH = { cd: 3, reach: 24, arc: 1.1, knock: 240, stagger: .6, dmg: 1 };
+const BLOCK = { arc: 1.4, shieldSpeed: .5, heavy: 200, break: .6, perfect: .28, stagger: .8, window: .35, recover: .3, cd: .55, riposte: 1.2, riposteMul: 2 };   // iets makkelijker gemaakt (14-11): arc 1.2, perfect .2, window .25, recover .35, cd .7
 
 /* ---------- Toestand ---------- */
 const S = { ammo: 0, melee: 'fists', ranged: null, active: 'melee', switching: 0, switchTo: null, arrows: [], mode: 'fight', stage: 0, inStage: 0, finished: false, round: 0, dealt: 0, poolHp: 0, money: 0, delta: 0, owned: ['fists'], gear: { body: null, head: null, shield: null, mount: null, quiver: null }, townSeen: false, xp: 0, xpStart: 0, pointsStart: 0, orbs: [], collect: 0, gained: 0, levelUps: 0, stats: { strength: 0, agility: 0, vitality: 0, haste: 0 }, points: 0, foes: [], floats: [], dust: [], paused: true, over: null, overT: 0, freeze: 0, shake: 0, intro: 0, shout: 0 };
@@ -397,7 +439,7 @@ function switchTo(slot) {
 const gearSum = key => Object.values(S.gear).reduce((n, g) => n + (g && GEAR[g][key] || 0), 0);
 const me = {
   get maxHp() { return PLAYER.hp + STAT_RULES.hp * S.stats.vitality; },
-  get speed() { return (PLAYER.speed + STAT_RULES.speed * S.stats.agility + gearSum('speed')) * (S.active === 'ranged' && S.ranged ? ARMS.speedMul : 1) * (P.slow > 0 ? P.slowMul : 1) * (P.guard ? BLOCK.shieldSpeed : 1); },   // brul van de leeuw: trager; achter je schild: langzaam
+  get speed() { return (PLAYER.speed + STAT_RULES.speed * S.stats.agility + gearSum('speed')) * (S.active === 'ranged' && S.ranged ? ARMS.speedMul : 1) * (P.slow > 0 ? P.slowMul : 1) * (P.guard ? BLOCK.shieldSpeed : 1) * (P.crowdMul || 1); },   // drukte remt   // brul van de leeuw: trager; achter je schild: langzaam
   get armor() { return gearSum('armor'); },
   get riding() { return !!S.gear.mount && S.active === 'ranged' && !!S.ranged; },   // op de wagen alleen met de boog in je handen
   get ammoMax() { return S.gear.quiver ? GEAR[S.gear.quiver].capacity : AMMO.base; },
@@ -408,6 +450,7 @@ const me = {
   get meleeCd() { return WEAPONS[S.melee].cooldown * me.haste; },
   get shootCd() { const w = WEAPONS[PLAYER.weapon]; return w.cooldown * Math.max(STAT_RULES.shootMin, 1 - STAT_RULES.shoot * S.stats.agility) * me.haste; },
   get canParry() { const w = WEAPONS[S.melee]; return S.active === 'melee' && w.kind !== 'fists' && !me.riding; },
+  get invuln() { return PLAYER.invuln * Object.values(S.gear).reduce((k, g) => k * (g && GEAR[g].invuln || 1), 1); },   // helm: langer onaantastbaar na een klap
   get knock() { return Object.values(S.gear).reduce((k, g) => k * (g && GEAR[g].knock || 1), 1); },
   get dmg() { return WEAPONS[S.melee].dmg + STAT_RULES.dmg * S.stats.strength; },   // kracht telt voor je melee-wapen
   get hit() { return hitChance(S.stats.attack || 0); },
@@ -473,7 +516,7 @@ function startFight() {
   setArenaCrowd(fill, tour); SFX.crowdSize(fill);   // legere arena: zachter publiek
   hideHint(); SFX.win(false);
   W.area = FIGHT_AREA; fitWorld(true);
-  Object.assign(P, { hooked: 0, guard: false, guardT: 0, guardPress: false, guardBroken: 0, parryT: 0, parryCd: 0, parryLock: 0, parried: 0, riposte: 0, atkBuf: 0, bleed: null, slow: 0, slowMul: 1, roll: 0, rollInv: 0, rollCd: 0, netted: 0, heading: -Math.PI / 2, spd: 0, punch: 0, x: 0, y: W.ry * .45, vx: 0, vy: 0, face: -Math.PI / 2, hp: me.maxHp, cd: 0, swing: 0, hurt: 0, flash: 0, target: null, dead: false });
+  Object.assign(P, { crowdMul: 1, bash: 0, bashCd: 0, hooked: 0, guard: false, guardT: 0, guardPress: false, guardBroken: 0, parryT: 0, parryCd: 0, parryLock: 0, parried: 0, riposte: 0, atkBuf: 0, bleed: null, slow: 0, slowMul: 1, roll: 0, rollInv: 0, rollCd: 0, netted: 0, heading: -Math.PI / 2, spd: 0, punch: 0, x: 0, y: W.ry * .45, vx: 0, vy: 0, face: -Math.PI / 2, hp: me.maxHp, cd: 0, swing: 0, hurt: 0, flash: 0, target: null, dead: false });
   steer.active = false;
   S.foes = []; S.floats = []; S.dust = []; S.arrows = []; S.nets = []; S.javs = []; S.wrecks = []; S.calls = []; S.over = null; S.overT = 0; S.freeze = 0; S.shake = 0;
   S.intro = INTRO.step * INTRO.count; S.shout = 0; snapCam();
@@ -482,7 +525,7 @@ function startFight() {
   if (S.gear.mount && S.ranged) S.active = 'ranged';   // met een strijdwagen begin je op de wagen
   syncWeapon(); P.cdMax = 0;
   S.poolHp = [...roundsOf(def), ...extraOf(def).filter(Boolean).map(e => e.foes)].flat().reduce((n, [t, c]) => n + foeHpOf(t) * c, 0);
-  S.bonus = 0; S.captures = 0;
+  S.bonus = 0; S.captures = 0; S.excite = 0; S.breads = []; S.hitCount = 0;
   spawnRound();
 }
 // De tegenstanders van de huidige ronde (een gewoon gevecht heeft één ronde).
@@ -494,7 +537,7 @@ function spawnRound() {
   S.netsLeft = c.nets ?? (c.type === 'hunt' ? HUNT.nets : 0);
   S.firstCount = list.reduce((n, [, c]) => n + c, 0);
   let i = 0, total = list.reduce((n, [, c]) => n + c, 0);
-  for (const [type, count] of list) for (let k = 0; k < count; k++, i++) {
+  for (const [type, count, mod] of list) for (let k = 0; k < count; k++, i++) {
     let f;
     if (c.type === 'ffa') {   // ieder voor zich: in een kring om het midden, iedereen zijn eigen kant
       const a = Math.PI * .85 + (i + .5) / total * Math.PI * 1.3;
@@ -503,6 +546,7 @@ function spawnRound() {
       const side = i % 2 ? 1 : -1, spread = (Math.floor(i / 2) - (Math.ceil(total / 2) - 1) / 2) * 26;
       f = mkFoe(type, side * W.rx * .5, spread - W.ry * .1);
     }
+    if (mod && mod.speed) f.d.speed *= mod.speed;   // derde veld: aanpassing voor deze ene, bv. { speed: .7 } = 30% trager
     S.foes.push(f); call(type);
   }
   // Jouw kant: maten (team) of de bestiarius (escort) staan naast je.
@@ -630,13 +674,15 @@ function hitUnit(t, att, dmg = att.d.dmg) {
   const dx = t.x - att.x, dy = t.y - att.y, l = Math.hypot(dx, dy) || 1, kb = (60 + (att.d.knock || 0) * .5) * knockOf(t);
   t.vx += dx / l * kb; t.vy += dy / l * kb;
   float(t.x, t.y - 18, '−' + fmt(real), t.side === 'hero' ? C.blood : C.muted);
-  SFX.hit(); SFX.cheer(t.hp <= 0 ? .6 : .25); arenaCheerAt(t.x, t.y, t.hp <= 0 ? .9 : .55);
+  // anderen onder elkaar: hoogstens elke 0,12 s een klapgeluid (in een vrij gevecht slaan ze elkaar heel vaak)
+  const nowS = performance.now(); if (t === P || att === P || t.hp <= 0 || nowS - (S.unitSfx || 0) > 120) { SFX.hit(); S.unitSfx = nowS; }
+  SFX.cheer(t.hp <= 0 ? .6 : .25); arenaCheerAt(t.x, t.y, t.hp <= 0 ? .9 : .55);
   if (t.hp <= 0) foeDown(t);
 }
 // Iemand anders dan jij gaat neer.
 function foeDown(f) {
   f.state = 'dead'; f.dead = 1; f.vx *= 1.6; f.vy *= 1.6; f.netted = 0;
-  if (f.side !== 'hero') dropXp(f);
+  if (f.side !== 'hero') { dropXp(f); excite(f.d.swarm ? .3 : 1); }
   checkExtra(); checkWin();
 }
 // Gewonnen? Verloren? Hangt af van het doel en het rondetype.
@@ -690,7 +736,10 @@ function showGoalIntro() {
    Na het aftellen: heb je iets nieuws (wapen, boog, schild, strijdwagen, netten), dan staat onderin even met welke knop
    je het pakt, gebruikt en richt. De iconen passen zich aan: toetsenbord en muis, of je soort controller (PAD.icon).
    Elk ding één keer per spel (S.seen). time = zo lang blijft het staan. */
-const HINT = { time: 8 };
+// Uitleg in beeld staat vlak onder je (gap px onder je voeten), of boven je als je onderaan het scherm staat.
+// Geraakt terwijl je had kunnen blokken: kort de bloktoets (hurt s), hoogstens elke 'every' s, tot je learned keer goed geblokt hebt.
+// De bloktip komt alleen bij de zoveelste klap per gevecht (at), met en zonder schild.
+const HINT = { time: 8, gap: 26, hurt: 2.2, learned: 5, at: [1, 3] };
 function newThings() {
   const seen = S.seen || (S.seen = {}), list = [];
   const add = (key, title, rows) => { if (!seen[key]) { seen[key] = true; list.push({ title, rows }); } };
@@ -698,7 +747,7 @@ function newThings() {
   if (S.melee !== 'fists') add('m:' + S.melee, `New: ${WEAPONS[S.melee].name}`,
     [...(S.ranged ? [['switch1', 'take it in hand']] : []), ['attack', 'strike'], ...(S.gear.shield ? [] : [['block', 'parry: just before the hit']])]);
   if (S.ranged) add('r:' + S.ranged, `New: ${WEAPONS[S.ranged].name}`, [['switch2', 'take your bow'], ['aim', 'aim'], ['attack', 'shoot']]);
-  if (S.gear.shield) add('s:' + S.gear.shield, `New: ${GEAR[S.gear.shield].name}`, [['block', 'hold: blocks hits from the front']]);
+  if (S.gear.shield) add('s:' + S.gear.shield, `New: ${GEAR[S.gear.shield].name}`, [['block', 'hold: blocks hits from the front'], ['attack', 'while blocking: shield bash']]);
   if (S.gear.mount && S.ranged) add('mount:' + S.gear.mount, `New: ${GEAR[S.gear.mount].name}`, [['switch2', 'ride (with your bow)'], ['move', 'steer']]);
   if (S.netsLeft > 0) add('net', 'Nets', [['net', 'throw a net'], ['aim', 'aim']]);
   return list;
@@ -707,9 +756,30 @@ function showHints() {
   const list = newThings(), el = $('hint');
   if (!list.length || typeof PAD === 'undefined') return;
   el.innerHTML = list.slice(0, 3).map(h => `<section><h4>${h.title}</h4>${h.rows.map(([a, t]) => `<span class="hint-ico">${PAD.icon(a)}</span><span>${t}</span>`).join('')}</section>`).join('');
-  el.classList.remove('gone'); el.hidden = false; S.hintT = HINT.time;
+  el.classList.remove('gone'); el.hidden = false; S.hintT = HINT.time; placeHint();
 }
-function hideHint() { const el = $('hint'); el.hidden = true; el.classList.remove('gone'); S.hintT = 0; }
+// Bloktoets laten zien als je geraakt wordt (en kon blokken), tot je het een paar keer goed gedaan hebt.
+function blockHint() {
+  const seen = S.seen || (S.seen = {}), el = $('hint');
+  if (typeof PAD === 'undefined' || (seen.blockOk || 0) >= HINT.learned || !(me.shield || me.canParry)) return;
+  // alleen de 1e en 3e keer dat je in een gevecht geraakt wordt (met en zonder schild)
+  S.hitCount = (S.hitCount || 0) + 1;
+  if (!HINT.at.includes(S.hitCount)) return;
+  if (!el.hidden && S.hintT > 0 && !el.classList.contains('hurt-hint')) return;   // er staat al uitleg
+  el.innerHTML = `<section><span class="hint-ico">${PAD.icon('block')}</span><span>${me.shield ? 'block' : 'parry: just before the hit'}</span></section>`;
+  el.classList.add('hurt-hint'); el.classList.remove('gone'); el.hidden = false; S.hintT = HINT.hurt; placeHint();
+}
+function blockedOk() { const seen = S.seen || (S.seen = {}); seen.blockOk = (seen.blockOk || 0) + 1; }
+// De uitleg volgt je: vlak onder je, of boven je als je onderin het beeld staat.
+function placeHint() {
+  const el = $('hint'); if (el.hidden) return;
+  const sx = (P.x - cam.x) * view.scale + view.cw / 2, sy = (P.y - cam.y) * view.scale + view.ch / 2;
+  const h = el.offsetHeight, w = el.offsetWidth, r = PLAYER.radius * view.scale;
+  const below = sy + r + HINT.gap + h < view.ch - 90;   // onderin staat de weg-tablet
+  el.style.left = Math.max(8 + w / 2, Math.min(view.cw - 8 - w / 2, sx)) + 'px';
+  el.style.top = (below ? sy + r + HINT.gap : sy - r - HINT.gap - h) + 'px';
+}
+function hideHint() { const el = $('hint'); el.hidden = true; el.classList.remove('gone', 'hurt-hint'); S.hintT = 0; }
 function flyGoal() {
   showHints();
   const el = $('goalIntro'), t = $('giTitle'), dest = $('goalText'), gt = goalText();
@@ -774,6 +844,7 @@ function mkFoe(type, x, y) {
               foot: base.foot && { ...base.foot, windup: base.foot.windup * m.windup, cooldown: base.foot.cooldown * m.cooldown },
               ranged: base.ranged && { ...base.ranged, arrow: base.ranged.arrow * m.arrow } };
   d.hp = Math.round(base.hp * ATTACK.foeHp);   // je slaat zelf en vaak: twee keer zoveel leven
+  if (base.speedVar) d.speed = base.speed * (base.speedVar[0] + Math.random() * (base.speedVar[1] - base.speedVar[0]));
   if (d.mount) d.mount = { ...d.mount, hp: Math.round(d.mount.hp * ATTACK.foeHp) };
   return { side: 'foe', type, d, x, y, vx: 0, vy: 0, face: Math.atan2(P.y - y, P.x - x), hp: d.hp, state: 'walk', t: 0, cd: .2 + Math.random() * .4,
            flash: 0, lunge: 0, dead: 0, wob: Math.random() * 10, cracks: 0, shieldOn: !!d.shield, spear: d.weapon === 'spear', parryCd: 1.5, hasNet: d.ai === 'retiarius', breath: d.breath || 0, mount: d.mount ? { ...d.mount, max: d.mount.hp } : null, heading: Math.atan2(P.y - y, P.x - x) };
@@ -806,7 +877,7 @@ function hitFoe(f, dmg, from, soft, crit) {
   f.vx += dx / l * kb; f.vy += dy / l * kb;
   if (soft) S.shake = Math.max(S.shake, 1.5);
   else { S.freeze = FEEL.hitstop; S.shake = Math.max(S.shake, FEEL.shake); }
-  if (crit) S.floats.push({ x: f.x, y: f.y - 20, text: '−' + fmt(real), color: C.coin, t: 1.2, size: 20 });   // na een parade: dubbel, goud
+  if (crit) S.floats.push({ x: f.x, y: f.y - 20, text: '−' + fmt(real), color: C.coin, t: 1.2, size: 14 });   // na een parade: dubbel, goud
   else float(f.x, f.y - 18, real ? '−' + fmt(real) : '0', C.ink);
   const now = performance.now();
   if (!soft || now - (S.lastRamSfx || 0) > 120) { SFX.hit(); S.lastRamSfx = now; }   // niet tien klappen tegelijk
@@ -921,12 +992,12 @@ function hitPlayer(f) {
         float(P.x, P.y - 30, '!', C.blood); SFX.block();
       } else {
         P.block = .3; P.blockA = Math.atan2(f.y - P.y, f.x - P.x);
-        S.freeze = FEEL.hitstop * .6; S.shake = Math.max(S.shake, 2); SFX.block();
-        if (!f.arrow && P.guardT <= BLOCK.perfect && src) { staggerFoe(src); P.riposte = BLOCK.riposte; arenaCheer(); SFX.cheer(.6); }   // net op tijd: hij wankelt
+        S.freeze = FEEL.hitstop * .6; S.shake = Math.max(S.shake, 2); SFX.block(); blockedOk();
+        if (!f.arrow && P.guardT <= BLOCK.perfect && src) { staggerFoe(src); P.riposte = BLOCK.riposte; arenaCheer(); SFX.cheer(.6); excite(.4); }   // net op tijd: hij wankelt
         return;
       }
     } else if (P.parryT > 0 && !f.arrow && !heavy) {   // parade op het goede moment
-      P.parryT = 0; P.parried = .35; P.block = .3; P.blockA = Math.atan2(f.y - P.y, f.x - P.x);
+      P.parryT = 0; P.parried = .35; P.block = .3; P.blockA = Math.atan2(f.y - P.y, f.x - P.x); excite(.6); blockedOk();
       S.freeze = FEEL.hitstop; S.shake = Math.max(S.shake, 3); SFX.block(); SFX.whoosh();
       if (src) staggerFoe(src);
       P.riposte = BLOCK.riposte; arenaCheer(); SFX.cheer(.7);
@@ -939,13 +1010,14 @@ function hitPlayer(f) {
     SFX.block(); return;
   }
   const real = Math.max(1, Math.ceil((f.d.dmg - me.armor - front) * mul));   // harnas en schild: altijd minstens 1
-  P.hp = Math.max(S.god ? 1 : 0, P.hp - real); P.hurt = PLAYER.invuln; P.flash = FEEL.flash;   // S.god: onsterfelijk (testmenu)
+  P.hp = Math.max(S.god ? 1 : 0, P.hp - real); P.hurt = me.invuln; P.flash = FEEL.flash;   // S.god: onsterfelijk (testmenu)
   const dx = P.x - f.x, dy = P.y - f.y, l = Math.hypot(dx, dy) || 1;
   const push = (170 + (f.d.knock || 0)) * me.knock;
   P.vx += dx / l * push; P.vy += dy / l * push;
   S.freeze = FEEL.hitstop * 1.4; S.shake = Math.max(S.shake, FEEL.playerShake);
   float(P.x, P.y - 20, real ? '−' + fmt(real) : '0', C.blood);
   if (f.d.bleed) P.bleed = { t: f.d.bleed.time, tick: 1, dmg: f.d.bleed.dmg, src: f };   // sica: je bloedt
+  if (!f.arrow || me.shield) blockHint();
   SFX.hurt(); if (typeof PAD !== 'undefined') PAD.rumble(Math.min(1, .35 + real / me.maxHp), 140);   // controller trilt
   if (P.hp > 0) SFX.cheer(Math.min(.8, .35 + real / me.maxHp));
   arenaCheerAt(P.x, P.y, Math.min(1, .55 + real / me.maxHp));   // het publiek geniet ook als jíj bloedt, harder bij een flinke klap
@@ -1007,6 +1079,7 @@ function shoot(w, aim, target) {
 function updateGuard(dt) {
   const held = keys.has('k') || keys.has('Shift') || steer.block || (typeof PAD !== 'undefined' && PAD.active) && PAD.block;
   P.parryCd = Math.max(0, (P.parryCd || 0) - dt); P.parryLock = Math.max(0, (P.parryLock || 0) - dt);
+  P.bashCd = Math.max(0, (P.bashCd || 0) - dt); P.bash = Math.max(0, (P.bash || 0) - dt);
   P.guardBroken = Math.max(0, (P.guardBroken || 0) - dt); P.hooked = Math.max(0, (P.hooked || 0) - dt); P.parried = Math.max(0, (P.parried || 0) - dt);
   if (P.parryT > 0) { P.parryT -= dt; if (P.parryT <= 0) { P.parryT = 0; P.parryLock = BLOCK.recover; } }   // niets geraakt: even open
   const able = !P.dead && !S.over && S.switching <= 0 && !(P.roll > 0) && !(P.netted > 0) && !(P.guardBroken > 0);
@@ -1015,9 +1088,100 @@ function updateGuard(dt) {
   P.guardT = P.guard ? (was ? P.guardT + dt : 0) : 0;
   if (P.guardPress) {
     P.guardPress = false;
-    if (able && !me.shield && me.canParry && P.parryCd === 0 && !(P.parryLock > 0) && P.cd < .15) { P.parryT = BLOCK.window; P.parryCd = BLOCK.cd + BLOCK.window; SFX.whoosh(); }
+    if (able && !me.shield && me.canParry && P.parryCd === 0 && !(P.parryLock > 0) && !(P.swing > 0)) { P.parryT = BLOCK.window; P.parryCd = BLOCK.cd + BLOCK.window; SFX.whoosh(); }
   }
 }
+// Schildstoot: alles voor je wordt weggeduwd en wankelt even.
+function shieldBash() {
+  P.bashCd = BASH.cd; P.bash = .3;
+  let n = 0;
+  for (const f of S.foes) {
+    if (!targetable(f) || !hostile(P, f)) continue;
+    const dx = f.x - P.x, dy = f.y - P.y, dist = Math.hypot(dx, dy) || 1;
+    if (dist - f.d.radius - PLAYER.radius > BASH.reach) continue;
+    if (Math.abs(((Math.atan2(dy, dx) - P.face + Math.PI * 3) % TAU2) - Math.PI) > BASH.arc && dist > f.d.radius + PLAYER.radius + 2) continue;
+    hitFoe(f, BASH.dmg, P, true);
+    if (f.state === 'dead') { n++; continue; }
+    const push = f.d.heavy || f.mount ? 0 : BASH.knock; f.vx += dx / dist * push; f.vy += dy / dist * push;
+    staggerFoe(f, BASH.stagger); n++;
+  }
+  S.freeze = FEEL.hitstop; S.shake = Math.max(S.shake, 4 + n); SFX.block(); SFX.whoosh();
+  if (n) { arenaCheerAt(P.x + Math.cos(P.face) * 20, P.y + Math.sin(P.face) * 20, .7); excite(.15 * n); }
+}
+// Opwinding van het publiek: genoeg = brood.
+function excite(k) {
+  if (S.over || S.collect > 0) return;
+  S.excite = (S.excite || 0) + k * (.4 + .6 * (AR.fill ?? 1));
+}
+function throwBread() {
+  const n = (AR.fill ?? 1) >= .8 ? 2 : 1;
+  for (let i = 0; i < n && S.breads.filter(b => b.state !== 'gone').length < BREAD.max; i++) {
+    // vlak bij de actie (bij jou in de buurt, maar niet op je hoofd), binnen het zand
+    const a = Math.random() * TAU2, r = 35 + Math.random() * 55;
+    let x = P.x + Math.cos(a) * r, y = P.y + Math.sin(a) * r;
+    const k = Math.hypot(x / (W.rx - 18), y / (W.ry - 18)); if (k > 1) { x /= k; y /= k; }
+    const from = Math.atan2(y / W.ry, x / W.rx) + (Math.random() - .5) * .5;   // van de tribune achter die plek
+    const x0 = Math.cos(from) * (W.rx + 34), y0 = Math.sin(from) * (W.ry + 34);
+    S.breads.push({ x0, y0, x, y, t: 0, T: BREAD.flight, state: 'fly', life: BREAD.life, spin: Math.random() * 6 });
+    arenaCheerAt(x0, y0, .8);
+  }
+  SFX.whoosh();
+}
+function updateBread(dt) {
+  if (!S.breads) return;
+  if (!S.over && !(S.collect > 0)) {
+    S.excite = Math.max(0, (S.excite || 0) - BREAD.decay * dt);
+    if (S.excite >= BREAD.need) { S.excite = 0; throwBread(); }
+  }
+  for (const b of S.breads) {
+    if (b.state === 'fly') { b.t += dt; if (b.t >= b.T) { b.state = 'ground'; for (let j = 0; j < 3; j++) S.dust.push({ x: b.x + (Math.random() - .5) * 8, y: b.y + (Math.random() - .5) * 8, t: .6 }); } continue; }
+    if (b.state !== 'ground') continue;
+    b.life -= dt; if (b.life <= 0) { b.state = 'gone'; continue; }
+    if (!P.dead && Math.hypot(P.x - b.x, P.y - b.y) < PLAYER.radius + BREAD.pick) {   // oprapen: leven terug
+      b.state = 'gone';
+      const heal = Math.min(BREAD.heal, me.maxHp - P.hp); P.hp += heal;
+      S.floats.push({ x: P.x, y: P.y - 24, text: '+' + BREAD.heal, color: '#7ee36a', t: 1.1, size: 15 });
+      SFX.fx('roll'); updateUI();
+    }
+  }
+  S.breads = S.breads.filter(b => b.state !== 'gone');
+}
+// Vrij gevecht: een tegenstander rent naar het dichtstbijzijnde brood op het zand en eet het op.
+function goForBread(f, dt) {
+  let b = null, bd = BREAD.foeRange;
+  for (const o of S.breads || []) { if (o.state !== 'ground') continue; const dd = Math.hypot(o.x - f.x, o.y - f.y); if (dd < bd) { bd = dd; b = o; } }
+  if (!b) return false;
+  if (bd < f.d.radius + BREAD.pick) {
+    b.state = 'gone';
+    const heal = BREAD.heal * ATTACK.foeHp; f.hp = Math.min(f.d.hp, f.hp + heal);
+    S.floats.push({ x: f.x, y: f.y - 22, text: '+' + fmt(heal), color: '#7ee36a', t: 1.1, size: 12 });
+    arenaCheerAt(f.x, f.y, .6); SFX.cheer(.3);
+    return false;
+  }
+  const a = Math.atan2(b.y - f.y, b.x - f.x), sl = f.slow > 0 ? f.slowMul || .5 : 1;
+  f.face = lerpAngle(f.face, a, 1 - Math.exp(-dt * 10));
+  f.x += (Math.cos(a) * f.d.speed * sl + f.vx) * dt; f.y += (Math.sin(a) * f.d.speed * sl + f.vy) * dt;
+  contain(f, W.rx - f.d.radius - 4, W.ry - f.d.radius - 4);
+  return true;
+}
+// Brood: een rond brood met inkepingen (panis quadratus), met schaduw; in de lucht in een boog van de tribune.
+function drawBread(now) {
+  for (const b of S.breads || []) {
+    let x = b.x, y = b.y, h = 0, s = 1, a = 1;
+    if (b.state === 'fly') { const k = b.t / b.T; x = b.x0 + (b.x - b.x0) * k; y = b.y0 + (b.y - b.y0) * k; h = Math.sin(k * Math.PI) * 40; s = 1 + .35 * Math.sin(k * Math.PI); }
+    else if (b.life < 2) a = Math.floor(now / 120) % 2 ? .35 : 1;   // bijna weg: knippert
+    ctx.globalAlpha = a;
+    ctx.fillStyle = 'rgba(40,20,8,.28)'; ctx.beginPath(); ctx.ellipse(x + 2, y + 3, 6 * s, 4.5 * s, 0, 0, TAU2); ctx.fill();
+    ctx.save(); ctx.translate(x, y - h); ctx.rotate(b.spin + (b.state === 'fly' ? b.t * 8 : 0)); ctx.scale(s, s);
+    ctx.fillStyle = '#c99a5a'; ctx.strokeStyle = EDGE; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(0, 0, 6, 0, TAU2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,240,210,.25)'; ctx.beginPath(); ctx.arc(-1.5, -1.5, 3.2, 0, TAU2); ctx.fill();
+    ctx.strokeStyle = '#8a5a32'; ctx.lineWidth = 1;
+    for (let i = 0; i < 4; i++) { const r = i / 4 * Math.PI; ctx.beginPath(); ctx.moveTo(Math.cos(r) * 1.5, Math.sin(r) * 1.5); ctx.lineTo(Math.cos(r) * 5, Math.sin(r) * 5); ctx.stroke(); }
+    ctx.restore(); ctx.globalAlpha = 1;
+  }
+}
+
 // Een tegenstander wankelt (door jouw blok of parade): hij doet even niets, witte rand.
 function staggerFoe(f, t = BLOCK.stagger) {
   if (!f || f.state === 'dead' || f.mount || f.d.heavy) return;
@@ -1046,7 +1210,7 @@ function freeFoe(f) {
 // Gevangen (jacht): telt als verslagen, hij blijft vastgebonden liggen. XP en een beloning.
 function capture(f) {
   f.state = 'dead'; f.dead = 1; f.captured = true; f.vx = 0; f.vy = 0; f.netted = 0;
-  dropXp(f); S.captures++; S.bonus += HUNT.captureBonus;
+  dropXp(f); excite(1); S.captures++; S.bonus += HUNT.captureBonus;
   S.floats.push({ x: f.x, y: f.y - 24, text: `+${HUNT.captureBonus} d`, color: C.coin, t: 1.4, size: 15 });
   arenaCheer(); SFX.cheer(1); S.shake = Math.max(S.shake, 3);
   checkExtra(); checkWin();
@@ -1118,7 +1282,7 @@ function gainXp(o) {
     S.points += POINTS.perLevel; S.levelUps++;
     SFX.cheer(.5);
     // groene LVL UP naast je poppetje, die met je meeloopt en langzaam opstijgt
-    S.floats.push({ text: 'LVL UP', color: '#7ee36a', t: 1.6, follow: true, dx: 13, dy: -14, size: 11 });
+    S.floats.push({ text: 'LVL UP', color: '#7ee36a', t: 1.6, follow: true, dx: 12, dy: -12, size: 8.5 });
   }
   updateUI();
 }
@@ -1149,7 +1313,30 @@ const AI = {
   },
   // Boogschutter: afstand houden, richten, schieten.
   ranged(f, dt, ex, ey, d, gap) {
-    let mx = 0, my = 0; const R = f.d.ranged;
+    let mx = 0, my = 0; const R = f.d.ranged, K = f.d.dagger;
+    if (K) {   // boogschutter: vlakbij wisselt hij naar zijn dolk, op afstand weer naar zijn boog
+      const close = gap <= K.near;
+      // Hoe lang is hij al niet geraakt? (leven gezakt = geraakt)
+      if (f.hpSeen === undefined || f.hp < f.hpSeen) f.calm = 0; else f.calm = (f.calm || 0) + dt;
+      f.hpSeen = f.hp;
+      if (f.dagger && f.state === 'walk' && f.calm >= K.leave) { f.state = 'retreat'; f.t = K.run; f.wob = Math.random() * 10; }
+      if (f.state === 'retreat') {   // weg van het gevecht, een plek zoeken om te schieten
+        f.t -= dt;
+        if (f.calm === 0 && close) f.state = 'walk';   // toch geraakt en je staat vlakbij: terugvechten
+        else if (gap > K.far || f.t <= 0) { f.dagger = false; f.state = 'swap'; f.t = K.swap; f.cd = Math.max(f.cd, .6); f.calm = 0; }
+        else {
+          const away = Math.atan2(-ey, -ex), side = Math.sin(performance.now() / 700 + f.wob) * .6;
+          // bij de muur: meer langs de muur dan erin
+          const wall = Math.hypot(f.x / W.rx, f.y / W.ry), a = away + side + (wall > .8 ? Math.sign(side || 1) * .9 : 0);
+          f.face = lerpAngle(f.face, a, 1 - Math.exp(-dt * 10));
+          return [Math.cos(a) * f.d.speed * 1.1, Math.sin(a) * f.d.speed * 1.1];
+        }
+      }
+      if (!f.dagger && (f.state === 'walk' && close || f.state === 'windup' && gap <= K.near * .6)) { f.dagger = true; f.state = 'swap'; f.t = K.swap; }
+      else if (f.dagger && f.state === 'walk' && gap > K.far) { f.dagger = false; f.state = 'swap'; f.t = K.swap; f.cd = Math.max(f.cd, .6); }
+      if (f.state === 'swap') { f.t -= dt; f.face = lerpAngle(f.face, Math.atan2(ey, ex), 1 - Math.exp(-dt * 8)); if (f.t <= 0) f.state = 'walk'; return [0, 0]; }
+      if (f.dagger) return AI.stab(f, dt, ex, ey, d, gap, K);
+    }
     f.face = lerpAngle(f.face, Math.atan2(ey, ex), 1 - Math.exp(-dt * (f.state === 'windup' ? 3 : 8)));
     if (f.state === 'walk') {
       let dir = 0;
@@ -1158,13 +1345,33 @@ const AI = {
       const side = Math.sin(performance.now() / 900 + f.wob) > 0 ? 1 : -1;   // anders langzaam opzij stappen
       if (dir) { mx = ex / d * f.d.speed * dir; my = ey / d * f.d.speed * dir; }
       else { mx = -ey / d * f.d.speed * .35 * side; my = ex / d * f.d.speed * .35 * side; }
-      if (!TG.dead && f.cd === 0 && d <= R.max + 30) { f.state = 'windup'; f.t = f.d.windup; }   // ook als je dichtbij staat
+      if (!TG.dead && f.cd === 0 && d <= R.max + 30) { f.state = 'windup'; f.t = f.d.windup; }   // ook als je dichtbij staat (maar niet vlakbij: dan de dolk)
     } else if (f.state === 'windup') {
       f.t -= dt;
       if (f.t <= 0) {
         const a = Math.atan2(ey, ex);
         S.arrows.push({ x: f.x + Math.cos(a) * (f.d.radius + 4), y: f.y + Math.sin(a) * (f.d.radius + 4), vx: Math.cos(a) * R.arrow, vy: Math.sin(a) * R.arrow, t: 0, life: R.life, dmg: f.d.dmg, stuck: 0, side: f.side });
         f.state = 'recover'; f.t = f.d.recover; f.cd = f.d.cooldown;
+      }
+    } else if (f.state === 'recover') { f.t -= dt; if (f.t <= 0) f.state = 'walk'; }
+    return [mx, my];
+  },
+  // Dolk van de boogschutter: als 'melee', maar met de waarden uit K (en K.dmg als schade).
+  stab(f, dt, ex, ey, d, gap, K) {
+    let mx = 0, my = 0;
+    if (f.state === 'walk') {
+      f.face = lerpAngle(f.face, Math.atan2(ey, ex), 1 - Math.exp(-dt * 8));
+      if (gap > K.reach * .6) { mx = Math.cos(f.face) * f.d.speed; my = Math.sin(f.face) * f.d.speed; }
+      if (!TG.dead && gap <= K.reach && f.cd === 0) { f.state = 'windup'; f.t = K.windup; }
+    } else if (f.state === 'windup') {
+      f.face = lerpAngle(f.face, Math.atan2(ey, ex), 1 - Math.exp(-dt * 4));
+      f.t -= dt;
+      if (f.t <= 0) {
+        f.lunge = 1; f.state = 'recover'; f.t = K.recover; f.cd = K.cooldown;
+        if (gap > K.reach + K.lunge) { /* ontweken */ }
+        else if (Math.random() >= hitChance(f.d.attack)) { /* mis */ }
+        else if (Math.random() < blockOf(TG)) blocked(TG, f);
+        else { const keep = f.d.dmg; f.d.dmg = K.dmg; strike(f); f.d.dmg = keep; }
       }
     } else if (f.state === 'recover') { f.t -= dt; if (f.t <= 0) f.state = 'walk'; }
     return [mx, my];
@@ -1650,9 +1857,9 @@ function update(dt) {
     return;
   }
   S.shout = Math.max(0, S.shout - dt);
-  if (S.hintT > 0) { S.hintT -= dt; if (S.hintT <= 0) { $('hint').classList.add('gone'); setTimeout(() => { if (!(S.hintT > 0)) $('hint').hidden = true; }, 600); } }   // uitleg vervaagt
+  if (S.hintT > 0) { S.hintT -= dt; if (S.hintT <= 0) { $('hint').classList.add('gone'); setTimeout(() => { if (!(S.hintT > 0)) { $('hint').hidden = true; $('hint').classList.remove('hurt-hint'); } }, 600); } }   // uitleg vervaagt
   S.roundT = (S.roundT || 0) + dt; checkExtra(); S.gate = Math.max(0, (S.gate || 0) - dt);
-  updateNets(dt); updateJavs(dt); updateArena(dt);
+  updateNets(dt); updateJavs(dt); updateArena(dt); updateBread(dt);
   if (!S.over && !(S.collect > 0)) {   // klok voor doelen; in de cirkel staan (hold)
     S.goalT += dt;
     const g = S.cfg && S.cfg.goal;
@@ -1690,6 +1897,7 @@ function update(dt) {
   P.punch = Math.max(0, (P.punch || 0) - dt); P.noAmmo = Math.max(0, (P.noAmmo || 0) - dt);
   // Zelf slaan: alleen als je drukt (P.atkBuf), en niet tijdens wisselen, rollen, in het net, achter je schild of na een gemiste parade.
   const busy = S.switching > 0 || P.roll > 0 || P.netted > 0 || P.guard || P.parryLock > 0 || P.parryT > 0 || P.dead;
+  if (P.atkBuf > 0 && P.guard && me.shield && !(P.bashCd > 0) && !P.dead) { P.atkBuf = 0; shieldBash(); }   // slaan achter je schild: schildstoot
   if (P.atkBuf > 0 && P.cd === 0 && !busy) {
     P.atkBuf = 0;
     // Richting: met de muis naar je muis, anders naar wie het dichtst bij staat (binnen bereik), anders recht vooruit.
@@ -1727,12 +1935,17 @@ function update(dt) {
       f.t -= dt; if (f.t <= 0) { f.state = 'recover'; f.t = .3; }
       f.x += f.vx * dt; f.y += f.vy * dt; contain(f, W.rx - f.d.radius - 4, W.ry - f.d.radius - 4); continue;
     }
+    if (S.cfg && (S.cfg.type === 'ffa' || S.cfg.type === 'team') && f.state === 'walk' && !f.d.animal && !f.mount && f.side !== 'hero' && goForBread(f, dt)) continue;   // ieder voor zich: brood!
     const ai = AI[f.d.ai || (f.d.dash ? 'dash' : f.d.ranged ? 'ranged' : 'melee')];
     const [mx, my] = ai(f, dt, ex, ey, d, gap), sl = f.slow > 0 ? f.slowMul || .5 : 1;   // brul van de leeuw: trager
     f.x += (mx * sl + f.vx) * dt; f.y += (my * sl + f.vy) * dt;
     contain(f, W.rx - f.d.radius - 4, W.ry - f.d.radius - 4);
   }
   TG = P;
+  // Drukte remt: tel het voetvolk dat tegen je aan staat
+  let touching = 0;
+  for (const f of S.foes) if (f.d.swarm && targetable(f) && hostile(f, P) && Math.hypot(f.x - P.x, f.y - P.y) <= f.d.radius + PLAYER.radius + CROWDED.touch) touching++;
+  P.crowdMul = Math.max(CROWDED.min, 1 - CROWDED.per * touching); P.crowded = touching;
   // Strijdwagen: wie je met vaart raakt, gaat omver.
   if (me.riding && !P.dead && S.intro <= 0) {
     const spd = Math.hypot(P.vx, P.vy);
@@ -1840,6 +2053,7 @@ function draw(now) {
   }
   drawWrecks();
   drawOrbs(now);
+  drawBread(now);
   for (const f of ents) {
     if (f.state === 'yield') ctx.globalAlpha = .6;   // overgegeven
     drawFoe(f, now); ctx.globalAlpha = 1;
@@ -1872,9 +2086,10 @@ function draw(now) {
 
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (const f of S.floats) {
-    ctx.globalAlpha = Math.min(1, f.t * 1.5); ctx.font = `700 ${f.size || 16}px Cinzel, Georgia, serif`;
+    const fs = f.size || 11;   // schadecijfers: 11 (was 16)
+    ctx.globalAlpha = Math.min(1, f.t * 1.5); ctx.font = `700 ${fs}px Cinzel, Georgia, serif`;
     if (f.follow) ctx.textAlign = 'left';
-    ctx.lineWidth = 4; ctx.strokeStyle = C.night; ctx.strokeText(f.text, f.x, f.y);
+    ctx.lineWidth = Math.max(2.5, fs * .26); ctx.strokeStyle = C.night; ctx.strokeText(f.text, f.x, f.y);
     ctx.fillStyle = f.color; ctx.fillText(f.text, f.x, f.y);
     ctx.textAlign = 'center';
   }
@@ -2037,6 +2252,11 @@ function drawPlayer(now) {
     ctx.strokeStyle = `rgba(255,255,255,${.5 + .3 * Math.sin(now / 60)})`; ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.arc(P.x, P.y, PLAYER.radius + 6, 0, TAU2); ctx.stroke();
   }
+  if (P.bash > 0) {   // schildstoot: bronzen golf naar voren
+    const k = 1 - P.bash / .3;
+    ctx.strokeStyle = `rgba(226,179,94,${.8 * (1 - k)})`; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(P.x, P.y, PLAYER.radius + 6 + BASH.reach * k, P.face - BASH.arc * .8, P.face + BASH.arc * .8); ctx.stroke(); ctx.lineCap = 'butt';
+  }
   if (P.guard) {   // achter je schild: gele rand aan de voorkant (blokt)
     ctx.strokeStyle = 'rgba(226,179,94,.75)'; ctx.lineWidth = 3; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.arc(P.x, P.y, PLAYER.radius + 7, P.face - BLOCK.arc * .8, P.face + BLOCK.arc * .8); ctx.stroke(); ctx.lineCap = 'butt';
@@ -2134,7 +2354,7 @@ function drawFoe(f, now) {
   const d = f.d;
   if (f.state === 'dead' && d.animal) { drawDeadAnimal(f, now); return; }
   if (f.state === 'dead') { drawFallen(f, d.radius, d.tunic, C[d.skin], f.dead); return; }
-  const wind = f.state === 'windup' ? 1 - f.t / d.windup : 0;
+  const wind = f.state === 'windup' ? 1 - f.t / (f.dagger ? d.dagger.windup : d.windup) : 0;
   if (f.mount) { drawMounted(f, wind, now); return; }
   if (d.ranged) { drawArcher(f, wind); return; }
   if (f.state === 'aimJav') drawJavTarget(f.target.x, f.target.y, 1 - f.t / (d.hasta ? d.hasta.windup : d.windup));
@@ -2847,6 +3067,23 @@ const ANIMAL_KIND = d => d.dash ? 'tiger' : d.ai;
 // Boogschutter: boog voor het lijf; bij het richten een rode stippellijn naar je toe die steeds feller wordt.
 function drawArcher(f, wind) {
   const d = f.d, r = d.radius;
+  if (f.dagger || f.state === 'swap') {   // dolk in de hand, boog op de rug
+    drawBody(f, r, wind > 0 ? mix(d.tunic, C.blood, .4 * wind) : d.tunic, C[d.skin], C[d.hair], { flash: f.flash, belt: d.belt, armR: 4, armL: 4 });
+    ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.face);
+    ctx.strokeStyle = '#5a3a26'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(-r + 4, 0, 8, Math.PI - 1, Math.PI + 1); ctx.stroke();   // boog op de rug
+    if (f.dagger) {
+      const k = f.state === 'swap' ? 1 - f.t / d.dagger.swap : 1;   // trekt hem tijdens het wisselen
+      const off = f.state === 'windup' ? -3 * wind : (f.lunge || 0) * 5, x0 = r - 2 + off;
+      ctx.globalAlpha = k;
+      ctx.strokeStyle = '#4a2f1e'; ctx.lineWidth = 2.6; ctx.beginPath(); ctx.moveTo(x0, 3); ctx.lineTo(x0 + 3, 3); ctx.stroke();   // heft
+      ctx.strokeStyle = EDGE; ctx.lineWidth = 3.2; ctx.beginPath(); ctx.moveTo(x0 + 3, 3); ctx.lineTo(x0 + 10, 3); ctx.stroke();
+      ctx.strokeStyle = '#e4e0d4'; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.moveTo(x0 + 3, 3); ctx.lineTo(x0 + 10, 3); ctx.stroke();   // lemmet
+      ctx.globalAlpha = 1;
+    }
+    ctx.lineCap = 'butt'; ctx.restore();
+    return;
+  }
   if (wind > 0) {
     const reach = d.ranged.arrow * d.ranged.life * .5;
     ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.face);
@@ -2877,7 +3114,7 @@ let last = performance.now();
 function loop(now) {
   const dt = Math.min(.05, (now - last) / 1000); last = now;
   requestAnimationFrame(loop);
-  try { if (typeof PAD !== 'undefined') PAD.poll(); if (!S.paused) update(dt); draw(now); } catch (err) { console.error(err); }   // PAD: controller (pad.js)
+  try { if (typeof PAD !== 'undefined') PAD.poll(); if (!S.paused) update(dt); draw(now); placeHint(); } catch (err) { console.error(err); }   // PAD: controller (pad.js)
 }
 
 /* ---------- Interface ---------- */

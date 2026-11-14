@@ -70,7 +70,7 @@ const PAD = (() => {
     const px = (on[BTN.right] ? 1 : 0) - (on[BTN.left] ? 1 : 0), py = (on[BTN.down] ? 1 : 0) - (on[BTN.up] ? 1 : 0);
     if (!mv && (px || py)) { const l = Math.hypot(px, py); mv = [px / l, py / l]; }
     const aim = stick(gp.axes[2] || 0, gp.axes[3] || 0, AIM_DEAD);
-    if (mv || aim || on.some(Boolean)) { if (!st.active) { st.active = true; document.body.classList.add('pad'); } }
+    if (mv || aim || on.some(Boolean)) { st.padAt = now; st.moved = 0; if (!st.active) { st.active = true; document.body.classList.add('pad'); } }
     if (!st.active) return;   // controller ligt stil: muis en toetsen hebben het voor het zeggen
     if (typeof inFight === 'function' && inFight()) {
       st.move = mv; st.aim = aim ? Math.atan2(aim[1], aim[0]) : null;
@@ -105,7 +105,18 @@ const PAD = (() => {
     if (a && a.playEffect) a.playEffect('dual-rumble', { duration: ms, strongMagnitude: strength, weakMagnitude: strength * .6 }).catch(() => {});
   }
   // Muis bewegen: de muis neemt het over.
-  addEventListener('mousemove', ev => { if (st.active && (Math.abs(ev.movementX) + Math.abs(ev.movementY) > 2)) { st.active = false; st.move = st.aim = null; st.block = false; document.body.classList.remove('pad'); } });
+  // Muis terug pas als je hem echt beweegt: kleine trillingen en de nep-bewegingen die de browser stuurt als het scherm
+  // eronder verandert (einde gevecht, nieuw menu) tellen niet. MOUSE_BACK px binnen 0,3 s, en niet vlak na controllerinvoer.
+  const MOUSE_BACK = 30;
+  addEventListener('mousemove', ev => {
+    if (!st.active) return;
+    const now = performance.now(), d = Math.abs(ev.movementX) + Math.abs(ev.movementY);
+    if (!d || now - (st.padAt || 0) < 400) return;
+    if (now - (st.movedAt || 0) > 300) st.moved = 0;
+    st.moved = (st.moved || 0) + d; st.movedAt = now;
+    if (st.moved < MOUSE_BACK) return;
+    st.active = false; st.moved = 0; st.move = st.aim = null; st.block = false; document.body.classList.remove('pad');
+  });
   addEventListener('gamepadconnected', () => { st.connected = true; document.body.classList.add('has-pad'); });
   addEventListener('gamepaddisconnected', () => { st.connected = false; st.active = false; document.body.classList.remove('has-pad', 'pad'); });
   // Knoppen-iconen per soort controller (Kenney Input Prompts). De standaard-indeling geeft de knop op een plek

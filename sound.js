@@ -11,7 +11,7 @@ const SFX = (() => {
   const SOUNDS = {
     crowd:    ['assets/sound/crowd-loop.wav'],                    // publiek dat continu roezemoest (loop; .wav herhaalt naadloos)
     cheer:    ['assets/sound/cheer-1.mp3', 'assets/sound/cheer-2.mp3', 'assets/sound/cheer-3.mp3'],   // kort gejuich bij een rake klap
-    cheerBig: ['assets/sound/cheer-big.mp3', 'sounds/pixaby content license/vishiv-crowd-cheering-in-stadium-435357.mp3', 'sounds/pixaby content license/gregorquendel-free-crowd-cheering-sounds-02-strong-cheering-rhythmic-cheering-116190.mp3', 'sounds/pixaby content license/gregorquendel-free-crowd-cheering-sounds-04-strong-cheering-ii-short-116191.mp3'],   // groot gejuich: iemand valt, Pugnate!
+    cheerBig: ['assets/sound/cheer-big.mp3', 'sounds/pixaby content license/gregorquendel-free-crowd-cheering-sounds-02-strong-cheering-rhythmic-cheering-116190.mp3', 'sounds/pixaby content license/gregorquendel-free-crowd-cheering-sounds-04-strong-cheering-ii-short-116191.mp3'],   // groot gejuich: iemand valt, Pugnate!
     swell:    ['sounds/pixaby content license/gregorquendel-free-crowd-cheering-sounds-02-strong-cheering-rhythmic-cheering-116190.mp3'],   // af en toe een golf van het publiek boven het geroezemoes (alleen tijdens een gevecht)
     win:      [],   // je wint een gevecht (zie WIN). Leeg: dan het gewone grote gejuich
     boo:      ['assets/sound/boo.mp3'],                           // gejoel: jij verliest
@@ -58,7 +58,7 @@ const SFX = (() => {
   // Van sommige opnames gebruiken we maar een stuk: [vanaf, tot] in seconden (met een korte fade-out aan het eind).
   // Per soort, want één opname kan voor twee dingen dienen (gejuich en een golf in de achtergrond).
   const SEGMENT = {
-    cheerBig: { 'sounds/pixaby content license/gregorquendel-free-crowd-cheering-sounds-04-strong-cheering-ii-short-116191.mp3': [5, 8], 'sounds/pixaby content license/vishiv-crowd-cheering-in-stadium-435357.mp3': [0, 8], 'sounds/pixaby content license/gregorquendel-free-crowd-cheering-sounds-02-strong-cheering-rhythmic-cheering-116190.mp3': [4, 8] },
+    cheerBig: { 'sounds/pixaby content license/gregorquendel-free-crowd-cheering-sounds-04-strong-cheering-ii-short-116191.mp3': [5, 8], 'sounds/pixaby content license/gregorquendel-free-crowd-cheering-sounds-02-strong-cheering-rhythmic-cheering-116190.mp3': [4, 8] },
     swell:    { 'sounds/pixaby content license/gregorquendel-free-crowd-cheering-sounds-02-strong-cheering-rhythmic-cheering-116190.mp3': [12, 18] }
   };
   // Golf van het publiek: elke 'every' seconden (willekeurig binnen het bereik), zo hard als het geroezemoes × vol, zacht in en uit.
@@ -77,7 +77,8 @@ const SFX = (() => {
   }
   // Hoe vol de arena zit (0..1, uit fight.js): een legere arena roezemoest en juicht zachter.
   // Volume = quiet + (1 − quiet) × vulling; bij een volle arena (toernooi) dus 1.
-  const CROWD_SIZE = { quiet: .3 };
+  // cheerMin: onder deze vulling juicht het publiek niet (geen gejuich, ook niet bij winst); roezemoes en golven blijven.
+  const CROWD_SIZE = { quiet: .3, cheerMin: .5 };
   let size = 1;
   const loud = () => CROWD_SIZE.quiet + (1 - CROWD_SIZE.quiet) * size;
   let swellT = null;
@@ -163,6 +164,34 @@ const SFX = (() => {
     };
     requestAnimationFrame(tick);
   }
+  // Afwisseling: echt willekeurig geeft vaak lange reeksen van dezelfde opname. Bij 2 opnames: meestal (65%) de andere en
+  // nooit 3x dezelfde achter elkaar. Bij meer: een geschudde zak, elke opname één keer voor er een terugkomt, nooit 2x achter elkaar.
+  const bags = {}, recent = {};
+  function vary(kind, list) {
+    if (list.length < 2) return list[0];
+    const r = recent[kind] || (recent[kind] = []);
+    let src;
+    if (list.length === 2) {
+      const other = list.find(s => s !== r[0]) || list[0];
+      src = r[0] && r[0] === r[1] ? other : Math.random() < .65 ? other : (r[0] || list[0]);
+    } else {
+      let bag = (bags[kind] || []).filter(s => list.includes(s));
+      if (!bag.length) { bag = [...list].sort(() => Math.random() - .5); if (bag[0] === r[0]) bag.push(bag.shift()); }
+      src = bag.shift(); bags[kind] = bag;
+    }
+    r.unshift(src); r.length = Math.min(r.length, 2);
+    return src;
+  }
+  // Korte geluiden hergebruiken: per bestand hoogstens POOL spelers. Elke keer een nieuwe Audio maken laat Chrome haperen
+  // als er veel tegelijk gebeurt (vrij gevecht: tientallen klappen per minuut). Zijn ze allemaal bezig, dan valt dit geluid weg.
+  const POOL = 4, pools = {};
+  function fromPool(src) {
+    const list = pools[src] || (pools[src] = []);
+    let a = list.find(x => x.paused || x.ended);
+    if (!a) { if (list.length >= POOL) return null; a = new Audio(encodeURI(src)); a.preload = 'auto'; a.dataset.src = src; list.push(a); }
+    try { a.currentTime = 0; } catch (e) {}
+    return a;
+  }
   function play(kind, vol, track) {
     if (!started || muted) return;
     if (track) { playTrack(kind, vol); return; }
@@ -171,10 +200,12 @@ const SFX = (() => {
     const busy = playing.filter(a => !a.ended).map(a => a.dataset.src);
     const free = ok[kind].filter(src => !busy.includes(src));
     const list = free.length ? free : ok[kind]; if (!list.length) return;
-    const src = list[Math.floor(Math.random() * list.length)];
+    const src = vary(kind, list);
     lastStart[kind] = now;
-    const a = new Audio(encodeURI(src)); a.dataset.src = src; a.volume = Math.max(0, Math.min(1, vol * master));
-    a.preservesPitch = false; a.playbackRate = .92 + Math.random() * .16;   // klappen: klein verschil in echte toonhoogte, klinkt minder herhalend
+    // klein verschil in luidheid (±12%) en echte toonhoogte (±10%): klinkt minder als steeds dezelfde opname
+    const a = fromPool(src); if (!a) return;
+    a.volume = Math.max(0, Math.min(1, vol * master * (.88 + Math.random() * .24)));
+    a.preservesPitch = false; a.playbackRate = .9 + Math.random() * .2;   // klappen: klein verschil in echte toonhoogte, klinkt minder herhalend
     a.play().catch(() => {});
   }
   function startCrowd() {
@@ -282,6 +313,7 @@ const SFX = (() => {
     },
     mood(m) { fadeCrowd(MIX.crowd[m] ?? MIX.crowd.calm); },
     cheer(a = .5) {
+      if (size < CROWD_SIZE.cheerMin) return;   // halflege arena: geen gejuich
       a >= .6 && ok.cheerBig.length ? play('cheerBig', MIX.cheerBig * (.6 + .4 * a) * loud(), true) : play('cheer', MIX.cheer * (.5 + .5 * a) * loud(), true);
     },
     boo(a = .5) { play('boo', MIX.boo * (.4 + .6 * a) * loud(), true); },
@@ -290,7 +322,7 @@ const SFX = (() => {
     // Gewonnen: het grote gejuich, alleen het stuk uit WIN. Stopt vanzelf; win(false) laat het wegfaden.
     win(on = true) {
       if (!on) { if (winA) { fadeOut(winA, 1500); winA = null; } return; }
-      if (!started || muted) return;
+      if (!started || muted || size < CROWD_SIZE.cheerMin) return;
       if (!ok.win || !ok.win.length) { this.cheer(1); return; }   // geen eigen overwinningsgeluid: groot gejuich
       if (winA) fadeOut(winA, 120);
       playing.splice(0).forEach(a => { a.done = true; fadeOut(a, 200); });   // ander gejuich weg
