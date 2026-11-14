@@ -7,6 +7,10 @@
 const TOWN = (() => {
   const NS = 'http://www.w3.org/2000/svg';
   const VB = { w: 960, h: 540 };
+  // Beeldvullend zoals de arena: bijsnijden (slice). Op een smal scherm zou je dan de winkels zelf kwijtraken,
+  // dus daar past de hele straat erin (meet), onderaan, en loopt de nachtlucht erboven door.
+  const fitMode = () => innerWidth / innerHeight < 1.45 ? 'xMidYMax meet' : 'xMidYMid slice';
+  addEventListener('resize', () => document.querySelectorAll('.town-svg').forEach(s => s.setAttribute('preserveAspectRatio', fitMode())));
   const VP = { x: 480, y: 255 };          // verdwijnpunt
   const END = 400;                        // tot hier lopen de huizen; daarachter het plein en de arena
   // Plaats van de winkels op de muur (x op de linkermuur; rechts gespiegeld).
@@ -245,23 +249,10 @@ const TOWN = (() => {
     else if (open) el('polygon', { points: poly([Q(0, 0), Q(1, 0), Q(1, 1), Q(0, 1)]), fill: '#3a2420' }, g);
     else shutters(g, Q);
     awning(g, id, sp, side);
-    // uithangbord, haaks op de muur: recht naar je toe, dus goed leesbaar
-    const xs = lerp(sp.x0, sp.x1, side < 0 ? .78 : .78), s = Math.max(.55, scaleAt(xs)), [ax, ay] = out(side, xs, .8, 46);
-    const w = 168 * s, h = 54 * s, x = ax - w / 2, y = ay - h / 2;
-    el('line', { x1: pt(side, xs, .8)[0], y1: ay - h / 2 - 4 * s, x2: ax, y2: ay - h / 2 - 4 * s, stroke: '#3b3034', 'stroke-width': 3 * s }, g);
-    el('line', { x1: x + 12 * s, y1: y - 4 * s, x2: x + 12 * s, y2: y, stroke: '#3b3034', 'stroke-width': 1.5 }, g);
-    el('line', { x1: x + w - 12 * s, y1: y - 4 * s, x2: x + w - 12 * s, y2: y, stroke: '#3b3034', 'stroke-width': 1.5 }, g);
-    el('rect', { x, y, width: w, height: h, rx: 4 * s, fill: open ? '#3a2a1e' : '#2e2420', stroke: open ? '#d49a48' : '#6d6458', 'stroke-width': 2.2 * s, class: 'sign' }, g);
-    const t1 = el('text', { x: ax, y: y + h * .45, 'text-anchor': 'middle', 'font-family': 'Cinzel, Georgia, serif', 'font-weight': 700, 'font-size': 19 * s, 'letter-spacing': 2 * s, fill: open ? '#e2b35e' : '#8d8172' }, g);
-    t1.textContent = def.nl.toUpperCase();
-    if (def.nl.length > 9) t1.setAttribute('font-size', 19 * s * 9 / def.nl.length);   // lange naam: kleiner, zodat hij op het bord past
-    const t2 = el('text', { x: ax, y: y + h * .8, 'text-anchor': 'middle', 'font-family': 'Alegreya Sans, sans-serif', 'font-size': 13 * s, fill: open ? '#f5ead6' : '#8d8172' }, g);
-    t2.textContent = open ? '' : def.after ? `after tournament ${toRoman(def.after)}` : '';
-    if (open) t1.setAttribute('y', y + h * .62);   // één regel: midden op het bord
-    // klikvlak: gevel, luifel en bord samen
-    const hit = el('polygon', { class: 'hl', points: poly([pt(side, sp.x0, 0), pt(side, sp.x1, 0), out(side, sp.x1, .54, 70), [side < 0 ? x + w : x, y], [side < 0 ? x : x + w, y], pt(side, sp.x0, .66)]) }, g);
+    // Geen bordje: je herkent de winkel aan wie er staat en wat er ligt. Klikvlak = gevel en luifel samen.
+    const hit = el('polygon', { class: 'hl', points: poly([pt(side, sp.x0, 0), pt(side, sp.x1, 0), out(side, sp.x1, .54, 70), out(side, sp.x0, .54, 70), pt(side, sp.x0, .66)]) }, g);
     g.insertBefore(hit, g.firstChild);
-    el('title', {}, g).textContent = open ? `${def.nl} (${def.la})` : `${def.nl}: still closed`;
+    el('title', {}, g).textContent = open ? `${def.nl} (${def.la})` : `${def.nl}: closed until after tournament ${toRoman(def.after || 1)}`;
     if (open) { g.setAttribute('tabindex', '0'); g.setAttribute('role', 'button'); g.setAttribute('aria-label', `Enter the ${def.nl.toLowerCase()}`); }
     return g;
   }
@@ -300,6 +291,13 @@ const TOWN = (() => {
     for (let i = 1; i < 8; i++) el('line', { x1: Q(i / 8, 0)[0], y1: Q(i / 8, 0)[1], x2: Q(i / 8, .95)[0], y2: Q(i / 8, .95)[1], stroke: '#3a2416', 'stroke-width': 1.2 }, g);
     const a = Q(0, .45), b = Q(1, .45);
     el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: '#3b3034', 'stroke-width': 2.5 }, g);   // dwarsbalk
+    // dicht: zware balk schuin over de luiken, met een ijzeren hangslot
+    const c = Q(.08, .3), d = Q(.92, .62), m = Q(.5, .46), r = Math.abs(Q(.5, .1)[1] - Q(.5, 0)[1]) * .9;
+    el('line', { x1: c[0], y1: c[1], x2: d[0], y2: d[1], stroke: '#3a2416', 'stroke-width': r * .9, 'stroke-linecap': 'round' }, g);
+    el('line', { x1: c[0], y1: c[1], x2: d[0], y2: d[1], stroke: '#6b4526', 'stroke-width': r * .6, 'stroke-linecap': 'round' }, g);
+    el('path', { d: `M${m[0] - r * .35} ${m[1]} v${-r * .45} a${r * .35} ${r * .35} 0 0 1 ${r * .7} 0 v${r * .45}`, fill: 'none', stroke: '#2a2226', 'stroke-width': r * .16 }, g);
+    el('rect', { x: m[0] - r * .55, y: m[1], width: r * 1.1, height: r * .9, rx: r * .15, fill: '#4a4044', stroke: '#1a1416', 'stroke-width': 1 }, g);
+    el('circle', { cx: m[0], cy: m[1] + r * .4, r: r * .12, fill: '#1a1416' }, g);
   }
 
   // Zelfgemaakt vuur (assets/zelfgemaakt/vuur.js). De onderkant loopt van punt a naar punt b (volgt dus het schuine
@@ -319,9 +317,19 @@ const TOWN = (() => {
     });
   }
 
+  // De winkelier staat in zijn deuropening, op ware grootte in het perspectief: u = plek in de opening.
+  // Zelfde man als binnen in de winkel (SHOPART.figure), met dezelfde beweging (hameren, poetsen, ...).
+  function keeperAt(g, id, Q, u) {
+    if (typeof SHOPART === 'undefined' || !SHOPART.figure) return;
+    const [fx, fy] = Q(u, .02), [, ty] = Q(u, 1), k = (fy - ty) * .62 / 174;   // 174 = hoogte figuur (54..228)
+    const f = el('g', { class: 'street-keeper k-' + id, transform: `translate(${fx} ${fy - 228 * k}) scale(${k})` }, g);
+    f.innerHTML = SHOPART.figure(id);
+  }
+
   // Wat je in een open winkel ziet.
   const contents = {
     bowyer(g, Q, side, s) {
+      keeperAt(g, 'bowyer', Q, .55);
       // bogen aan de muur, een paar pijlkokers eronder
       for (let i = 0; i < 4; i++) {
         const [x, y] = Q(.15 + i * .2, .62), r = 20 * s;
@@ -335,7 +343,8 @@ const TOWN = (() => {
       }
     },
     stable(g, Q, side, s) {
-      // halfhoge staldeuren met twee paardenhoofden erboven
+      // halfhoge staldeuren met twee paardenhoofden erboven, de stalknecht erachter
+      keeperAt(g, 'stable', Q, .5);
       el('polygon', { points: poly([Q(0, 0), Q(1, 0), Q(1, .45), Q(0, .45)]), fill: '#6b4526' }, g);
       for (let i = 1; i < 6; i++) el('line', { x1: Q(i / 6, 0)[0], y1: Q(i / 6, 0)[1], x2: Q(i / 6, .45)[0], y2: Q(i / 6, .45)[1], stroke: '#3a2416', 'stroke-width': 1 }, g);
       for (let i = 0; i < 2; i++) {
@@ -346,6 +355,7 @@ const TOWN = (() => {
       }
     },
     armorer(g, Q, side, s) {
+      keeperAt(g, 'armorer', Q, .5);
       // rij schilden aan de muur, twee harnassen op een standaard
       for (let i = 0; i < 3; i++) {
         const [x, y] = Q(.18 + i * .26, .68), r = 15 * s;
@@ -364,6 +374,7 @@ const TOWN = (() => {
       el('ellipse', { cx: fx, cy: fy, rx: 70 * s, ry: 55 * s, fill: 'url(#tForge)', class: 'forge' }, g);
       const [ax, ay] = Q(.13, .17), [bx, by] = Q(.43, .17);
       fire(g, [ax, ay], [bx, by], .95);   // zelfgetekend vuur op de haard
+      keeperAt(g, 'smith', Q, .57);   // de smid achter zijn aambeeld
       el('polygon', { points: poly([Q(.12, .02), Q(.44, .02), Q(.4, .2), Q(.16, .2)]), fill: '#3b3034' }, g);   // haard
       // aambeeld
       el('polygon', { points: poly([Q(.5, 0), Q(.6, 0), Q(.58, .12), Q(.52, .12)]), fill: '#2a2226' }, g);
@@ -385,10 +396,7 @@ const TOWN = (() => {
     el('rect', { class: 'hl', x: 312, y: 88, width: 336, height: 220, rx: 10 }, g);
     arena(g);
     const due = !fightOpen();   // 5 gevechten gehad: nu moet het toernooi
-    const w = 170, h = 50, x = 480 - w / 2, y = 92;
-    el('rect', { x, y, width: w, height: h, rx: 6, fill: due ? '#4a1512' : '#3a2a1e', stroke: due ? '#d4463b' : '#d49a48', 'stroke-width': 2.2, class: 'sign' }, g);
-    const t1 = el('text', { x: 480, y: y + 32, 'text-anchor': 'middle', 'font-family': 'Cinzel, Georgia, serif', 'font-weight': 700, 'font-size': 20, 'letter-spacing': 4, fill: '#e2b35e' }, g);
-    t1.textContent = 'ARENA';
+    g.classList.toggle('due', due);   // toernooi: de arena gloeit rood (zie style.css)
     const sub = due ? `Tournament ${toRoman(S.stage + 1)}` : fightLabel();
     g.setAttribute('aria-label', `To the arena: ${sub}`);
     el('title', {}, g).textContent = sub;
@@ -537,7 +545,7 @@ const TOWN = (() => {
 
   function render() {
     const host = $('townArt'); host.innerHTML = '';
-    const svg = el('svg', { viewBox: `0 0 ${VB.w} ${VB.h}`, class: 'town-svg', role: 'group', 'aria-label': 'The street to the arena' }, host);
+    const svg = el('svg', { viewBox: `0 0 ${VB.w} ${VB.h}`, preserveAspectRatio: fitMode(), class: 'town-svg', role: 'group', 'aria-label': 'The street to the arena' }, host);
     defs(svg); sky(svg);
     arenaSpot(svg);
     street(svg); walls(svg);
@@ -557,12 +565,7 @@ const TOWN = (() => {
   }
   function purse() {
     $('townMoney').textContent = S.money;
-
-    const b = $('townStats');
-    b.textContent = S.points ? `Stats · ${toRoman(S.points)}` : 'Stats';
-    b.classList.toggle('has-points', S.points > 0);
   }
-  $('townStats').onclick = () => openStats('town');
 
   /* ---------- Winkel: de toonbank ---------- */
   let current = null;

@@ -2393,14 +2393,22 @@ function newRun() {
   startFight(); S.paused = false;
 }
 $('startBtn').onclick = () => { SFX.init(); $('start').hidden = true; newRun(); };
+// Titelscherm: Play opent de instellingen (moeilijkheid, volume, toetsen), Credits de naamsvermelding
+const showOnly = id => { for (const o of ['title', 'settings', 'credits', 'start']) $(o).hidden = o !== id; };
+$('titlePlay').onclick = () => { SFX.init(); showOnly('start'); $('startBtn').focus(); };
+$('titleCredits').onclick = () => { showOnly('credits'); $('creditsBack').focus(); };
+$('titleSettings').onclick = () => { SFX.init(); showOnly('settings'); $('volume').focus(); };
+$('settingsBack').onclick = () => { showOnly('title'); $('titleSettings').focus(); };
+$('creditsBack').onclick = () => { showOnly('title'); $('titleCredits').focus(); };
+$('startBack').onclick = () => { showOnly('title'); $('titlePlay').focus(); };
 // Volume: schuifjes op het startscherm en in de straat. Bij het schuiven hoor je meteen hoe hard het is.
 let volPreview = 0;
 function showVolume() {
   const v = SFX.muted ? 0 : Math.round(SFX.volume * 100);
-  for (const id of ['volume', 'townVolume', 'pauseVolume']) $(id).value = v;
+  for (const id of ['volume', 'pauseVolume']) $(id).value = v;
   $('volumeOut').textContent = v; showMute();
 }
-for (const id of ['volume', 'townVolume', 'pauseVolume']) $(id).addEventListener('input', ev => {
+for (const id of ['volume', 'pauseVolume']) $(id).addEventListener('input', ev => {
   SFX.init(); SFX.setVolume(ev.target.value / 100);
   if (+ev.target.value === 0) SFX.setMuted(true);
   showVolume();
@@ -2468,15 +2476,38 @@ cvs.addEventListener('pointermove', ev => {
 });
 cvs.addEventListener('pointerleave', () => { steer.hoverT = 0; });
 ['pointerup', 'pointercancel'].forEach(t => cvs.addEventListener(t, () => steer.down = false));
-const anyOverlay = () => ['start', 'result', 'stats', 'town', 'shop', 'pick', 'judge'].some(id => !$(id).hidden);
+const anyOverlay = () => ['title', 'settings', 'credits', 'start', 'result', 'stats', 'town', 'shop', 'pick', 'judge'].some(id => !$(id).hidden);
 // Pauze: Escape tijdens een gevecht, nog eens Escape (of Verder) om door te gaan.
 const inFight = () => !S.paused && !anyOverlay();
-function pause() { S.paused = true; keys.clear(); steer.down = false; SFX.mood('calm'); showVolume(); $('pause').hidden = false; $('pauseBtn').focus(); }
-function resume() { $('pause').hidden = true; S.paused = false; keys.clear(); if (S.intro <= 0) SFX.mood('fight'); }
+// In de stad werkt Escape hetzelfde (geluid en, alleen daar, de stats); de stad blijft gewoon gepauzeerd.
+const inTown = () => !$('town').hidden;
+function pause() {
+  S.paused = true; keys.clear(); steer.down = false; showVolume();
+  if (!inTown()) SFX.mood('calm');
+  const st = $('pauseStats'); st.hidden = !inTown();
+  st.textContent = S.points ? `Stats · ${toRoman(S.points)}` : 'Stats'; st.classList.toggle('has-points', S.points > 0);
+  $('pause').hidden = false; $('pauseBtn').focus();
+}
+function resume() {
+  $('pause').hidden = true; keys.clear();
+  if (inTown()) return;
+  S.paused = false; if (S.intro <= 0) SFX.mood('fight');
+}
 $('pauseBtn').onclick = resume;
+$('pauseStats').onclick = () => { $('pause').hidden = true; openStats('town'); };
 addEventListener('keydown', ev => {
   if (ev.key === 'Escape' && !(ev.target.closest && ev.target.closest('#dev'))) {
     if (!$('pause').hidden) { ev.preventDefault(); resume(); return; }
+    if (!$('credits').hidden) { ev.preventDefault(); $('creditsBack').click(); return; }
+    if (!$('settings').hidden) { ev.preventDefault(); $('settingsBack').click(); return; }
+    if (!$('start').hidden) { ev.preventDefault(); $('startBack').click(); return; }
+    if (inTown()) {   // de straat: winkel of arenakeuze eerst dicht, anders pauzemenu
+      ev.preventDefault();
+      if (!$('shop').hidden) $('shopBack').click();
+      else if (!$('pick').hidden) $('pickBack').click();
+      else if ($('stats').hidden) pause();
+      return;
+    }
     if (inFight()) { ev.preventDefault(); pause(); return; }
   }
   if (anyOverlay() || !$('pause').hidden) return;

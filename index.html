@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Roman Numerals</title>
+<title>Pugnate!</title>
 <!-- Alleen IM Fell English (perkament van het Stats-scherm) komt nog van Google; Cinzel en Alegreya Sans zitten in assets/fonts -->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&display=swap">
 <link rel="stylesheet" href="style.css">
@@ -33,7 +33,52 @@
   </div>
 </div>
 
-<div class="overlay" id="start">
+<!-- Titelscherm: het eerste wat je ziet. De naam van het spel staat alleen hier (en in <title>). -->
+<div class="overlay title-bg" id="title">
+  <div class="title-screen">
+    <p class="title-eyebrow">A gladiator game</p>
+    <h1 class="game-title">Pugnate!</h1>
+    <p class="title-sub">From slave to champion</p>
+    <nav class="tablet title-menu">
+      <button id="titlePlay" class="primary wide">Play</button>
+      <button id="titleSettings" class="btn wide">Settings</button>
+      <button id="titleCredits" class="btn wide">Credits</button>
+    </nav>
+  </div>
+</div>
+
+<div class="overlay" id="settings" hidden>
+  <div class="panel settings-panel">
+    <h2>Settings</h2>
+    <section>
+      <h3>Volume</h3>
+      <label class="vol"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h4l6-5v16l-6-5H3z" fill="#d49a48"/><path d="M16 8.5c1.6 1.9 1.6 5.1 0 7M18.5 6c3 3.3 3 8.7 0 12" fill="none" stroke="#d49a48" stroke-width="2" stroke-linecap="round"/><path d="M3 9h4l6-5v16l-6-5H3z" fill="none" stroke="#1e0f08" stroke-width="1.4" stroke-linejoin="round"/></svg><input type="range" id="volume" min="0" max="100" step="1" aria-label="Volume"><output id="volumeOut">60</output></label>
+    </section>
+    <button id="settingsBack" class="primary wide">Back</button>
+  </div>
+</div>
+
+<div class="overlay" id="credits" hidden>
+  <div class="panel credits-panel">
+    <h2>Credits</h2>
+    <section>
+      <h3>Made by</h3>
+      <p>Jasper</p>
+    </section>
+    <section>
+      <h3>Sound</h3>
+      <ul>
+        <li>"Crowd Cheering - Strong Cheering and Strong Rhythmic Cheering" by <a href="https://freesound.org/people/GregorQuendel/sounds/481782/" target="_blank" rel="noopener">GregorQuendel</a></li>
+        <li>"11575 male group booing" and "13206 panicked horse neigh" by <a href="https://freesound.org/people/Robinhood76/" target="_blank" rel="noopener">Robinhood76</a></li>
+        <li>"horse_neigh-02" by <a href="https://freesound.org/people/n_audioman/sounds/321957/" target="_blank" rel="noopener">n_audioman</a></li>
+      </ul>
+      <p class="muted">Licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>, trimmed.</p>
+    </section>
+    <button id="creditsBack" class="primary wide">Back</button>
+  </div>
+</div>
+
+<div class="overlay" id="start" hidden>
   <div class="panel">
     <h1>The arena</h1>
     <ul class="keys">
@@ -42,12 +87,11 @@
       <li><kbd>Space</kbd> roll</li>
       <li><kbd>M</kbd> sound</li>
     </ul>
-    <label class="vol"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h4l6-5v16l-6-5H3z" fill="#d49a48"/><path d="M16 8.5c1.6 1.9 1.6 5.1 0 7M18.5 6c3 3.3 3 8.7 0 12" fill="none" stroke="#d49a48" stroke-width="2" stroke-linecap="round"/><path d="M3 9h4l6-5v16l-6-5H3z" fill="none" stroke="#1e0f08" stroke-width="1.4" stroke-linejoin="round"/></svg><input type="range" id="volume" min="0" max="100" step="1" aria-label="Volume"><output id="volumeOut">60</output></label>
     <div class="diff" id="diff" role="group" aria-label="Difficulty">
       <button data-d="easy">Easy</button><button data-d="normal">Normal</button><button data-d="hard">Hard</button>
     </div>
     <button id="startBtn" class="primary wide">Enter the arena</button>
-    <p class="credits">Sound: "Crowd Cheering - Strong Cheering and Strong Rhythmic Cheering" by <a href="https://freesound.org/people/GregorQuendel/sounds/481782/" target="_blank" rel="noopener">GregorQuendel</a>, "11575 male group booing" and "13206 panicked horse neigh" by <a href="https://freesound.org/people/Robinhood76/" target="_blank" rel="noopener">Robinhood76</a>, "horse_neigh-02" by <a href="https://freesound.org/people/n_audioman/sounds/321957/" target="_blank" rel="noopener">n_audioman</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>), trimmed; "Crowd Shouting" by freesound_community (via Pixabay).</p>
+    <button id="startBack" class="btn wide">Back</button>
   </div>
 </div>
 
@@ -68,6 +112,7 @@
   <div class="panel judge">
     <h2>Paused</h2>
     <div class="vol-row"><button id="mute" class="mute" aria-pressed="true" title="Sound on or off (M)"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h4l6-5v16l-6-5H3z" fill="#d49a48"/><path d="M16 8.5c1.6 1.9 1.6 5.1 0 7M18.5 6c3 3.3 3 8.7 0 12" fill="none" stroke="#d49a48" stroke-width="2" stroke-linecap="round"/><path d="M3 9h4l6-5v16l-6-5H3z" fill="none" stroke="#1e0f08" stroke-width="1.4" stroke-linejoin="round"/></svg></button><label class="vol"><input type="range" id="pauseVolume" min="0" max="100" step="1" aria-label="Volume"></label></div>
+    <button id="pauseStats" class="btn wide" hidden>Stats</button>
     <button id="pauseBtn" class="primary wide">Continue</button>
   </div>
 </div>
@@ -136,12 +181,10 @@
 <!-- De stad: de straat met winkels en de arena in de verte. Getekend door town.js. -->
 <div class="overlay town-bg" id="town" hidden>
   <div class="town">
-    <header class="town-bar">
-      <p class="town-purse"><b id="townMoney">0</b> d<span id="townWeapon" hidden></span></p>
-      <label class="vol small"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h4l6-5v16l-6-5H3z" fill="#d49a48"/><path d="M16 8.5c1.6 1.9 1.6 5.1 0 7M18.5 6c3 3.3 3 8.7 0 12" fill="none" stroke="#d49a48" stroke-width="2" stroke-linecap="round"/><path d="M3 9h4l6-5v16l-6-5H3z" fill="none" stroke="#1e0f08" stroke-width="1.4" stroke-linejoin="round"/></svg><input type="range" id="townVolume" min="0" max="100" step="1" aria-label="Volume"></label>
-      <button id="townStats" class="town-stats">Stats</button>
-    </header>
-    <div class="town-art" id="townArt"></div>
+    <div class="town-wrap">
+      <div class="town-art" id="townArt"></div>
+      <p class="town-purse" id="townPurse" title="Denarii"><svg class="ico purse-ico" viewBox="0 0 40 40" aria-hidden="true"><path d="M14 9 Q20 13 26 9 L24 15 Q35 20 33 30 Q31 37 20 37 Q9 37 7 30 Q5 20 16 15 Z" fill="#7a5232" stroke="#1e0f08" stroke-width="2" stroke-linejoin="round"/><path d="M15 15 Q20 17.5 25 15" fill="none" stroke="#d49a48" stroke-width="2.4" stroke-linecap="round"/><circle cx="29" cy="31" r="6" fill="#d49a48" stroke="#1e0f08" stroke-width="1.6"/><circle cx="29" cy="31" r="2.6" fill="none" stroke="#a8742f" stroke-width="1.2"/></svg><b id="townMoney">0</b><span id="townWeapon" hidden></span></p>
+    </div>
     <p id="townHint" hidden></p>
   </div>
 </div>

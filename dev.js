@@ -123,7 +123,7 @@
   }
   function apply(fight, test = null) {
     const [type, si, fi] = $('devFight').value.split(':').map((v, i) => i ? +v : v);
-    for (const id of ['start', 'result', 'stats', 'town', 'shop', 'pick', 'judge']) $(id).hidden = true;
+    for (const id of ['title', 'settings', 'credits', 'start', 'result', 'stats', 'town', 'shop', 'pick', 'judge']) $(id).hidden = true;
     judgeEnd();
     S.stage = si; S.finished = false; S.test = test; S.god = $('devGod').checked;
     S.inStage = type === 't' ? STAGES[si].fights.length : fi;   // bij een toernooi: alsof je het blok al hebt gehad
@@ -158,5 +158,5 @@
     S.paused = true; keys.clear();
     note(); box.hidden = false; $('devFight').focus();
   }
-  function close() { box.hidden = true; if (['start', 'result', 'stats', 'town', 'shop', 'pick', 'judge'].every(id => $(id).hidden) && !S.over) S.paused = false; }
+  function close() { box.hidden = true; if (['title', 'settings', 'credits', 'start', 'result', 'stats', 'town', 'shop', 'pick', 'judge'].every(id => $(id).hidden) && !S.over) S.paused = false; }
 })();

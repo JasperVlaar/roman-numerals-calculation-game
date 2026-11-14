@@ -51,8 +51,9 @@ const SHOPART = (() => {
 
   /* ---------- Taferelen (viewBox 480 × 170) ---------- */
   // De winkelier van voren, achter de toonbank. arm = de groep die beweegt (CSS-animatie per winkel).
-  function keeper({ x, tunic, apron, hair, beard, skin = '#d8a47a', tool = '' }) {
+  function keeper({ x, tunic, apron, hair, beard, skin = '#d8a47a', tool = '', legs = false }) {
     return `<g transform="translate(${x} 0)">
+      ${legs ? `<path d="M-15 186 L-13 222 M15 186 L13 222" stroke="${skin}" stroke-width="10" stroke-linecap="round"/><ellipse cx="-13" cy="225" rx="8" ry="4" fill="#5a3a26" ${line}/><ellipse cx="13" cy="225" rx="8" ry="4" fill="#5a3a26" ${line}/><path d="M-30 166 L-27 194 Q0 199 27 194 L30 166 Z" fill="${tunic}" ${line}/>${apron ? `<path d="M-17 166 L-16 192 Q0 195 16 192 L17 166 Z" fill="${apron}" ${line}/>` : ''}` : ''}
       <path d="M-30 170 Q-30 108 0 102 Q30 108 30 170 Z" fill="${tunic}" ${line}/>
       ${apron ? `<path d="M-17 170 L-15 116 Q0 112 15 116 L17 170 Z" fill="${apron}" ${line}/>` : ''}
       <rect x="-7" y="86" width="14" height="20" fill="${skin}"/>
@@ -72,6 +73,18 @@ const SHOPART = (() => {
   const wall = (keys, x0, y, gap = 54, size = 46) => keys.map((k, i) =>
     `<g transform="translate(${x0 + i * gap} ${y}) scale(${size / 40})">${ICONS[k] || ''}</g>`).join('');
 
+  // Elke winkelier heeft één vast uiterlijk; in de straat zie je dezelfde man als binnen.
+  const KEEPERS = {
+    smith:   { tunic: '#5c4030', apron: '#3b2a1e', hair: '#2a1a12', beard: '#2a1a12',
+      tool: `<g><path d="M44 140 L62 118" stroke="#6b4526" stroke-width="4" stroke-linecap="round"/><rect x="56" y="108" width="16" height="10" rx="2" fill="#3b3034" ${line} transform="rotate(-50 64 113)"/></g>` },
+    armorer: { tunic: '#4f5a3a', apron: '#7a5230', hair: '#5c4030', beard: '',
+      tool: `<g><circle cx="52" cy="132" r="9" fill="#d49a48" ${line}/><circle cx="52" cy="132" r="3" fill="#a8742f"/></g>` },
+    bowyer:  { tunic: '#74305a', apron: '#9a7a52', hair: '#8d8172', beard: '#8d8172',
+      tool: `<g><path d="M40 146 L66 120" stroke="#e4e0d4" stroke-width="3" stroke-linecap="round"/></g>` },
+    stable:  { tunic: '#5f6d45', apron: '', hair: '#3a271c', beard: '',
+      tool: `<g><path d="M48 142 L66 96" stroke="#6b4526" stroke-width="3"/><path d="M60 92 h14 M62 92 v-8 M67 92 v-9 M72 92 v-8" stroke="#8a8a80" stroke-width="2"/></g>` }
+  };
+
   const SCENES = {
     smith(wares) {
       return `<defs><radialGradient id="sForge"><stop offset="0" stop-color="#ffe0a0"/><stop offset=".35" stop-color="#f08a3a"/><stop offset="1" stop-color="#7e1f1b" stop-opacity="0"/></radialGradient>
@@ -83,8 +96,7 @@ const SHOPART = (() => {
         <ellipse cx="70" cy="112" rx="34" ry="18" fill="url(#sForge)" class="forge"/>
         ${wall(wares, 330, 22, 50, 44)}
         <path d="M318 74 H470" stroke="#5a3a26" stroke-width="5"/>
-        ${keeper({ x: 225, tunic: '#5c4030', apron: '#3b2a1e', hair: '#2a1a12', beard: '#2a1a12',
-          tool: `<g><path d="M44 140 L62 118" stroke="#6b4526" stroke-width="4" stroke-linecap="round"/><rect x="56" y="108" width="16" height="10" rx="2" fill="#3b3034" ${line} transform="rotate(-50 64 113)"/></g>` })}
+        ${keeper({ x: 225, ...KEEPERS.smith })}
         <g class="sparks">${[0, 1, 2, 3, 4].map(i => `<circle cx="${300 + i * 6}" cy="${128 - i * 4}" r="1.6" fill="#ffd27a"/>`).join('')}</g>
         <path d="M270 140 L284 126 L330 126 L344 140 Z" fill="#3b3034" ${line}/>
         ${counter('#4a3226', '#5e4030')}`;
@@ -95,8 +107,7 @@ const SHOPART = (() => {
         <path d="M0 64 H480" stroke="#3b2a1e" stroke-width="6"/>
         ${wall(wares, 20, 16, 64, 50)}
         <g transform="translate(410 40)"><path d="M0 0 V100" stroke="#3b2a1e" stroke-width="4"/><g transform="translate(-22 -6) scale(1.1)">${ICONS.lorica}</g></g>
-        ${keeper({ x: 290, tunic: '#4f5a3a', apron: '#7a5230', hair: '#5c4030', beard: '',
-          tool: `<g><circle cx="52" cy="132" r="9" fill="#d49a48" ${line}/><circle cx="52" cy="132" r="3" fill="#a8742f"/></g>` })}
+        ${keeper({ x: 290, ...KEEPERS.armorer })}
         ${counter('#5e3c22', '#7a5230')}`;
     },
     bowyer(wares) {
@@ -107,8 +118,7 @@ const SHOPART = (() => {
         ${wall(wares, 300, 18, 46, 42)}
         <g transform="translate(410 100)"><rect x="0" y="0" width="40" height="44" rx="6" fill="#7a5230" ${line}/><path d="M0 12 H40 M0 32 H40" stroke="#3b2a1e" stroke-width="2"/>
           ${[6, 14, 22, 30].map(x => `<path d="M${x} 0 L${x - 2} -26" stroke="#6b4526" stroke-width="1.6"/><path d="M${x - 2} -26 l-2 -4 M${x - 2} -26 l2 -4" stroke="#8e1f1a" stroke-width="2"/>`).join('')}</g>
-        ${keeper({ x: 245, tunic: '#74305a', apron: '#9a7a52', hair: '#8d8172', beard: '#8d8172',
-          tool: `<g><path d="M40 146 L66 120" stroke="#e4e0d4" stroke-width="3" stroke-linecap="round"/></g>` })}
+        ${keeper({ x: 245, ...KEEPERS.bowyer })}
         <g class="shavings">${[0, 1, 2].map(i => `<path d="M${300 + i * 9} 134 q4 -6 8 0" fill="none" stroke="#e8c88a" stroke-width="2"/>`).join('')}</g>
         <path d="M170 138 L330 128" stroke="#8a5a34" stroke-width="6" stroke-linecap="round"/>
         ${counter('#7a5230', '#9a6a3e')}`;
@@ -121,8 +131,7 @@ const SHOPART = (() => {
           <path d="M52 30 Q44 50 46 76" stroke="#1e140f" stroke-width="5" fill="none"/><circle cx="66" cy="34" r="2" fill="#1e140f"/><path d="M56 26 l-2 -9 l7 6" fill="${i ? '#3a271c' : '#8a5a34'}" ${line}/></g></g>`).join('')}
         <path d="M300 142 Q330 104 380 118 Q420 100 470 142 Z" fill="#d9b860" ${line}/>
         ${wall(wares, 330, 30, 60, 60)}
-        ${keeper({ x: 300, tunic: '#5f6d45', apron: '', hair: '#3a271c', beard: '',
-          tool: `<g><path d="M48 142 L66 96" stroke="#6b4526" stroke-width="3"/><path d="M60 92 h14 M62 92 v-8 M67 92 v-9 M72 92 v-8" stroke="#8a8a80" stroke-width="2"/></g>` })}
+        ${keeper({ x: 300, ...KEEPERS.stable })}
         ${counter('#5e3c22', '#7a5230')}`;
     }
   };
@@ -130,5 +139,7 @@ const SHOPART = (() => {
     const wares = (SHOPS[id].wares || []).filter(k => ICONS[k]).slice(0, 4);
     return `<svg viewBox="0 0 480 170" class="shop-svg ${id}" aria-hidden="true">${SCENES[id] ? SCENES[id](wares) : ''}</svg>`;
   }
-  return { icon, scene, ICONS };
+  // Winkelier van top tot teen, voor in de straat (voeten op y 228, hoofd vanaf y 54).
+  const figure = id => keeper({ x: 0, ...KEEPERS[id], legs: true });
+  return { icon, scene, figure, ICONS };
 })();
