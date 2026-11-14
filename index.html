@@ -12,6 +12,14 @@
 <div class="app fight">
   <div class="stage" id="stage">
     <canvas id="arena" aria-label="Arena with you and your opponents"></canvas>
+    <!-- Begin van een ronde: het doel groot in het midden (zweeft daarna naar boven) -->
+    <div class="goal-intro" id="goalIntro" hidden>
+      <p class="gi-eyebrow" id="giEyebrow"></p>
+      <div><p class="gi-title" id="giTitle"></p></div>
+      <p class="gi-sub" id="giSub"></p>
+    </div>
+    <!-- Onderin: uitleg bij iets nieuws (wapen, boog, schild, net) -->
+    <div class="hint" id="hint" hidden></div>
     <!-- Bovenin: het doel van de ronde en je leven, groot -->
     <div class="top-hud">
       <p class="goal-top" id="goalText" hidden></p>
@@ -86,13 +94,14 @@
 <div class="overlay" id="start" hidden>
   <div class="panel">
     <h1>The arena</h1>
-    <ul class="keys">
+    <!-- Met een controller aangesloten zie je de controllerknoppen in plaats van het toetsenbord -->
+    <ul class="keys pad-keys" id="padKeys"></ul>   <!-- gevuld door pad.js, met de knoppen van jouw soort controller -->
+    <ul class="keys kb-keys">
       <!-- Toetsiconen: Kenney Input Prompts (CC0), assets/kenney_input-prompts_1.5 -->
       <li><span class="key-ico"><img src="assets/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Vector/keyboard_w.svg" alt="W"><img src="assets/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Vector/keyboard_a.svg" alt="A"><img src="assets/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Vector/keyboard_s.svg" alt="S"><img src="assets/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Vector/keyboard_d.svg" alt="D"><i>/</i><img src="assets/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Vector/keyboard_arrows.svg" alt="arrow keys" class="wide"></span><span>move</span></li>
       <li><span class="key-ico"><img src="assets/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Vector/mouse_move.svg" alt="mouse"></span><span>aim</span></li>
       <li><span class="key-ico"><img src="assets/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Vector/mouse_left.svg" alt="left click"><i>/</i><img src="assets/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Vector/keyboard_j.svg" alt="J"></span><span>attack</span></li>
       <li><span class="key-ico"><img src="assets/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Vector/mouse_right.svg" alt="right click"><i>/</i><img src="assets/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Vector/keyboard_k.svg" alt="K"></span><span>block</span></li>
-      <li><span class="key-ico"><img src="assets/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Vector/keyboard_space.svg" alt="Space" class="wide"></span><span>roll</span></li>
       <li><span class="key-ico"><img src="assets/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Vector/keyboard_1.svg" alt="1"><img src="assets/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Vector/keyboard_2.svg" alt="2"></span><span>weapon</span></li>
       <li><span class="key-ico"><img src="assets/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Vector/keyboard_e.svg" alt="E"></span><span>throw net</span></li>
       <li><span class="key-ico"><img src="assets/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Vector/keyboard_m.svg" alt="M"><i>/</i><img src="assets/kenney_input-prompts_1.5/Keyboard%20%26%20Mouse/Vector/keyboard_escape.svg" alt="Esc"></span><span>sound · pause</span></li>
@@ -193,6 +202,7 @@
   <div class="town">
     <div class="town-wrap">
       <div class="town-art" id="townArt"></div>
+      <div class="town-xp" id="townXp" title="Experience"><span class="inv-lvl" id="townLvl">I</span><div class="bar"><div id="townXpFill"></div></div><span class="town-xp-num" id="townXpText">0 / 4</span></div>
       <p class="town-purse" id="townPurse" title="Denarii"><svg class="ico purse-ico" viewBox="0 0 40 40" aria-hidden="true"><path d="M14 9 Q20 13 26 9 L24 15 Q35 20 33 30 Q31 37 20 37 Q9 37 7 30 Q5 20 16 15 Z" fill="#7a5232" stroke="#1e0f08" stroke-width="2" stroke-linejoin="round"/><path d="M15 15 Q20 17.5 25 15" fill="none" stroke="#d49a48" stroke-width="2.4" stroke-linecap="round"/><circle cx="29" cy="31" r="6" fill="#d49a48" stroke="#1e0f08" stroke-width="1.6"/><circle cx="29" cy="31" r="2.6" fill="none" stroke="#a8742f" stroke-width="1.2"/></svg><b id="townMoney">0</b><span id="townWeapon" hidden></span></p>
     </div>
     <p id="townHint" hidden></p>
@@ -202,6 +212,8 @@
 <!-- In de arena kiezen: het volgende gevecht (hooguit 5 per blok, zie STAGES) of het toernooi. -->
 <div class="overlay" id="pick" hidden>
   <div class="panel pick">
+    <p class="eyebrow">Amphitheatrum</p>
+    <h2>The arena</h2>
     <div class="choices" id="choices"></div>
     <button id="pickBack" class="btn wide">Back</button>
   </div>
@@ -226,6 +238,7 @@
 <script src="shops.js"></script>
 <script src="assets/zelfgemaakt/vuur.js"></script>
 <script src="town.js"></script>
+<script src="pad.js"></script>
 <script src="dev.js"></script>
 </body>
 </html>

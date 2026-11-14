@@ -133,6 +133,8 @@ button:disabled{opacity:.4;cursor:default}
 @media (prefers-reduced-motion:reduce){.stage.hurt::after{animation:none}}
 /* Statsscherm: een perkamentrol op een donkere ondergrond */
 .scroll-bg{background:radial-gradient(ellipse at 50% 40%,#2c1c22 0%,#150d11 70%,#0c0709 100%);backdrop-filter:none}
+/* Perkament direct na een gevecht: half doorzichtig, zodat je de arena waar je was erachter ziet (vanuit het menu: gewoon dicht) */
+.scroll-bg.over-arena{background:radial-gradient(ellipse at 50% 45%,rgba(28,18,22,.35) 0%,rgba(16,10,13,.6) 60%,rgba(10,6,8,.8) 100%);backdrop-filter:blur(1.5px)}
 .scroll{width:min(470px,calc(100% - 30px));max-height:100%;display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 18px 30px rgba(0,0,0,.6))}
 .rod{width:calc(100% + 28px);height:18px;flex:none;border-radius:9px;position:relative;z-index:1;
   background:linear-gradient(180deg,#8a5a2e 0%,#c48a4e 30%,#6e4220 70%,#4a2a12 100%)}
@@ -226,6 +228,24 @@ button:disabled{opacity:.4;cursor:default}
 /* Keuze in de arena: gevecht of toernooi (town.js) */
 #pick{z-index:26}
 .choices{display:flex;flex-direction:column;gap:10px}
+/* Keuze in de arena: boven de lege arena (de straat is even weg), zonder HUD */
+#town.away{visibility:hidden}
+body.arena-pick #pick{background:radial-gradient(ellipse at center,rgba(10,6,8,.15),rgba(10,6,8,.55));backdrop-filter:none}
+body.arena-pick .inv,body.arena-pick .top-hud,body.arena-pick .goal-intro,body.arena-pick .hint{display:none}
+/* Uitleg bij iets nieuws: kleine wastablet onderin het midden, vervaagt na een paar seconden */
+.hint{position:absolute;right:16px;bottom:16px;z-index:3;display:flex;gap:22px;padding:10px 16px 12px;pointer-events:none;
+  background:var(--tex-grain),var(--wax);border:5px solid var(--wood);outline:2px solid var(--wood-edge);border-radius:4px;box-shadow:inset 0 0 0 2px var(--wood-edge),0 6px 18px rgba(0,0,0,.45);
+  animation:hintIn .45s cubic-bezier(.2,.9,.3,1.15);transition:opacity .5s}
+.hint.gone{opacity:0}
+.hint section{display:grid;grid-template-columns:max-content max-content;gap:5px 10px;align-items:center}
+.hint h4{grid-column:1/-1;margin:0 0 3px;font-family:var(--f-display);font-weight:700;font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:var(--coin)}
+.hint-ico{display:flex;gap:1px}
+.hint-ico img{width:28px;height:28px;display:block;filter:sepia(.35) brightness(.96) drop-shadow(0 1px 0 rgba(0,0,0,.6))}
+.hint span:not(.hint-ico){color:var(--wax-ink);font-size:13px}
+@keyframes hintIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@media (max-width:900px){.hint{flex-direction:column;gap:10px;bottom:auto;top:110px}}
+.panel.pick{width:min(480px,100%)}
+.panel.pick h2{margin:-8px 0 2px}
 .choice{display:flex;flex-direction:column;align-items:flex-start;gap:3px;width:100%;padding:14px 16px;text-align:left;border-radius:14px;border:1px solid var(--line);background:var(--stone-2);color:var(--ink);cursor:pointer;transition:border-color .15s,background .15s}
 .choice b{font-family:var(--f-display);font-size:18px;color:var(--bronze)}
 .choice span{color:var(--muted);font-size:14px;line-height:1.4}
@@ -384,10 +404,49 @@ button:disabled{opacity:.4;cursor:default}
 .key-ico{display:flex;align-items:center;gap:1px}
 .key-ico img{width:30px;height:30px;display:block;filter:sepia(.35) brightness(.96) drop-shadow(0 1px 0 rgba(0,0,0,.6))}
 .key-ico img.wide{width:46px;height:46px;margin:-8px -3px}
+.keys.pad-keys{display:none}
+body.has-pad .keys.kb-keys{display:none}
+body.has-pad .keys.pad-keys{display:grid}
+/* Controller in gebruik: geen muiscursor in beeld (beweeg je de muis, dan komt hij terug) */
+body.pad,body.pad *{cursor:none !important}
+/* Perkament met de controller: de gekozen knop donkerrood omrand en groter, de hele regel licht gemarkeerd */
+body.pad .parchment .statlist li:focus-within{background:rgba(142,31,26,.13);box-shadow:inset 4px 0 0 #8e1f1a}
+body.pad .parchment .stepper button:focus{outline:3px solid #8e1f1a;outline-offset:2px;background:#fff3d6;transform:scale(1.18);box-shadow:0 0 10px rgba(142,31,26,.45)}
+body.pad .parchment .seal:focus{outline:3px solid #f0c56a;outline-offset:4px;filter:brightness(1.15)}
+body.pad .parchment .scroll-link:focus{outline:2px solid #8e1f1a;outline-offset:2px;color:#3b2414}
+/* Kiezen met de controller: duidelijke gouden rand om wat gekozen is */
+body.pad :focus{outline:3px solid var(--coin);outline-offset:3px}
+body.pad .town-svg .hot:focus{outline:none}
+body.pad .town-svg .hot:not(.closed):focus .hl{fill:rgba(240,197,106,.12);stroke:#f0c56a}
+body.pad .town-svg .hot:not(.closed):focus .sign{stroke:#f0c56a;filter:drop-shadow(0 0 6px rgba(240,180,90,.8))}
 .key-ico i{font-style:normal;color:var(--muted);margin:0 3px;font-size:12px}
 /* Bovenin: doel van de ronde (goud, groot) en je leven als brede balk in een houten lijst */
 .top-hud{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:3;width:min(560px,calc(100% - 24px));display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none}
 .goal-top{margin:0;font-family:var(--f-display);font-weight:900;font-size:clamp(17px,2.6vw,26px);letter-spacing:.08em;text-transform:uppercase;text-align:center;color:var(--coin);text-shadow:0 2px 0 #140d08,0 0 14px rgba(0,0,0,.85),0 0 4px rgba(0,0,0,.9)}
+.goal-top{transition:opacity .25s}
+.goal-top.waiting{opacity:0}
+/* Doel aan het begin van een ronde: midden in beeld */
+.goal-intro{position:absolute;left:50%;top:30%;transform:translate(-50%,-50%);z-index:4;width:min(760px,92%);text-align:center;pointer-events:none}
+.gi-eyebrow{margin:0;font-family:var(--f-display);font-weight:700;font-size:clamp(12px,1.4vw,15px);letter-spacing:.22em;text-transform:uppercase;color:var(--wax-ink);text-shadow:0 2px 0 #140d08,0 0 10px rgba(0,0,0,.9)}
+.gi-title{display:inline-block;margin:6px 0 8px;font-family:var(--f-display);font-weight:900;font-size:clamp(28px,4.6vw,50px);line-height:1.1;letter-spacing:.06em;text-transform:uppercase;color:var(--coin);text-shadow:0 3px 0 #140d08,0 0 18px rgba(0,0,0,.85),0 0 4px rgba(0,0,0,.9);transform-origin:center;animation:giIn .45s cubic-bezier(.2,.9,.3,1.2)}
+.gi-sub{margin:0;font-size:clamp(14px,1.7vw,19px);color:var(--wax-ink);text-shadow:0 2px 0 #140d08,0 0 10px rgba(0,0,0,.9)}
+.goal-intro .gi-eyebrow,.goal-intro .gi-sub{transition:opacity .3s}
+.goal-intro.gone .gi-eyebrow,.goal-intro.gone .gi-sub{opacity:0}
+@keyframes giIn{from{opacity:0;transform:scale(1.35)}to{opacity:1;transform:none}}
+/* Keuze in de stad: wat voor gevecht het is, goud en groot, met één zin uitleg */
+.choice .mode{font-style:normal;font-family:var(--f-display);font-weight:900;font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:var(--coin)}
+.choice .mode-sub{color:var(--ink);font-size:13px}
+/* Kaarten in de wastablet-stijl: ingedrukt vak in de was, titel in Cinzel, hout als rand */
+.choice{border-radius:4px;border:2px solid var(--wood-edge);background:var(--tex-grain),#2a1c12;box-shadow:inset 0 3px 5px rgba(0,0,0,.6),0 1px 0 rgba(255,214,150,.08);padding:12px 16px 13px;gap:4px}
+.choice b{font-family:var(--f-display);font-weight:700;font-size:19px;letter-spacing:.08em;text-transform:uppercase;color:var(--wax-ink);text-shadow:0 -1px 0 rgba(0,0,0,.8)}
+.choice span{color:var(--wax-muted)}
+.choice .mode-sub{color:var(--wax-ink)}
+.choice:not(:disabled):hover,.choice:not(:disabled):focus-visible,body.pad .choice:not(:disabled):focus{background:var(--tex-grain),#3a2818;border-color:var(--bronze);box-shadow:inset 0 3px 5px rgba(0,0,0,.5),0 0 0 2px var(--wood-edge),0 0 14px rgba(226,179,94,.25)}
+.choice.boss b{color:var(--coin)}
+.choice.deadly{background:var(--tex-grain),#341511;border-color:#4a120e}
+.choice.deadly b{color:#e8695e}
+.choice.deadly:not(:disabled):hover,.choice.deadly:not(:disabled):focus-visible,body.pad .choice.deadly:not(:disabled):focus{background:var(--tex-grain),#47190f;border-color:var(--blood);box-shadow:inset 0 3px 5px rgba(0,0,0,.5),0 0 0 2px var(--wood-edge),0 0 14px rgba(212,70,59,.3)}
+.choice.locked{filter:grayscale(.8) brightness(.7)}
 .hp-top{width:100%;display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--tex-grain),var(--wax);border:5px solid var(--wood);border-radius:4px;outline:2px solid var(--wood-edge);box-shadow:inset 0 0 0 2px var(--wood-edge),0 6px 18px rgba(0,0,0,.4)}
 .hp-top .ico{width:28px;height:28px}
 .hp-top .bar{flex:1;height:22px;border-radius:2px;background:#140d08;border:2px solid var(--wood-edge);overflow:hidden;box-shadow:inset 0 2px 3px rgba(0,0,0,.8)}
@@ -522,5 +581,14 @@ body:has(#title:not([hidden])) .inv,body:has(#credits:not([hidden])) .inv,body:h
 #town .town{width:100%;height:100%;gap:0}
 #town .town-wrap{flex:1;min-height:0}
 #town .town-art{position:absolute;inset:0;aspect-ratio:auto;border:0;border-radius:0}
-#town .town-purse{left:max(14px,env(safe-area-inset-left,0px));top:max(12px,env(safe-area-inset-top,0px))}
+#town .town-purse{left:max(14px,env(safe-area-inset-left,0px));top:calc(max(12px,env(safe-area-inset-top,0px)) + 46px)}
+/* XP in de straat: boven de beurs, zelfde houten lijst */
+.town-xp{position:absolute;left:max(14px,env(safe-area-inset-left,0px));top:max(12px,env(safe-area-inset-top,0px));width:230px;display:flex;align-items:center;gap:8px;padding:6px 10px;pointer-events:none;
+  background:var(--wax-bg, var(--wax));border:3px solid var(--wood);outline:2px solid var(--wood-edge);border-radius:4px;box-shadow:var(--wax-sunk, none), 0 3px 8px rgba(0,0,0,.45)}
+.town-xp .bar{flex:1;height:10px;border-radius:2px;background:#140d08;border:2px solid var(--wood-edge);overflow:hidden;box-shadow:inset 0 2px 3px rgba(0,0,0,.8)}
+.town-xp .bar>div{height:100%;transform-origin:left;transform:scaleX(0);background:linear-gradient(90deg,var(--bronze),var(--coin));transition:transform .3s ease-out}
+.town-xp-num{font-family:var(--f-display);font-size:13px;color:var(--wax-ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+/* XP is blauw (zoals de XP-bolletjes in de arena), zodat je hem niet met goud of leven verwart */
+.inv #xpFill,.town-xp .bar>div{background:linear-gradient(90deg,#3f7fae,#8cc8f0) !important}
+.inv #xpFill{background:linear-gradient(90deg,var(--bronze),var(--coin))}
 #town .town-art{background:#191117}

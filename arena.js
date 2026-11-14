@@ -65,13 +65,27 @@ function glowSprite(hex) {
 }
 
 /* ---------- statisch deel ---------- */
-function buildArena() {
-  AR.dirty = false;
+// Publiek en sfeer per gevecht (fight.js): fill = deel van het volle publiek (1 = toernooi, vol), tourney = keizer in zijn loge
+// en het velarium (zonnezeil) over de tribunes. Verandert er iets, dan wordt het stadion opnieuw opgebouwd.
+function setArenaCrowd(fill, tourney) {
+  if (AR.fill === fill && AR.tourney === tourney) return;
+  AR.fill = fill; AR.tourney = tourney; AR.dirty = true;
+}
+// empty = lege tribunes (keuzescherm in de arena: het publiek moet nog komen). Gaat naar een eigen canvas, AR.bgEmpty;
+// het publiek van het gevecht (AR.people) blijft dan zoals het was.
+function buildArena(empty = false) {
+  const saved = AR.people, savedVel = AR.velEdge;
+  buildArenaInner(empty);
+  if (empty) { AR.people = saved; AR.velEdge = savedVel; }
+}
+function buildArenaInner(empty) {
+  if (empty) AR.dirtyEmpty = false; else AR.dirty = false;
   const K = AR.col = arenaColors(), A = ARENA, L = A.loge;
   if (!AR.glow) AR.glow = glowSprite(K.glow);
   // bw/bh = het hele stadion dat de camera kan laten zien (groter dan het scherm als de camera meebeweegt).
   const { dpr, scale } = view, cw = view.bw || view.cw, ch = view.bh || view.ch, rx = W.rx, ry = W.ry;
-  const bg = AR.bg; bg.width = Math.round(cw * dpr); bg.height = Math.round(ch * dpr);
+  const bg = empty ? (AR.bgEmpty || (AR.bgEmpty = document.createElement('canvas'))) : AR.bg;
+  bg.width = Math.round(cw * dpr); bg.height = Math.round(ch * dpr);
   const g = bg.getContext('2d');
   g.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * cw / 2, dpr * ch / 2);
   const X = cw / 2 / scale + 12, Y = ch / 2 / scale + 12;
@@ -168,9 +182,16 @@ function buildArena() {
         tunic: dk(tunic), cloak: dk(cloak), cside: rnd() < .5 ? -1 : 1, stripe, stripeCol: dk(K.porphyry), hat,
         hatCol: dk(hat === 'veil' ? cloak : hat === 'straw' ? straw : hat === 'hood' ? wool : hat === 'helmet' ? K.bronze : null),
         crest: dk(K.blood), head: dk(hat === 'bald' ? skin : hair), skin: dk(skin),
-        restless: rnd() < A.restless, ph: rnd() * TAU, f: .6 + rnd() * .8, s: 0, b: 0 });
+        restless: rnd() < A.restless, ph: rnd() * TAU, f: .6 + rnd() * .8, s: 0, b: 0, T: Tc });
     }
   }
+  // Hoe vol: bij een gewoon gevecht maar een deel van het publiek (voorin iets voller, senatoren komen bijna altijd).
+  const fill = AR.fill ?? 1;
+  if (fill < 1) AR.people = AR.people.filter(p => {
+    const h = Math.abs(Math.sin(p.x * 12.9898 + p.y * 78.233) * 43758.5453) % 1;   // vaste 'toevalswaarde' per stoel
+    const front = p.role === 'senator' ? .45 : p.role === 'eques' ? .7 : 1;
+    return h * front * (.75 + .5 * Math.min(1, (p.T - A.wall) / 120)) < fill;
+  });
   // Een paar vaste figuren die je elk gevecht terugziet: twee mannen met een vlag, een kind op de schouders van zijn vader.
   {
     const rnd = seeded(4242), plebs = AR.people.filter(p => p.role === 'man' || p.role === 'fan');
@@ -180,7 +201,7 @@ function buildArena() {
   }
   // Verkoper die over het looppad tussen podium en tribune loopt, met een plank broden.
   AR.vendor = { T: upper0 - A.walk / 2, th: -Math.PI * .75, dir: 1, tunic: mix('#8a5a32', K.night, dark(upper0)), skin: mix(K.skin, K.night, dark(upper0)), tray: mix('#c99a5a', K.night, dark(upper0)) };
-  paintPeople(g, AR.people.filter(p => !p.restless));
+  if (!empty) paintPeople(g, AR.people.filter(p => !p.restless));
 
   // Poorten links en rechts: donkere tunnel, zijmuren, pilaren en een valhek.
   for (const sx of [-1, 1]) {
@@ -329,6 +350,70 @@ function buildArena() {
     g.fillStyle = K.iron; g.beginPath(); g.arc(t.x, t.y, 4.6, 0, TAU); g.fill();
     g.fillStyle = '#1c120c'; g.beginPath(); g.arc(t.x, t.y, 3.1, 0, TAU); g.fill();
   }
+  AR.velEdge = null;
+  if (AR.tourney && !empty) paintVelarium(g, K, rx, ry, upper0 - A.walk * .3, Tmax + A.row, dark, L, logeTop, logeBot);
+}
+// Velarium: het zonnezeil van het Colosseum, alleen bij toernooien. Banen doek (crème en rood) over de hogere tribune,
+// met naden, een zoom met schulpen, de schaduw op de rijen eronder en touwen naar het midden. De keizersloge en de poorten blijven vrij.
+// Het doek is niet overal even ver uitgerold (open): op sommige plekken zie je het publiek tot hoog in de tribune.
+// open = hoe ver een baan hoogstens is ingerold (deel van de diepte), waves = hoeveel 'golven' van open en dicht rondom.
+const VELARIUM = { panels: 44, red: .45, shade: .28, open: .8, waves: [[3, .7, .55], [5, 2.1, .3], [2, 4.2, .25]] };
+// Waar het doek begint bij een hoek th (parametrische hoek, zoals bij het publiek). Infinity = geen doek.
+function velEdgeAt(th) {
+  if (!AR.velEdge) return Infinity;
+  const n = AR.velEdge.length, i = Math.floor((((th % TAU) + TAU) % TAU) / TAU * n) % n;
+  return AR.velEdge[i];
+}
+function paintVelarium(g, K, rx, ry, T0, T1, dark, L, logeTop, logeBot) {
+  const V = VELARIUM, A = ARENA, n = V.panels;
+  // per baan: hoe ver hij is ingerold (vaste golven, dus elke keer hetzelfde)
+  const edge = AR.velEdge = Array.from({ length: n }, (_, i) => {
+    let k = .5; for (const [f, ph, amp] of V.waves) k += amp * .5 * Math.sin(i / n * TAU * f + ph);
+    k = Math.max(0, Math.min(1, k));
+    return T0 + (T1 - T0) * V.open * k * k;
+  });
+  const wedge = (i, ta, tb) => { const a0 = i / n * TAU, a1 = (i + 1) / n * TAU; g.ellipse(0, 0, rx + tb, ry + tb, 0, a0, a1); g.ellipse(0, 0, rx + ta, ry + ta, 0, a1, a0, true); g.closePath(); };
+  g.save();
+  // niet over de loge en de poorten heen
+  g.beginPath(); g.rect(-5000, -5000, 10000, 10000);
+  g.rect(-L.half - 10, logeTop - 16, 2 * L.half + 20, logeBot - logeTop + 20);
+  for (const sx of [-1, 1]) g.rect(sx > 0 ? rx - 4 : -5000, -A.gateHalf - 6, 5000 - rx + 4, 2 * A.gateHalf + 12);
+  g.clip('evenodd');
+  // schaduw van het doek op de rijen vlak eronder
+  g.fillStyle = `rgba(10,5,6,${V.shade})`;
+  for (let i = 0; i < n; i++) { g.beginPath(); wedge(i, edge[i] - 14, edge[i]); g.fill(); }
+  // banen: crème en rood om en om
+  for (let i = 0; i < n; i++) {
+    const a0 = i / n * TAU, a1 = (i + 1) / n * TAU, Ti = edge[i], base = i % 2 ? K.toga : mix(K.blood, K.toga, V.red);
+    g.beginPath(); wedge(i, Ti, T1); g.fillStyle = mix(base, K.night, .18); g.fill();
+    const am = (a0 + a1) / 2, da = (a1 - a0) * .28;   // doorhangen: midden van de baan iets lichter
+    g.beginPath(); g.ellipse(0, 0, rx + T1, ry + T1, 0, am - da, am + da); g.ellipse(0, 0, rx + Ti + 4, ry + Ti + 4, 0, am + da, am - da, true); g.closePath();
+    g.fillStyle = 'rgba(255,240,215,.07)'; g.fill();
+    g.strokeStyle = 'rgba(30,15,8,.45)'; g.lineWidth = 1.2;   // naden
+    for (const [a, t] of [[a0, Math.max(Ti, edge[(i + n - 1) % n])], [a1, Math.max(Ti, edge[(i + 1) % n])]]) {
+      g.beginPath(); g.moveTo((rx + t) * Math.cos(a), (ry + t) * Math.sin(a)); g.lineTo((rx + T1) * Math.cos(a), (ry + T1) * Math.sin(a)); g.stroke();
+    }
+    // zoom met schulp aan de binnenkant, en een opgerolde rand
+    g.fillStyle = mix(base, K.night, .2); g.strokeStyle = 'rgba(30,15,8,.6)'; g.lineWidth = 1;
+    g.beginPath(); g.moveTo((rx + Ti) * Math.cos(a0), (ry + Ti) * Math.sin(a0));
+    g.quadraticCurveTo((rx + Ti - 9) * Math.cos(am), (ry + Ti - 9) * Math.sin(am), (rx + Ti) * Math.cos(a1), (ry + Ti) * Math.sin(a1)); g.closePath(); g.fill(); g.stroke();
+    g.strokeStyle = mix(K.bronze, K.night, .3); g.lineWidth = 2;
+    g.beginPath(); g.ellipse(0, 0, rx + Ti, ry + Ti, 0, a0, a1); g.stroke();
+    // touw van de zoom naar het midden, vervaagt boven de muur (om de baan)
+    if (i % 2 === 0) {
+      const x0 = (rx + Ti - 6) * Math.cos(am), y0 = (ry + Ti - 6) * Math.sin(am), x1 = (rx - 6) * Math.cos(am), y1 = (ry - 6) * Math.sin(am);
+      const gr = g.createLinearGradient(x0, y0, x1, y1); gr.addColorStop(0, 'rgba(60,40,24,.7)'); gr.addColorStop(1, 'rgba(60,40,24,0)');
+      g.strokeStyle = gr; g.lineWidth = 1.1; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+    }
+  }
+  // naar buiten zacht donkerder: alleen over het doek (niet over het publiek dat je ziet)
+  g.beginPath(); for (let i = 0; i < n; i++) wedge(i, edge[i], T1); g.clip();
+  for (let k = 1; k <= 14; k++) {
+    const t = T0 + (T1 - T0) * k / 14;
+    g.beginPath(); g.ellipse(0, 0, rx + T1 + 2, ry + T1 + 2, 0, 0, TAU); g.ellipse(0, 0, rx + t, ry + t, 0, 0, TAU);
+    g.fillStyle = 'rgba(14,8,10,.055)'; g.fill('evenodd');
+  }
+  g.restore();
 }
 
 /* Toeschouwers, gebundeld per laag en kleur zodat er maar een paar fill-calls nodig zijn.
@@ -374,7 +459,7 @@ function seeded(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math
 // Vlaggen van de vaste figuren en de verkoper op het looppad (elk frame).
 function drawCrowdExtras(g, now) {
   const K = AR.col;
-  for (const p of AR.people) if (p.flag) {
+  for (const p of AR.people) if (p.flag && !(p.T > velEdgeAt(p.th))) {
     const hx = p.x - p.nx * (2 + p.s * 2), hy = p.y - p.ny * (2 + p.s * 2), cr = Math.cos(p.rot), sr = Math.sin(p.rot);
     const tx = hx - p.nx * 13 + cr * 4, ty = hy - p.ny * 13 + sr * 4, wv = Math.sin(now * .008 + p.ph) * 1.5;
     g.strokeStyle = '#3a2410'; g.lineWidth = 1.3; g.beginPath(); g.moveTo(hx, hy); g.lineTo(tx, ty); g.stroke();
@@ -397,11 +482,19 @@ function drawCrowdExtras(g, now) {
 
 /* ---------- levend deel ---------- */
 function arenaCheer() { AR.wave = performance.now(); }
+// Publiek dichtbij een klap springt op: wie binnen POP.R van de plek zit, staat op met de armen omhoog en springt mee.
+// Hoe dichterbij, hoe sneller en hoger (rimpel: delay ms per wereld-eenheid). rise/hold/fall in ms.
+const POP = { R: 95, delay: 1.6, rise: 140, hold: 1100, fall: 700, max: 12 };
+function arenaCheerAt(x, y, amp = .8) {
+  (AR.pops || (AR.pops = [])).push({ x, y, t0: performance.now(), amp });
+  if (AR.pops.length > POP.max) AR.pops.shift();
+}
 // Joelen: ongeveer de helft van het publiek springt op en neer met de armen omhoog.
 function arenaJeer() { AR.jeer = performance.now(); }
 
-function drawArenaLive(g, now) {
+function drawArenaLive(g, now, empty = false) {
   const A = ARENA, K = AR.col;
+  if (empty) { drawTorches(g, now); return; }   // lege tribunes: alleen de fakkels
   let wave = null;
   if (AR.wave >= 0) {
     const prog = (now - AR.wave) / A.waveMs;
@@ -414,8 +507,18 @@ function drawArenaLive(g, now) {
     if (pj >= 1 || pj < 0) AR.jeer = -1; else jeer = Math.min(1, pj * 6, (1 - pj) * 3);
   }
   const live = [];
+  const pops = (AR.pops || []).filter(q => now - q.t0 < POP.rise + POP.hold + POP.fall + POP.R * POP.delay * 2);
+  AR.pops = pops;
   for (const p of AR.people) {
+    if (p.T > velEdgeAt(p.th)) continue;   // onder het velarium: niet te zien
     let s = 0;
+    for (const q of pops) {   // klap in de buurt: opspringen en juichen
+      const d2 = (p.x - q.x) ** 2 + (p.y - q.y) ** 2; if (d2 > POP.R * POP.R * 4) continue;
+      const age = now - q.t0 - Math.sqrt(d2) * POP.delay; if (age <= 0) continue;
+      const env = age < POP.rise ? age / POP.rise : age < POP.rise + POP.hold ? 1 : Math.max(0, 1 - (age - POP.rise - POP.hold) / POP.fall);
+      const k = q.amp * env * Math.exp(-d2 / (POP.R * POP.R));
+      if (k > .05) { s = Math.max(s, k * (.75 + .25 * Math.sin(now * .018 + p.ph * 6))); p.b = Math.sin(now * .022 + p.ph * 5) * .5 * k; }
+    }
     if (p.restless) { s = Math.max(0, Math.sin(now * .0011 * p.f + p.ph)) ** 12 * .75; p.b = Math.sin(now * .005 * p.f + p.ph) * .45; }
     if (wave) s = Math.max(s, wave.amp * Math.exp(-((wrapPi(p.th - wave.head) / .32) ** 2)));
     if (jeer && (p.ph * 997) % 1 < .5) s = Math.max(s, jeer * (.3 + .45 * (Math.sin(now * .02 + p.ph * 7) * .5 + .5)));
@@ -425,11 +528,14 @@ function drawArenaLive(g, now) {
   for (const p of live) if (!p.restless) p.b = 0;
   drawCrowdExtras(g, now);
 
-  // Warme gloed over de keizersloge, zodat je oog er vanzelf heen gaat.
-  { const L = ARENA.loge, cy = -(W.ry + 4 + L.depth * .55), R = L.half * 1.5 * (1 + .03 * Math.sin(now * .004));
+  // Warme gloed over de keizersloge, zodat je oog er vanzelf heen gaat. De keizer komt alleen bij toernooien.
+  if (AR.tourney || AR.judging) { const L = ARENA.loge, cy = -(W.ry + 4 + L.depth * .55), R = L.half * 1.5 * (1 + .03 * Math.sin(now * .004));
     g.globalCompositeOperation = 'lighter'; g.globalAlpha = .2; g.drawImage(AR.glow, -R, cy - R * .8, 2 * R, 1.6 * R); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; }
-  drawCaesar(g, now);
-
+  if (AR.tourney || AR.judging) drawCaesar(g, now);
+  drawTorches(g, now);
+}
+function drawTorches(g, now) {
+  const K = AR.col;
   g.globalCompositeOperation = 'lighter';
   for (const t of AR.torches) {
     const f = Math.sin(now * .011 + t.ph) * .5 + Math.sin(now * .027 + t.ph * 1.7) * .3 + Math.sin(now * .053 + t.ph * 2.3) * .2;

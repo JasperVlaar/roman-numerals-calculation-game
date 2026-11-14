@@ -11,7 +11,9 @@ const SFX = (() => {
   const SOUNDS = {
     crowd:    ['assets/sound/crowd-loop.wav'],                    // publiek dat continu roezemoest (loop; .wav herhaalt naadloos)
     cheer:    ['assets/sound/cheer-1.mp3', 'assets/sound/cheer-2.mp3', 'assets/sound/cheer-3.mp3'],   // kort gejuich bij een rake klap
-    cheerBig: ['assets/sound/cheer-big.mp3'],                     // groot gejuich: iemand valt, Pugnate!, jij wint
+    cheerBig: ['assets/sound/cheer-big.mp3', 'sounds/pixaby content license/vishiv-crowd-cheering-in-stadium-435357.mp3', 'sounds/pixaby content license/gregorquendel-free-crowd-cheering-sounds-02-strong-cheering-rhythmic-cheering-116190.mp3', 'sounds/pixaby content license/gregorquendel-free-crowd-cheering-sounds-04-strong-cheering-ii-short-116191.mp3'],   // groot gejuich: iemand valt, Pugnate!
+    swell:    ['sounds/pixaby content license/gregorquendel-free-crowd-cheering-sounds-02-strong-cheering-rhythmic-cheering-116190.mp3'],   // af en toe een golf van het publiek boven het geroezemoes (alleen tijdens een gevecht)
+    win:      [],   // je wint een gevecht (zie WIN). Leeg: dan het gewone grote gejuich
     boo:      ['assets/sound/boo.mp3'],                           // gejoel: jij verliest
     hit:      ['assets/sound/hit-1.wav', 'assets/sound/hit-2.wav'],   // een klap raakt; twee opnames die elkaar afwisselen (.wav: geen vertraging aan het begin)
     whoosh:   ['assets/sound/whoosh.wav', 'assets/sound/whoosh-2.wav', 'assets/sound/whoosh-3.wav', 'assets/sound/whoosh-4.wav', 'assets/sound/whoosh-5.wav', 'assets/sound/whoosh-6.wav', 'assets/sound/whoosh-7.wav', 'assets/sound/whoosh-8.wav'],   // zwiep van de stok (8 varianten)
@@ -53,6 +55,45 @@ const SFX = (() => {
     clop:    { src: 'assets/sound/clopping.mp3',  street: .075, inside: .025, whole: true, pause: [20, 45], first: [6, 14] }   // komt af en toe langs
   };
   const PURR = 'assets/sound/purr-loop.wav';
+  // Van sommige opnames gebruiken we maar een stuk: [vanaf, tot] in seconden (met een korte fade-out aan het eind).
+  // Per soort, want één opname kan voor twee dingen dienen (gejuich en een golf in de achtergrond).
+  const SEGMENT = {
+    cheerBig: { 'sounds/pixaby content license/gregorquendel-free-crowd-cheering-sounds-04-strong-cheering-ii-short-116191.mp3': [5, 8], 'sounds/pixaby content license/vishiv-crowd-cheering-in-stadium-435357.mp3': [0, 8], 'sounds/pixaby content license/gregorquendel-free-crowd-cheering-sounds-02-strong-cheering-rhythmic-cheering-116190.mp3': [4, 8] },
+    swell:    { 'sounds/pixaby content license/gregorquendel-free-crowd-cheering-sounds-02-strong-cheering-rhythmic-cheering-116190.mp3': [12, 18] }
+  };
+  // Golf van het publiek: elke 'every' seconden (willekeurig binnen het bereik), zo hard als het geroezemoes × vol, zacht in en uit.
+  const SWELL = { every: [14, 28], vol: 1.3, fadeIn: 1, fadeOut: 1.2 };
+  function segment(a, [from, to], vol, fade = .8, fadeIn = 0) {
+    if (from) { a.addEventListener('loadedmetadata', () => { a.currentTime = from; }, { once: true }); if (a.readyState >= 1) a.currentTime = from; }
+    const t0 = performance.now();
+    const tick = () => {
+      if (a.paused || a.ended) return;
+      const left = to - a.currentTime, inK = fadeIn ? Math.min(1, (performance.now() - t0) / 1000 / fadeIn) : 1;
+      if (left <= 0) { a.pause(); a.dispatchEvent(new Event('ended')); return; }
+      a.volume = Math.max(0, Math.min(1, vol * inK * (left < fade ? left / fade : 1)));
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+  // Hoe vol de arena zit (0..1, uit fight.js): een legere arena roezemoest en juicht zachter.
+  // Volume = quiet + (1 − quiet) × vulling; bij een volle arena (toernooi) dus 1.
+  const CROWD_SIZE = { quiet: .3 };
+  let size = 1;
+  const loud = () => CROWD_SIZE.quiet + (1 - CROWD_SIZE.quiet) * size;
+  let swellT = null;
+  function scheduleSwell() {
+    clearTimeout(swellT);
+    swellT = setTimeout(() => {
+      scheduleSwell();
+      if (!started || muted || crowdTarget < MIX.crowd.fight || !ok.swell || !ok.swell.length) return;   // alleen tijdens een gevecht
+      const src = ok.swell[0], a = new Audio(encodeURI(src)), vol = Math.min(1, crowdTarget * SWELL.vol * master * loud());
+      a.volume = 0; a.play().catch(() => {});
+      segment(a, SEGMENT.swell[src], vol, SWELL.fadeOut, SWELL.fadeIn);
+    }, rnd(SWELL.every) * 1000);
+  }
+  // Overwinningsgejuich: vanaf 'from' seconden tot 'cut' seconden voor het einde; fade = zacht uitfaden (s) aan het eind.
+  const WIN = { from: 2, cut: 1, fade: .8, vol: .9 };
+  let winA = null;
   const MAX_AT_ONCE = 2;   // zoveel juich- of joelgeluiden tegelijk; daarna faadt de oudste snel weg
   const GAP = { cheer: .35, cheerBig: 1.5, boo: 1.5, meow: 6, horse: 1.2, tiger: 1.5, lion: 1.5, bear: 1.5, elephant: 1.5, hyena: 2.5, gallop: .8 };   // seconden: niet opnieuw starten binnen deze tijd
 
@@ -83,36 +124,69 @@ const SFX = (() => {
   }
   // track = juich- en joelgeluiden: die worden beperkt in aantal. Twee keer dezelfde opname vlak na elkaar
   // geeft een holle, zwiepende klank; daarom kiezen we een andere variant of slaan we hem over.
+  // Juichen en joelen (track): er klinkt er steeds één. Komt er een nieuwe bij terwijl er nog een klinkt, dan wordt de
+  // huidige niet afgebroken maar loopt hij binnen TRACK.wait seconden zacht af. De nieuwe vervalt (geen wachtrij):
+  // pas de eerstvolgende klap ná het einde laat weer juichen.
+  const TRACK = { wait: 2 };
+  let lastTrackSrc = null;
+  function playTrack(kind, vol) {
+    const cur = playing.find(a => !a.done);
+    if (cur) {
+      const end = performance.now() + TRACK.wait * 1000;
+      if (!cur.capEnd || end < cur.capEnd) { cur.capEnd = end; cur.capFade = TRACK.wait; }
+      return;
+    }
+    startTrack(kind, vol);
+  }
+  function startTrack(kind, vol) {
+    const list0 = ok[kind]; if (!list0 || !list0.length) return;
+    const list = list0.length > 1 ? list0.filter(s => s !== lastTrackSrc) : list0;   // niet twee keer dezelfde opname na elkaar
+    const src = list[Math.floor(Math.random() * list.length)], seg = SEGMENT[kind] && SEGMENT[kind][src];
+    lastTrackSrc = src; lastStart[kind] = performance.now() / 1000;
+    const a = new Audio(encodeURI(src)); a.dataset.src = src; a.base = Math.max(0, Math.min(1, vol * master)); a.volume = a.base;
+    if (seg && seg[0]) { a.addEventListener('loadedmetadata', () => { a.currentTime = seg[0]; }, { once: true }); }
+    a.play().catch(() => {});
+    playing.push(a);
+    const finish = () => {
+      if (a.done) return; a.done = true; a.pause();
+      const i = playing.indexOf(a); if (i >= 0) playing.splice(i, 1);
+    };
+    a.onended = finish;
+    const tick = () => {
+      if (a.done) return;
+      if (a.paused && a.currentTime > 0 && !a.ended) { a.done = true; const i = playing.indexOf(a); if (i >= 0) playing.splice(i, 1); return; }   // van buitenaf gestopt
+      let k = 1;
+      if (seg) { const left = seg[1] - a.currentTime; if (left <= 0) { finish(); return; } if (left < .8) k *= left / .8; }
+      if (a.capEnd) { const left = (a.capEnd - performance.now()) / 1000; if (left <= 0) { finish(); return; } k *= Math.min(1, left / a.capFade); }
+      a.volume = Math.max(0, Math.min(1, a.base * k));
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
   function play(kind, vol, track) {
     if (!started || muted) return;
+    if (track) { playTrack(kind, vol); return; }
     const now = performance.now() / 1000;
     if (GAP[kind] && now - (lastStart[kind] || -99) < GAP[kind]) return;
     const busy = playing.filter(a => !a.ended).map(a => a.dataset.src);
     const free = ok[kind].filter(src => !busy.includes(src));
     const list = free.length ? free : ok[kind]; if (!list.length) return;
     const src = list[Math.floor(Math.random() * list.length)];
-    if (track && busy.includes(src)) return;
     lastStart[kind] = now;
     const a = new Audio(encodeURI(src)); a.dataset.src = src; a.volume = Math.max(0, Math.min(1, vol * master));
-    if (!track) {   // klappen: klein verschil in echte toonhoogte (niet opgerekt), klinkt minder herhalend
-      a.preservesPitch = false; a.playbackRate = .92 + Math.random() * .16;
-    }
+    a.preservesPitch = false; a.playbackRate = .92 + Math.random() * .16;   // klappen: klein verschil in echte toonhoogte, klinkt minder herhalend
     a.play().catch(() => {});
-    if (track) {
-      playing.push(a); a.onended = () => { const i = playing.indexOf(a); if (i >= 0) playing.splice(i, 1); };
-      while (playing.length > MAX_AT_ONCE) fadeOut(playing.shift());
-    }
   }
   function startCrowd() {
     const src = pick('crowd'); if (!src || crowd) return;
-    crowd = new Audio(encodeURI(src)); crowd.loop = true; crowd.volume = muted ? 0 : crowdTarget * master;
+    crowd = new Audio(encodeURI(src)); crowd.loop = true; crowd.volume = muted ? 0 : crowdTarget * master * loud();
     crowd.play().catch(() => {});
   }
   function fadeCrowd(to) {
     crowdTarget = to; if (!crowd) return;
     clearInterval(fade);
     fade = setInterval(() => {
-      const goal = muted ? 0 : crowdTarget * master, v = crowd.volume + (goal - crowd.volume) * .15;
+      const goal = muted ? 0 : crowdTarget * master * loud(), v = crowd.volume + (goal - crowd.volume) * .15;
       crowd.volume = Math.abs(goal - v) < .01 ? goal : v;
       if (crowd.volume === goal) clearInterval(fade);
     }, 50);
@@ -171,7 +245,11 @@ const SFX = (() => {
   return {
     SOUNDS, MIX, AMB,
     // De straat: SFX.town('street', ['smith', ...]) op straat, SFX.town('smith') in een winkel, SFX.town(null) weg uit de stad.
-    town(place, shops) { if (!started) return; setPlace(place, shops); },
+    town(place, shops) {
+      if (!started) return;
+      if (place) { if (winA) this.win(false); playing.splice(0).forEach(a => { a.done = true; fadeOut(a, 600); }); }   // in de stad: gejuich uit de arena zacht weg
+      setPlace(place, shops);
+    },   // in de stad: overwinningsgejuich zacht weg
     whoosh() { play('whoosh', MIX.whoosh); },
     meow() { play('meow', MIX.meow); },
     // Elk geluid uit SOUNDS bij naam; ontbreekt het bestand, dan de terugval.
@@ -184,7 +262,7 @@ const SFX = (() => {
     },
     init() {
       if (started) return; started = true;
-      startCrowd();
+      startCrowd(); scheduleSwell();
       if (!crowd) setTimeout(startCrowd, 800);   // het bestand was misschien nog niet gecontroleerd
     },
     get muted() { return muted; },
@@ -197,18 +275,39 @@ const SFX = (() => {
     },
     setMuted(m) {
       muted = m; try { localStorage.setItem('rn-muted', m ? '1' : '0'); } catch (e) {}
-      if (m) playing.splice(0).forEach(a => fadeOut(a, 80));
+      if (m) { playing.splice(0).forEach(a => { a.done = true; fadeOut(a, 80); }); }
       fadeCrowd(crowdTarget);
       if (where) setPlace(where);
       if (m && purr) purr.pause();
     },
     mood(m) { fadeCrowd(MIX.crowd[m] ?? MIX.crowd.calm); },
     cheer(a = .5) {
-      const now = performance.now() / 1000;
-      if (now - (lastStart.cheerBig || -99) < GAP.cheerBig) return;   // groot gejuich is nog bezig: niets eroverheen
-      a >= .6 && ok.cheerBig.length ? play('cheerBig', MIX.cheerBig * (.6 + .4 * a), true) : play('cheer', MIX.cheer * (.5 + .5 * a), true);
+      a >= .6 && ok.cheerBig.length ? play('cheerBig', MIX.cheerBig * (.6 + .4 * a) * loud(), true) : play('cheer', MIX.cheer * (.5 + .5 * a) * loud(), true);
     },
-    boo(a = .5) { play('boo', MIX.boo * (.4 + .6 * a), true); },
+    boo(a = .5) { play('boo', MIX.boo * (.4 + .6 * a) * loud(), true); },
+    // Hoe vol de arena zit (0..1): roezemoes, gejuich, gejoel en overwinning schalen mee.
+    crowdSize(k) { size = Math.max(0, Math.min(1, k)); fadeCrowd(crowdTarget); },
+    // Gewonnen: het grote gejuich, alleen het stuk uit WIN. Stopt vanzelf; win(false) laat het wegfaden.
+    win(on = true) {
+      if (!on) { if (winA) { fadeOut(winA, 1500); winA = null; } return; }
+      if (!started || muted) return;
+      if (!ok.win || !ok.win.length) { this.cheer(1); return; }   // geen eigen overwinningsgeluid: groot gejuich
+      if (winA) fadeOut(winA, 120);
+      playing.splice(0).forEach(a => { a.done = true; fadeOut(a, 200); });   // ander gejuich weg
+      const a = winA = new Audio(encodeURI(ok.win[0])), vol = Math.min(1, WIN.vol * master * loud());
+      a.volume = vol;
+      a.addEventListener('loadedmetadata', () => { a.currentTime = WIN.from; }, { once: true });
+      if (a.readyState >= 1) a.currentTime = WIN.from;
+      a.play().catch(() => {});
+      const tick = () => {
+        if (a !== winA || a.paused) return;
+        const end = (isFinite(a.duration) ? a.duration : 99) - WIN.cut, left = end - a.currentTime;
+        if (left <= 0) { a.pause(); winA = null; return; }
+        if (left < WIN.fade) a.volume = vol * left / WIN.fade;
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    },
     hit() { play('hit', MIX.hit); },
     hurt() { play('hit', MIX.hit * .8); play('hurt', MIX.hurt); },   // jij geraakt: de klap én je "oof"
     block() { this.fx('block'); },

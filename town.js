@@ -68,7 +68,8 @@ const TOWN = (() => {
     }
   }
 
-  function arena(g) {
+  // velum = het zonnedoek is uitgerold: er is een toernooi (zelfde velarium als in de arena).
+  function arena(g, velum = false) {
     const x0 = 318, x1 = 642, top = 150, base = 302;
     el('path', { d: `M${x0} ${base} L${x0} ${top + 14} Q480 ${top - 10} ${x1} ${top + 14} L${x1} ${base} Z`, fill: 'url(#tArena)', stroke: '#3b2a22', 'stroke-width': 1.5 }, g);
     const tiers = [[top + 16, 206], [210, 252], [256, base - 2]];
@@ -82,9 +83,23 @@ const TOWN = (() => {
                      fill: lit ? '#c0603a' : '#3a1a2c', opacity: .9 }, g);
       }
     });
+    const masts = [];
     for (let i = 0; i < 9; i++) {   // masten voor het zonnedoek
-      const x = lerp(x0 + 12, x1 - 12, i / 8);
-      el('line', { x1: x, y1: top + 6 - Math.sin(i / 8 * Math.PI) * 10, x2: x, y2: top - 12 - Math.sin(i / 8 * Math.PI) * 10, stroke: '#3b2a22', 'stroke-width': 2 }, g);
+      const x = lerp(x0 + 12, x1 - 12, i / 8), y = top - 12 - Math.sin(i / 8 * Math.PI) * 10;
+      masts.push([x, y]);
+      el('line', { x1: x, y1: top + 6 - Math.sin(i / 8 * Math.PI) * 10, x2: x, y2: y, stroke: '#3b2a22', 'stroke-width': 2 }, g);
+    }
+    if (velum) {   // het velarium boven de rand: banen crème en rood, schuin naar achteren gespannen, niet overal even ver
+      const open = [.9, .55, .8, .35, .7, .95, .5, .75];
+      for (let i = 0; i < 8; i++) {
+        const [ax, ay] = masts[i], [bx, by] = masts[i + 1], k = open[i], h = 16 + 12 * k;
+        const ix = x => 480 + (x - 480) * (1 - .18 * k);   // naar het midden (achteren) toe
+        const col = i % 2 ? '#ece3cf' : '#c98a78';
+        el('path', { d: `M${ax} ${ay} L${bx} ${by} L${ix(bx)} ${by - h} Q${(ix(ax) + ix(bx)) / 2} ${Math.min(ay, by) - h + 5} ${ix(ax)} ${ay - h} Z`,
+                     fill: col, stroke: '#3b2a22', 'stroke-width': 1, 'stroke-linejoin': 'round', opacity: .95 }, g);
+        el('path', { d: `M${ax} ${ay} Q${(ax + bx) / 2} ${(ay + by) / 2 + 4} ${bx} ${by}`, fill: 'none', stroke: 'rgba(59,42,34,.6)', 'stroke-width': 1.2 }, g);   // doorhangende zoom
+      }
+      for (const [x, y] of masts) el('circle', { cx: x, cy: y, r: 1.6, fill: '#d49a48' }, g);   // mastknoppen
     }
     el('ellipse', { cx: 480, cy: base - 20, rx: 120, ry: 40, fill: 'url(#tGlow)' }, g);
   }
@@ -394,8 +409,8 @@ const TOWN = (() => {
   function arenaSpot(svg) {
     const g = el('g', { class: 'hot arena-hot', tabindex: 0, role: 'button', 'data-id': 'arena' }, svg);
     el('rect', { class: 'hl', x: 312, y: 88, width: 336, height: 220, rx: 10 }, g);
-    arena(g);
     const due = !fightOpen();   // 5 gevechten gehad: nu moet het toernooi
+    arena(g, due && !S.finished);   // toernooi: het velarium is uitgerold
     g.classList.toggle('due', due);   // toernooi: de arena gloeit rood (zie style.css)
     const sub = due ? `Tournament ${toRoman(S.stage + 1)}` : fightLabel();
     g.setAttribute('aria-label', `To the arena: ${sub}`);
@@ -421,7 +436,8 @@ const TOWN = (() => {
       const f = st.fights[fightIdx()], fine = Math.round(f.reward * MONEY.lossShare);
       box.appendChild(card({
         title: fightLabel(),
-        lines: [fightTag(f) ? `${fightTag(f)} · ${listSummary(f.foes)}` : listSummary(f.foes), `${f.reward} d ${pips()}`],
+        mode: goalInfo(roundCfg(f, 0)),
+        lines: [listSummary(f.foes) + (f.hatches ? ' · animals from the hatches' : ''), `${f.reward} d ${pips()}`],
         cls: f.kind === 'boss' ? 'boss' : '', go: () => go('fight')
       }));
     } else {
@@ -436,26 +452,28 @@ const TOWN = (() => {
       box.appendChild(card({ title: 'Tournament', lines: [], locked: true }));
     } else {
       const t = st.tourney, boss = roundsOf(t).at(-1);
-      const retry = S.over === 'lost' && S.mode === 'tournament', early = S.inStage < n;
-      box.appendChild(card({
+      const retry = S.over === 'lost' && S.mode === 'tournament', early = S.inStage < n, left = n - S.inStage;
+      box.appendChild(card({   // op slot tot je alle gevechten van dit blok gewonnen hebt
         title: `Tournament ${toRoman(S.stage + 1)}${retry ? ' (retry)' : ''}`,
-        lines: [`${toRoman(t.rounds.length)} rounds · ${listSummary(boss)}`, `${t.reward} d`],
-        cls: 'deadly', go: () => go('tournament')
+        mode: { title: `${toRoman(t.rounds.length)} rounds to the death`, sub: t.rounds.map((r, i) => `${toRoman(i + 1)}: ${goalInfo(roundCfg(t, i)).title}`).join(' · ') },
+        lines: early ? [`Opens after ${left} more ${left === 1 ? 'fight' : 'fights'} ${pips()}`] : [`Final: ${listSummary(boss)}`, `${t.reward} d`],
+        cls: 'deadly', locked: early, go: early ? null : () => go('tournament')
       }));
     }
-    $('pick').hidden = false;
+    $('pick').hidden = false; arenaView(true);   // de keuze hangt boven de lege arena, niet boven de straat
     const first = box.querySelector('button:not(:disabled)'); if (first) first.focus();
   }
-  function card({ title, lines, cls = '', locked = false, go }) {
+  // mode = { title, sub }: wat voor gevecht het is (goud), met één zin hoe je wint.
+  function card({ title, lines, cls = '', locked = false, go, mode = null }) {
     const b = document.createElement('button');
     b.className = `choice ${cls}${locked ? ' locked' : ''}`; b.disabled = locked;
-    b.innerHTML = `<b>${title}</b>${lines.map(l => `<span>${l}</span>`).join('')}`;
+    b.innerHTML = `<b>${title}</b>${mode ? `<em class="mode">${mode.title}</em>${mode.sub ? `<span class="mode-sub">${mode.sub}</span>` : ''}` : ''}${lines.map(l => `<span>${l}</span>`).join('')}`;
     if (go) b.onclick = go;
     return b;
   }
-  $('pickBack').onclick = () => { $('pick').hidden = true; };
+  $('pickBack').onclick = () => { $('pick').hidden = true; arenaView(false); };
   function go(mode) {
-    $('pick').hidden = true; $('town').hidden = true; $('shop').hidden = true;
+    $('pick').hidden = true; $('town').hidden = true; $('shop').hidden = true; arenaView(false);
     SFX.mood('calm'); SFX.town(null); cat.reset(); chooseArena(mode);
   }
 
@@ -565,6 +583,11 @@ const TOWN = (() => {
   }
   function purse() {
     $('townMoney').textContent = S.money;
+    // XP-balk boven de beurs: niveau, en hoe ver je bent naar het volgende
+    const lv = levelOf(S.xp), lo = LEVELS[lv - 2] || 0, hi = LEVELS[lv - 1];
+    $('townLvl').textContent = toRoman(lv); $('townXp').title = `Level ${toRoman(lv)}`;
+    $('townXpText').textContent = hi ? `${S.xp} / ${hi}` : `${S.xp}`;
+    $('townXpFill').style.transform = `scaleX(${hi ? (S.xp - lo) / (hi - lo) : 1})`;
   }
 
   /* ---------- Winkel: de toonbank ---------- */

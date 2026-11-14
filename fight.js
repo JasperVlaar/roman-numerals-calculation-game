@@ -190,7 +190,8 @@ function foeBase(type) {
 }
 const foeXp = t => t.startsWith('champion:') ? Math.round((XP.perFoe[t.slice(9)] || 3) * CHAMPION.xp) : XP.perFoe[t] || 3;
 // De reeks: steeds 5 gevechten en dan een toernooi (5-1-5-1). Pas als je het toernooi wint, komen de volgende 5 gevechten vrij.
-// Het toernooi mag je ook eerder kiezen (en dan merken hoe snel je het verliest). Win je het eerder, dan sla je de rest van die 5 over.
+// Het toernooi gaat pas open als je alle gevechten van het blok gewonnen hebt (dan is ook duidelijk wanneer er een toernooi is).
+// Publiek: bij een gewoon gevecht zit de arena voor 10–60% vol (CROWD), bij een toernooi helemaal, met de keizer en het velarium.
 // Testen met meer tegenstanders: zet ?n=3 achter de url.
 // reward = denarii als je wint. Verlies je een gevecht, dan betaal je MONEY.lossShare van die beloning (nooit onder 0).
 // kind: 'normal', 'boss' (tussenbaas: zwaarder, meer geld) of 'tournament' (rondes achter elkaar, tot de dood; de laatste ronde is de eindbaas).
@@ -198,7 +199,7 @@ const STAGES = [
   { fights: [
       { kind: 'normal', foes: [['slave', 1]], reward: 5 },
       { kind: 'normal', foes: [['slave', 2]], reward: 8 },
-      { kind: 'normal', foes: [['slave', 2], ['archer', 1]], goal: { kind: 'survive', time: 40 }, waves: { every: 10, foes: [['slave', 1]] }, reward: 12 },
+      { kind: 'normal', foes: [['slave', 2], ['archer', 1]], reward: 12 },
       { kind: 'normal', type: 'team', allies: [['tiro', 1]], foes: [['tiro', 2], ['archer', 1], ['slave', 2]], reward: 18 },
       { kind: 'boss', foes: [['murmillo', 1], ['slave', 2]], reward: 25 } ],
     tourney: { kind: 'tournament', rounds: [[['slave', 3]], { type: 'ffa', foes: [['slave', 3], ['archer', 2]] }, [['champion:murmillo', 1]]], reward: 60 } },
@@ -213,7 +214,9 @@ const STAGES = [
   // Blok 3: na toernooi II gaan de stallen open. De retiarius en de secutor (zijn vaste tegenstander) komen erbij.
   { fights: [
       { kind: 'normal', foes: [['retiarius', 1], ['slave', 2]], reward: 35 },
-      { kind: 'normal', foes: [['secutor', 1], ['archer', 2]], extra: { at: .5, foes: [['dimachaerus', 1]] }, reward: 40 },
+      // Overleven: alleen met snelle tegenstanders die je moet ontwijken (sprints, sprongen, roedels), niet met trage die je ontloopt.
+      { kind: 'normal', foes: [['secutor', 1], ['hyena', 2]], goal: { kind: 'survive', time: 40 }, waves: { every: 12, foes: [['hyena', 2]], max: 2 },
+        hatches: [{ after: 10, foes: [['tiger', 1]] }, { after: 22, foes: [['lion', 1]] }], reward: 40 },
       { kind: 'normal', type: 'escort', foes: [['hyena', 4]], hatches: [{ after: 5, foes: [['tiger', 1]] }, { after: 12, foes: [['lion', 1]] }, { after: 18, foes: [['hyena', 3]] }], reward: 45 },
       { kind: 'normal', foes: [['retiarius', 1], ['secutor', 1], ['archer', 1]], extra: { at: .4, foes: [['dimachaerus', 1], ['tiger', 1]] }, goal: { kind: 'hold', time: 20 }, reward: 55 },
       { kind: 'boss', foes: [['murmillo', 1], ['retiarius', 1]], extra: { at: .5, foes: [['secutor', 1], ['hoplomachus', 1]] }, reward: 70 } ],
@@ -293,7 +296,7 @@ const itemOpen = k => ((GEAR[k] || WEAPONS[k] || {}).after || 0) <= tourneysWon(
 const shopOpen = id => SHOPS[id].wares.length > 0 && (S.finished ? STAGES.length : S.stage) >= SHOPS[id].after;
 const FEEL = { hitstop: .06, shake: 5, playerShake: 9, flash: .12 };
 // Aftellen aan het begin (III, II, I, Pugnate!): je kunt al lopen, tegenstanders wachten nog.
-const INTRO = { step: .8, count: 3, shout: .7 };
+const INTRO = { step: 1, count: 3, shout: .7, fly: 700 };   // fly = ms dat het doel naar zijn plek bovenin zweeft
 // Grootte van het zandveld (oppervlak in wereld-eenheden). VIEW_AREA = hoeveel zand je tegelijk ziet (de zoom).
 // Is het zandveld groter dan wat je ziet, dan loopt de camera met je mee tot de rand van het stadion.
 // edge = zoveel tribune zie je nog voorbij het zand als de camera aan de rand staat (x opzij, y boven en onder, voor de keizersloge).
@@ -303,7 +306,10 @@ const CAMERA = { edgeX: 40, edgeY: 58, follow: 7 };
 // Ontwijkrol (Spatie): time = hoe lang de rol duurt, inv = de eerste zoveel seconden kun je niet geraakt worden,
 // speed = vaart tijdens de rol, cd = wachttijd daarna (Behendigheid: −cdAgi per punt, nooit onder cdMin).
 // Niet op de strijdwagen en niet als je in een net zit.
-const ROLL = { time: .3, inv: .25, speed: 240, cd: 1.2, cdAgi: .05, cdMin: .6 };
+// Je rolt altijd opzij (links of rechts van waar je kijkt): de kant waar je heen loopt, anders dezelfde kant als de vorige keer.
+// speedAgi = per punt Behendigheid rol je zoveel sneller (en dus verder).
+// enabled: false = rollen staat (voorlopig) uit; Spatie en A doen dan niets en de uitleg noemt het niet.
+const ROLL = { enabled: false, time: .55, inv: .3, speed: 120, speedAgi: .04, cd: 1.2, cdAgi: .05, cdMin: .6 };
 // Net van de retiarius: flight = vliegtijd (zo lang zie je de rode cirkel), radius = hoe groot het net is,
 // hold = zo lang zit je vast, mash = elke druk op een looptoets maakt het zoveel korter,
 // pick = zo dichtbij moet hij komen om zijn net op te rapen, block = sta jij zo dichtbij het net, dan kan hij het niet pakken.
@@ -326,6 +332,7 @@ const ATTACK = { buffer: .2, foeHp: 2 };
 const HATCH = { warn: 1.4, open: 1.6, size: 12, spots: [[-.45, -.4], [.45, -.4], [-.55, .25], [.55, .25], [0, -.55]] };
 // Doelen: zet goal: { kind, ... } in een gevecht of ronde. Zonder goal: versla iedereen.
 //   survive  { time }  blijf time seconden in leven. Met waves blijven er tegenstanders door de poort komen.
+//                      Alleen met snelle tegenstanders (secutor, hyena's, tijger, leeuw, ruiters): van trage loop je gewoon weg.
 //   trample  { count } zorg dat de olifant count keer een ander vertrapt. Gaat de olifant eerder dood: verloren.
 //   champion {}        versla de kampioen ('champion:<klasse>'); de rest geeft zich dan over.
 //   timed    { time }  versla iedereen binnen time seconden.
@@ -340,6 +347,9 @@ const HATCH = { warn: 1.4, open: 1.6, size: 12, spots: [[-.45, -.4], [.45, -.4],
 // Extra's: hatches: [{ after: s, foes }] of { every: s, foes, max } (dieren uit de luiken); waves: { every: s, foes, max } (door de poort).
 const HUNT = { nets: 3, capture: .5, hold: 2.5, range: 170, captureBonus: 5, prefer: .6 };
 const TYPES = { hunt: 'Hunt', escort: 'Protect the bestiarius', team: 'Team fight', ffa: 'Free for all' };
+// Haak (sica van de Thraciër) tegen je schild: geen schade, maar hij trekt je pull ver naar zich toe en je schild is
+// open seconden weg (witte rand: kwetsbaar). Dan kunnen anderen je raken; de Thraciër zelf moet eerst opnieuw aanvallen.
+const HOOK = { pull: 260, open: 1.1 };
 const BLOCK = { arc: 1.2, shieldSpeed: .5, heavy: 200, break: .6, perfect: .2, stagger: .8, window: .25, recover: .35, cd: .7, riposte: 1.2, riposteMul: 2 };
 
 /* ---------- Toestand ---------- */
@@ -423,6 +433,7 @@ function fitWorld(reset) {
   view.scale = Math.min(view.cw / (2 * (vrx + CAMERA.edgeX)), view.ch / (2 * (vry + CAMERA.edgeY)));
   view.bw = Math.max(view.cw, 2 * (W.rx + CAMERA.edgeX) * view.scale);
   view.bh = Math.max(view.ch, 2 * (W.ry + CAMERA.edgeY) * view.scale);
+  AR.dirtyEmpty = true;   // ook de versie met lege tribunes opnieuw
   if (reset) snapCam(); else clampCam();
   AR.dirty = true;
 }
@@ -448,10 +459,21 @@ function contain(o, ex, ey) {
   const vn = o.vx * nx + o.vy * ny; if (vn > 0) { o.vx -= vn * nx; o.vy -= vn * ny; }
 }
 
+// Keuze in de arena (town.js): de straat even weg, de lege arena erachter, geen HUD.
+function arenaView(on) {
+  S.emptyArena = on;
+  $('town').classList.toggle('away', on);
+  document.body.classList.toggle('arena-pick', on);
+}
+const CROWD = { min: .1, max: .6, test: .35 };
 function startFight() {
-  const def = fightDef();
+  const def = fightDef(); S.emptyArena = false; document.body.classList.remove('arena-pick');
+  const tour = def.kind === 'tournament' && !S.test, r = Math.abs(Math.sin(fightNumber() * 12.9898) * 43758.5453) % 1;   // vaste vulling per gevecht
+  const fill = tour ? 1 : S.test ? CROWD.test : CROWD.min + (CROWD.max - CROWD.min) * r;
+  setArenaCrowd(fill, tour); SFX.crowdSize(fill);   // legere arena: zachter publiek
+  hideHint(); SFX.win(false);
   W.area = FIGHT_AREA; fitWorld(true);
-  Object.assign(P, { guard: false, guardT: 0, guardPress: false, guardBroken: 0, parryT: 0, parryCd: 0, parryLock: 0, parried: 0, riposte: 0, atkBuf: 0, bleed: null, slow: 0, slowMul: 1, roll: 0, rollInv: 0, rollCd: 0, netted: 0, heading: -Math.PI / 2, spd: 0, punch: 0, x: 0, y: W.ry * .45, vx: 0, vy: 0, face: -Math.PI / 2, hp: me.maxHp, cd: 0, swing: 0, hurt: 0, flash: 0, target: null, dead: false });
+  Object.assign(P, { hooked: 0, guard: false, guardT: 0, guardPress: false, guardBroken: 0, parryT: 0, parryCd: 0, parryLock: 0, parried: 0, riposte: 0, atkBuf: 0, bleed: null, slow: 0, slowMul: 1, roll: 0, rollInv: 0, rollCd: 0, netted: 0, heading: -Math.PI / 2, spd: 0, punch: 0, x: 0, y: W.ry * .45, vx: 0, vy: 0, face: -Math.PI / 2, hp: me.maxHp, cd: 0, swing: 0, hurt: 0, flash: 0, target: null, dead: false });
   steer.active = false;
   S.foes = []; S.floats = []; S.dust = []; S.arrows = []; S.nets = []; S.javs = []; S.wrecks = []; S.calls = []; S.over = null; S.overT = 0; S.freeze = 0; S.shake = 0;
   S.intro = INTRO.step * INTRO.count; S.shout = 0; snapCam();
@@ -503,6 +525,7 @@ function spawnRound() {
   plan(c.hatches, 'hatch'); plan(c.waves, 'gate');
   S.teamColors = S.foes.some(f => f.side === 'hero');   // er is een team: kleuren aan
   for (const f of S.foes) teamTint(f);
+  showGoalIntro();
   updateUI();
 }
 // Teamkleuren: in een gevecht met maten krijgen jouw kant groene en de tegenstanders rode kleding/harnas (dieren niet).
@@ -573,13 +596,25 @@ const rad = t => t === P ? PLAYER.radius : t.d.radius;
 const maxHp = t => t === P ? me.maxHp : t.d.hp;
 const knockOf = t => t === P ? me.knock : t.d.heavy ? 0 : 1;
 const blockOf = t => t === P ? me.block : 0;
+// Doelwit kiezen voelt 'organisch': afstand telt, maar ook hoeveel anderen al op hetzelfde doelwit afgaan (crowd: elke
+// aanvaller erbij maakt het zoveel minder aantrekkelijk; boogschutters tellen half) en een eigen voorkeur per paar
+// (jitter: vaste factor tussen 1 − jitter en 1 + jitter). Zo pakt niet iedereen meteen dezelfde, maar ook niet perfect verdeeld.
+const TARGETING = { crowd: .55, jitter: .3, stick: 1.3 };
+let uidNext = 1;
+const pairBias = (a, b) => 1 + TARGETING.jitter * (2 * (Math.abs(Math.sin((a.uid || 0) * 12.9898 + (b.uid || 0) * 78.233) * 43758.5453) % 1) - 1);
 function pickTarget(f) {
   const escort = S.cfg && S.cfg.type === 'escort' && f.d.animal;
-  const weight = t => Math.hypot(t.x - f.x, t.y - f.y) * (escort && t.d && t.d.ai === 'bestiarius' ? HUNT.prefer : 1);
+  if (!f.uid) f.uid = uidNext++;
+  const crowdOn = t => { let n = 0; for (const o of S.foes) if (o !== f && o.tg === t && targetable(o)) n += o.d.ranged || o.d.ai === 'sagittarius' ? .5 : 1; return n; };
+  const weight = t => {
+    if (t !== P && !t.uid) t.uid = uidNext++;
+    return Math.hypot(t.x - f.x, t.y - f.y) * (escort && t.d && t.d.ai === 'bestiarius' ? HUNT.prefer : 1)
+      * (1 + TARGETING.crowd * crowdOn(t)) * pairBias(f, t);
+  };
   let best = null, bs = Infinity;
   if (!P.dead && hostile(f, P)) { bs = weight(P); best = P; }
   for (const o of S.foes) if (o !== f && targetable(o) && hostile(f, o)) { const w = weight(o); if (w < bs) { bs = w; best = o; } }
-  if (f.tg && f.tg !== best && liveTarget(f.tg) && hostile(f, f.tg) && weight(f.tg) < bs * 1.3) return f.tg;   // niet steeds wisselen
+  if (f.tg && f.tg !== best && liveTarget(f.tg) && hostile(f, f.tg) && weight(f.tg) < bs * TARGETING.stick) return f.tg;   // niet steeds wisselen
   return best;
 }
 // Een klap van een tegenstander op zijn doelwit TG.
@@ -595,7 +630,7 @@ function hitUnit(t, att, dmg = att.d.dmg) {
   const dx = t.x - att.x, dy = t.y - att.y, l = Math.hypot(dx, dy) || 1, kb = (60 + (att.d.knock || 0) * .5) * knockOf(t);
   t.vx += dx / l * kb; t.vy += dy / l * kb;
   float(t.x, t.y - 18, '−' + fmt(real), t.side === 'hero' ? C.blood : C.muted);
-  SFX.hit(); SFX.cheer(t.hp <= 0 ? .6 : .25);
+  SFX.hit(); SFX.cheer(t.hp <= 0 ? .6 : .25); arenaCheerAt(t.x, t.y, t.hp <= 0 ? .9 : .55);
   if (t.hp <= 0) foeDown(t);
 }
 // Iemand anders dan jij gaat neer.
@@ -623,10 +658,72 @@ function checkWin() {
   for (const f of S.foes) if (f.side !== 'hero' && targetable(f)) { f.state = 'yield'; f.vx = 0; f.vy = 0; }   // de rest geeft zich over
   for (const q of S.queue || []) q.done = true;
   S.extraDone = true;
-  S.collect = XP.collect; arenaCheer(); SFX.cheer(1);
+  const last = testCount || S.round + 1 >= roundsOf(fightDef()).length;
+  S.collect = XP.collect; arenaCheer();
+  if (last) SFX.win(); else SFX.cheer(1);   // het hele gevecht gewonnen: groot overwinningsgejuich
 }
 function lose() { if (!S.over) { arenaJeer(); endFight(false); } }
-// Tekst in de wastablet: wat je moet doen (alleen als het geen gewoon gevecht is).
+// Uitleg van het doel (keuzescherm in de stad en het begin van een gevecht): kop en één zin hoe je wint.
+function goalInfo(c) {
+  const g = c.goal || {}, t = c.type;
+  if (g.kind === 'survive') return { title: `Survive ${g.time} seconds`, sub: 'Stay alive until the time runs out.' };
+  if (g.kind === 'timed') return { title: `Win within ${g.time} seconds`, sub: 'Defeat everyone before the time runs out.' };
+  if (g.kind === 'trample') return { title: `Let the elephant trample ${g.count}`, sub: 'Lure it into the others. If the elephant dies first, you lose.' };
+  if (g.kind === 'champion') return { title: 'Defeat the champion', sub: 'The others surrender when he falls.' };
+  if (g.kind === 'hold') return { title: 'Hold the center', sub: `Stand in the golden circle for ${g.time} seconds.` };
+  if (t === 'hunt') return { title: 'Hunt', sub: 'Defeat or capture every animal. A net catches a weakened animal.' };
+  if (t === 'escort') return { title: 'Protect the bestiarius', sub: 'Keep him alive. If he dies, you lose.' };
+  if (t === 'team') return { title: 'Team fight', sub: 'You and your allies in green against the reds.' };
+  if (t === 'ffa') return { title: 'Free for all', sub: 'Everyone fights everyone. Be the last one standing.' };
+  return { title: 'Defeat all enemies', sub: '' };
+}
+// Begin van een ronde: groot in het midden wat je moet doen; na het aftellen zweeft het naar zijn plek bovenin (flyGoal).
+function showGoalIntro() {
+  const el = $('goalIntro'), t = $('giTitle'), info = goalInfo(S.cfg || {}), rounds = roundsOf(fightDef()).length;
+  for (const a of t.getAnimations()) a.cancel();
+  $('giEyebrow').textContent = fightTitle() + (rounds > 1 ? ` · Round ${toRoman(S.round + 1)} of ${toRoman(rounds)}` : '');
+  t.textContent = info.title; $('giSub').textContent = info.sub;
+  el.classList.remove('gone'); el.hidden = false;
+  $('goalText').classList.add('waiting');
+}
+/* ---------- Uitleg in beeld bij iets nieuws ----------
+   Na het aftellen: heb je iets nieuws (wapen, boog, schild, strijdwagen, netten), dan staat onderin even met welke knop
+   je het pakt, gebruikt en richt. De iconen passen zich aan: toetsenbord en muis, of je soort controller (PAD.icon).
+   Elk ding één keer per spel (S.seen). time = zo lang blijft het staan. */
+const HINT = { time: 8 };
+function newThings() {
+  const seen = S.seen || (S.seen = {}), list = [];
+  const add = (key, title, rows) => { if (!seen[key]) { seen[key] = true; list.push({ title, rows }); } };
+  add('basics', 'Fight', [['move', 'move'], ['aim', 'aim'], ['attack', 'strike'], ...(me.shield || me.canParry ? [['block', 'block']] : [])]);
+  if (S.melee !== 'fists') add('m:' + S.melee, `New: ${WEAPONS[S.melee].name}`,
+    [...(S.ranged ? [['switch1', 'take it in hand']] : []), ['attack', 'strike'], ...(S.gear.shield ? [] : [['block', 'parry: just before the hit']])]);
+  if (S.ranged) add('r:' + S.ranged, `New: ${WEAPONS[S.ranged].name}`, [['switch2', 'take your bow'], ['aim', 'aim'], ['attack', 'shoot']]);
+  if (S.gear.shield) add('s:' + S.gear.shield, `New: ${GEAR[S.gear.shield].name}`, [['block', 'hold: blocks hits from the front']]);
+  if (S.gear.mount && S.ranged) add('mount:' + S.gear.mount, `New: ${GEAR[S.gear.mount].name}`, [['switch2', 'ride (with your bow)'], ['move', 'steer']]);
+  if (S.netsLeft > 0) add('net', 'Nets', [['net', 'throw a net'], ['aim', 'aim']]);
+  return list;
+}
+function showHints() {
+  const list = newThings(), el = $('hint');
+  if (!list.length || typeof PAD === 'undefined') return;
+  el.innerHTML = list.slice(0, 3).map(h => `<section><h4>${h.title}</h4>${h.rows.map(([a, t]) => `<span class="hint-ico">${PAD.icon(a)}</span><span>${t}</span>`).join('')}</section>`).join('');
+  el.classList.remove('gone'); el.hidden = false; S.hintT = HINT.time;
+}
+function hideHint() { const el = $('hint'); el.hidden = true; el.classList.remove('gone'); S.hintT = 0; }
+function flyGoal() {
+  showHints();
+  const el = $('goalIntro'), t = $('giTitle'), dest = $('goalText'), gt = goalText();
+  S.goalShown = gt; dest.textContent = gt; dest.hidden = !gt;
+  el.classList.add('gone');   // bovenregel en uitleg vervagen
+  const a = t.getBoundingClientRect(), b = dest.getBoundingClientRect();
+  if (!gt || !a.height || !b.height) { el.hidden = true; dest.classList.remove('waiting'); return; }
+  const dx = b.left + b.width / 2 - (a.left + a.width / 2), dy = b.top + b.height / 2 - (a.top + a.height / 2), s = b.height / a.height;
+  const anim = t.animate([{ transform: 'none', opacity: 1 }, { transform: `translate(${dx}px, ${dy}px) scale(${s})`, opacity: 1, offset: .85 }, { transform: `translate(${dx}px, ${dy}px) scale(${s})`, opacity: 0 }],
+                         { duration: INTRO.fly, easing: 'cubic-bezier(.5,0,.25,1)', fill: 'forwards' });
+  setTimeout(() => dest.classList.remove('waiting'), INTRO.fly * .8);   // de tekst bovenin neemt het over
+  anim.onfinish = () => { el.hidden = true; anim.cancel(); };
+}
+// Tekst bovenin: wat je moet doen, met de stand (tijd, aantal).
 function goalText() {
   const c = S.cfg || {}, g = c.goal || {};
   if (g.kind === 'survive') return `Survive · ${Math.max(0, Math.ceil(g.time - S.goalT))}`;
@@ -634,8 +731,9 @@ function goalText() {
   if (g.kind === 'trample') return `Let the elephant trample · ${Math.min(S.trampled, g.count)}/${g.count}`;
   if (g.kind === 'champion') return 'Defeat the champion';
   if (g.kind === 'hold') return `Hold the center · ${Math.floor(Math.min(S.holdT, g.time))}/${g.time}`;
-  if (c.type === 'hunt') { const all = S.foes.filter(f => f.side !== 'hero'); return `Hunt · ${all.filter(f => !targetable(f)).length}/${all.length}`; }
-  return TYPES[c.type] || '';
+  const all = S.foes.filter(f => f.side !== 'hero'), down = all.filter(f => !targetable(f)).length;
+  if (c.type === 'hunt') return `Hunt · ${down}/${all.length}`;
+  return TYPES[c.type] || `Defeat all · ${down}/${all.length}`;
 }
 // Versterking: de poorten links en rechts gaan open en de nieuwe tegenstanders lopen het zand op.
 function checkExtra() {
@@ -713,6 +811,7 @@ function hitFoe(f, dmg, from, soft, crit) {
   const now = performance.now();
   if (!soft || now - (S.lastRamSfx || 0) > 120) { SFX.hit(); S.lastRamSfx = now; }   // niet tien klappen tegelijk
   SFX.cheer(f.hp <= 0 ? .75 : .35);   // het publiek juicht bij elke rake klap, harder als hij valt
+  arenaCheerAt(f.x, f.y, f.hp <= 0 ? 1 : .7);   // en wie dichtbij zit, springt op
   if (breaks && f.hp > 0) breakSpear(f);
   if (!soft && f.d.flinch && f.hp > 0 && (f.state === 'windup' || f.state === 'combo')) { f.state = 'stagger'; f.t = f.d.flinch; f.combo = 0; }   // dimachaerus: raak je hem tijdens zijn aanval, dan breekt zijn combo
   if (f.hp <= 0) foeDown(f);
@@ -809,6 +908,13 @@ function hitPlayer(f) {
   let mul = 1;
   const src = realFoe(f), heavy = !f.arrow && ((f.d.knock || 0) >= BLOCK.heavy || !!f.d.heavy);
   if (toward < BLOCK.arc) {
+    if (P.guard && f.d.hook && !f.arrow) {   // de sica haakt om je schild: je wordt meegetrokken en staat open
+      const a = Math.atan2(f.y - P.y, f.x - P.x);
+      P.guard = false; P.guardBroken = HOOK.open; P.hooked = HOOK.open;
+      P.vx += Math.cos(a) * HOOK.pull; P.vy += Math.sin(a) * HOOK.pull;
+      S.shake = Math.max(S.shake, 3); SFX.whoosh(); SFX.block();
+      return;
+    }
     if (P.guard && !f.d.hook && !(f.arrow && GEAR[S.gear.shield].arrows === false)) {   // de sica haakt om je schild; de parma houdt geen pijlen
       if (heavy) {   // te zwaar: je schild wordt opzij geslagen, je wankelt en krijgt de helft
         P.guard = false; P.guardBroken = BLOCK.break; mul = .5;
@@ -840,20 +946,25 @@ function hitPlayer(f) {
   S.freeze = FEEL.hitstop * 1.4; S.shake = Math.max(S.shake, FEEL.playerShake);
   float(P.x, P.y - 20, real ? '−' + fmt(real) : '0', C.blood);
   if (f.d.bleed) P.bleed = { t: f.d.bleed.time, tick: 1, dmg: f.d.bleed.dmg, src: f };   // sica: je bloedt
-  SFX.hurt();
-  if (P.hp > 0) SFX.cheer(Math.min(.8, .35 + real / me.maxHp));   // het publiek geniet ook als jíj bloedt, harder bij een flinke klap
+  SFX.hurt(); if (typeof PAD !== 'undefined') PAD.rumble(Math.min(1, .35 + real / me.maxHp), 140);   // controller trilt
+  if (P.hp > 0) SFX.cheer(Math.min(.8, .35 + real / me.maxHp));
+  arenaCheerAt(P.x, P.y, Math.min(1, .55 + real / me.maxHp));   // het publiek geniet ook als jíj bloedt, harder bij een flinke klap
   $('stage').classList.remove('hurt'); void $('stage').offsetWidth; $('stage').classList.add('hurt');
   updateUI();
   if (P.hp <= 0) { P.dead = true; endFight(false); }
 }
-// Ontwijkrol: in de richting van je toetsen (of waar je naar kijkt).
+// Ontwijkrol: altijd zijwaarts ten opzichte van waar je kijkt.
 function tryRoll() {
+  if (!ROLL.enabled) return;
   if (P.dead || S.over || S.paused || S.intro > 0 || me.riding || P.netted > 0 || P.rollCd > 0) return;
   let dx = 0, dy = 0;
   if (keys.has('ArrowLeft') || keys.has('a')) dx--; if (keys.has('ArrowRight') || keys.has('d')) dx++;
   if (keys.has('ArrowUp') || keys.has('w')) dy--; if (keys.has('ArrowDown') || keys.has('s')) dy++;
-  // Richting: waar je heen loopt (toetsen), anders waar je naar kijkt (je muis).
-  P.rollDir = dx || dy ? Math.atan2(dy, dx) : P.face;
+  if (!dx && !dy && (typeof PAD !== 'undefined' && PAD.active) && PAD.move) [dx, dy] = PAD.move;   // controller: de linkerstick
+  // Kant: loop je (een beetje) naar links of rechts van je kijkrichting, dan die kant; anders dezelfde kant als vorige keer.
+  const lateral = dx || dy ? Math.sin(Math.atan2(dy, dx) - P.face) : 0;
+  const side = lateral > .15 ? 1 : lateral < -.15 ? -1 : (P.rollSide || 1);
+  P.rollSide = side; P.rollDir = P.face + side * Math.PI / 2;
   P.roll = ROLL.time; P.rollInv = ROLL.inv;
   P.rollCd = Math.max(ROLL.cdMin, ROLL.cd - ROLL.cdAgi * S.stats.agility) * (1 - gearSum('roll'));   // parma: sneller weer rollen
   for (let j = 0; j < 4; j++) S.dust.push({ x: P.x + (Math.random() - .5) * 10, y: P.y + (Math.random() - .5) * 10, t: 1 });
@@ -894,9 +1005,9 @@ function shoot(w, aim, target) {
 }
 // Blokken: K of Shift. Met schild zolang je hem vasthoudt; zonder schild (met een wapen) een korte parade bij het indrukken.
 function updateGuard(dt) {
-  const held = keys.has('k') || keys.has('Shift') || steer.block;
+  const held = keys.has('k') || keys.has('Shift') || steer.block || (typeof PAD !== 'undefined' && PAD.active) && PAD.block;
   P.parryCd = Math.max(0, (P.parryCd || 0) - dt); P.parryLock = Math.max(0, (P.parryLock || 0) - dt);
-  P.guardBroken = Math.max(0, (P.guardBroken || 0) - dt); P.parried = Math.max(0, (P.parried || 0) - dt);
+  P.guardBroken = Math.max(0, (P.guardBroken || 0) - dt); P.hooked = Math.max(0, (P.hooked || 0) - dt); P.parried = Math.max(0, (P.parried || 0) - dt);
   if (P.parryT > 0) { P.parryT -= dt; if (P.parryT <= 0) { P.parryT = 0; P.parryLock = BLOCK.recover; } }   // niets geraakt: even open
   const able = !P.dead && !S.over && S.switching <= 0 && !(P.roll > 0) && !(P.netted > 0) && !(P.guardBroken > 0);
   const was = P.guard;
@@ -943,7 +1054,7 @@ function capture(f) {
 // Net gooien (toets E): naar je muis, anders naar de dichtstbijzijnde tegenstander (een tikje voor hem), anders recht vooruit.
 function throwPlayerNet() {
   if (!(S.netsLeft > 0) || P.dead || S.over || S.paused || S.intro > 0 || P.netted > 0 || P.roll > 0 || S.switching > 0 || me.riding) return;
-  let x, y; const mouse = steer.mouse;
+  let x, y; const mouse = steer.mouse && !(typeof PAD !== 'undefined' && PAD.active);
   if (mouse) { x = steer.hx; y = steer.hy; }
   else if (P.target && Math.hypot(P.target.x - P.x, P.target.y - P.y) <= HUNT.range) { const t = P.target; x = t.x + t.vx * .25 + (t.state === 'walk' ? Math.cos(t.face) * t.d.speed * .3 : 0); y = t.y + t.vy * .25 + (t.state === 'walk' ? Math.sin(t.face) * t.d.speed * .3 : 0); }
   else { x = P.x + Math.cos(P.face) * 80; y = P.y + Math.sin(P.face) * 80; }
@@ -1489,6 +1600,7 @@ function update(dt) {
     if (keys.has('ArrowUp') || keys.has('w')) dy--;
     if (keys.has('ArrowDown') || keys.has('s')) dy++;
     if (dx || dy) { const l = Math.hypot(dx, dy); tx = dx / l * me.speed; ty = dy / l * me.speed; steer.active = false; }
+    else if ((typeof PAD !== 'undefined' && PAD.active) && PAD.move) { tx = PAD.move[0] * me.speed; ty = PAD.move[1] * me.speed; steer.active = false; }   // linkerstick: hoe verder, hoe sneller
     else if (steer.active) {
       const ex = steer.x - P.x, ey = steer.y - P.y, d = Math.hypot(ex, ey);
       if (d > 6) { const sp = Math.min(me.speed, d * 4); tx = ex / d * sp; ty = ey / d * sp; }
@@ -1511,7 +1623,7 @@ function update(dt) {
     tx = Math.cos(P.heading) * P.spd; ty = Math.sin(P.heading) * P.spd;
     k = 1 - Math.exp(-dt * 6);
   }
-  if (P.roll > 0) { tx = Math.cos(P.rollDir) * ROLL.speed; ty = Math.sin(P.rollDir) * ROLL.speed; k = 1; }   // rollen
+  if (P.roll > 0) { const rs = ROLL.speed * (1 + ROLL.speedAgi * S.stats.agility); tx = Math.cos(P.rollDir) * rs; ty = Math.sin(P.rollDir) * rs; k = 1; }   // rollen (Behendigheid: sneller)
   if (P.netted > 0) { tx = 0; ty = 0; k = 1 - Math.exp(-dt * 20); }                                          // in het net: vast
   P.vx += (tx - P.vx) * k; P.vy += (ty - P.vy) * k;
   P.x += P.vx * dt; P.y += P.vy * dt;
@@ -1533,11 +1645,12 @@ function update(dt) {
   // Aftellen: jij kunt al lopen en kijken, maar er wordt nog niet geslagen.
   if (S.intro > 0) {
     S.intro -= dt;
-    if (S.intro <= 0) { S.shout = INTRO.shout; arenaCheer(); SFX.cheer(.6); SFX.mood('fight'); }
+    if (S.intro <= 0) { S.shout = INTRO.shout; arenaCheer(); SFX.cheer(.6); SFX.mood('fight'); flyGoal(); }
     for (const f of S.foes) f.face = lerpAngle(f.face, Math.atan2(P.y - f.y, P.x - f.x), 1 - Math.exp(-dt * 6));
     return;
   }
   S.shout = Math.max(0, S.shout - dt);
+  if (S.hintT > 0) { S.hintT -= dt; if (S.hintT <= 0) { $('hint').classList.add('gone'); setTimeout(() => { if (!(S.hintT > 0)) $('hint').hidden = true; }, 600); } }   // uitleg vervaagt
   S.roundT = (S.roundT || 0) + dt; checkExtra(); S.gate = Math.max(0, (S.gate || 0) - dt);
   updateNets(dt); updateJavs(dt); updateArena(dt);
   if (!S.over && !(S.collect > 0)) {   // klok voor doelen; in de cirkel staan (hold)
@@ -1566,9 +1679,12 @@ function update(dt) {
   const bow = w.kind === 'bow';
   const inReach = !bow && best && bd - best.d.radius - PLAYER.radius <= w.reach;
   const inRange = bow && best && bd <= w.range;
-  // Kijkrichting: altijd naar je muis. Zonder muis (alleen toetsen): naar wie binnen bereik staat, anders waar je heen loopt.
-  if (steer.mouse && !P.dead && !(P.netted > 0)) P.face = lerpAngle(P.face, Math.atan2(steer.hy - P.y, steer.hx - P.x), 1 - Math.exp(-dt * 30));
-  else if (P.guard && best && bd - best.d.radius - PLAYER.radius <= 60) P.face = lerpAngle(P.face, Math.atan2(best.y - P.y, best.x - P.x), 1 - Math.exp(-dt * 10));
+  // Kijkrichting. Blok je (schild omhoog of parade), dan draai je vanzelf naar de dichtstbijzijnde tegenstander (muis, toetsen en controller).
+  // Anders: rechterstick, of je muis; zonder muis naar wie binnen bereik staat, anders waar je heen loopt.
+  const guardFace = (P.guard || P.parryT > 0) && !P.dead && best && bd - best.d.radius - PLAYER.radius <= 60;
+  if (guardFace) P.face = lerpAngle(P.face, Math.atan2(best.y - P.y, best.x - P.x), 1 - Math.exp(-dt * 14));
+  else if ((typeof PAD !== 'undefined' && PAD.active) && PAD.aim !== null && !P.dead && !(P.netted > 0)) P.face = lerpAngle(P.face, PAD.aim, 1 - Math.exp(-dt * 30));   // rechterstick
+  else if (steer.mouse && !(typeof PAD !== 'undefined' && PAD.active) && !P.dead && !(P.netted > 0)) P.face = lerpAngle(P.face, Math.atan2(steer.hy - P.y, steer.hx - P.x), 1 - Math.exp(-dt * 30));
   else if (inReach || inRange) P.face = lerpAngle(P.face, Math.atan2(best.y - P.y, best.x - P.x), 1 - Math.exp(-dt * 20));
   else if (sp > 20) P.face = lerpAngle(P.face, Math.atan2(P.vy, P.vx), 1 - Math.exp(-dt * 12));
   P.punch = Math.max(0, (P.punch || 0) - dt); P.noAmmo = Math.max(0, (P.noAmmo || 0) - dt);
@@ -1577,7 +1693,7 @@ function update(dt) {
   if (P.atkBuf > 0 && P.cd === 0 && !busy) {
     P.atkBuf = 0;
     // Richting: met de muis naar je muis, anders naar wie het dichtst bij staat (binnen bereik), anders recht vooruit.
-    const aimMouse = steer.mouse;
+    const aimMouse = steer.mouse && !(typeof PAD !== 'undefined' && PAD.active);
     const aim = aimMouse ? Math.atan2(steer.hy - P.y, steer.hx - P.x) : (inReach || inRange) ? Math.atan2(best.y - P.y, best.x - P.x) : P.face;
     P.face = aim;
     if (bow) shoot(w, aim, aimMouse ? null : inRange ? best : null);
@@ -1683,15 +1799,20 @@ function update(dt) {
 /* ---------- Tekenen ---------- */
 function draw(now) {
   const { cw, ch, dpr, scale } = view;
-  if (AR.dirty) buildArena();
+  if (S.emptyArena ? AR.dirtyEmpty !== false : AR.dirty) buildArena(!!S.emptyArena);   // keuzescherm: lege tribunes
+  if (S.emptyArena) {   // keuzescherm: de camera dwaalt langzaam over de lege arena, met de keizersloge in beeld
+    const mx = Math.max(0, (view.bw - cw) / 2 / scale), my = Math.max(0, (view.bh - ch) / 2 / scale);
+    cam.x = Math.sin(now / 9000) * mx; cam.y = -my * .55 + Math.sin(now / 13000) * my * .35;
+  }
   // Camera: het stadion schuift mee; op hele pixels, zodat het niet trilt.
   const ox = Math.round((cw / 2 - cam.x * scale) * dpr) / dpr, oy = Math.round((ch / 2 - cam.y * scale) * dpr) / dpr;
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = C.night; ctx.fillRect(0, 0, cvs.width, cvs.height);
-  ctx.drawImage(AR.bg, Math.round((ox - view.bw / 2) * dpr), Math.round((oy - view.bh / 2) * dpr));
+  ctx.drawImage(S.emptyArena ? AR.bgEmpty : AR.bg, Math.round((ox - view.bw / 2) * dpr), Math.round((oy - view.bh / 2) * dpr));
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const sx = (Math.random() - .5) * S.shake, sy = (Math.random() - .5) * S.shake;
   ctx.save(); ctx.translate(ox + sx, oy + sy); ctx.scale(scale, scale);
-  drawArenaLive(ctx, now);
+  drawArenaLive(ctx, now, !!S.emptyArena);
+  if (S.emptyArena) { ctx.restore(); return; }   // keuzescherm: alleen het stadion en het publiek
 
   if (steer.active && !P.dead) {
     ctx.strokeStyle = C.porphyry; ctx.lineWidth = 2; ctx.globalAlpha = .5;
@@ -1761,7 +1882,7 @@ function draw(now) {
   if (S.intro > 0 || S.shout > 0) {   // III, II, I, Pugnate!
     const txt = S.intro > 0 ? toRoman(Math.ceil(S.intro / INTRO.step)) : 'Pugnate!';
     const f = S.intro > 0 ? (S.intro / INTRO.step) % 1 : S.shout / INTRO.shout, k = 1 + .3 * f * f;
-    ctx.save(); ctx.translate(cam.x, cam.y - ch / 2 / scale * .55); ctx.scale(k, k);
+    ctx.save(); ctx.translate(cam.x, cam.y + ch / 2 / scale * .22); ctx.scale(k, k);   // onder het doel in het midden
     ctx.font = `900 ${S.intro > 0 ? 56 : 44}px Cinzel, Georgia, serif`; ctx.globalAlpha = Math.min(1, .35 + f);
     ctx.lineWidth = 6; ctx.strokeStyle = C.night; ctx.strokeText(txt, 0, 0);
     ctx.fillStyle = S.intro > 0 ? C.ink : C.coin; ctx.fillText(txt, 0, 0); ctx.restore();
@@ -1912,6 +2033,10 @@ function drawPlayer(now) {
     ctx.beginPath(); ctx.arc(P.x, P.y, PLAYER.radius + 7, -Math.PI / 2, -Math.PI / 2 + TAU2 * t); ctx.stroke();
   }
   const sw = P.swing > 0 ? 1 - P.swing / w.swing : -1;   // 0..1 tijdens een slag, anders -1
+  if (P.hooked > 0) {   // schild weggehaakt: witte rand (kwetsbaar)
+    ctx.strokeStyle = `rgba(255,255,255,${.5 + .3 * Math.sin(now / 60)})`; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(P.x, P.y, PLAYER.radius + 6, 0, TAU2); ctx.stroke();
+  }
   if (P.guard) {   // achter je schild: gele rand aan de voorkant (blokt)
     ctx.strokeStyle = 'rgba(226,179,94,.75)'; ctx.lineWidth = 3; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.arc(P.x, P.y, PLAYER.radius + 7, P.face - BLOCK.arc * .8, P.face + BLOCK.arc * .8); ctx.stroke(); ctx.lineCap = 'butt';
@@ -2752,7 +2877,7 @@ let last = performance.now();
 function loop(now) {
   const dt = Math.min(.05, (now - last) / 1000); last = now;
   requestAnimationFrame(loop);
-  try { if (!S.paused) update(dt); draw(now); } catch (err) { console.error(err); }
+  try { if (typeof PAD !== 'undefined') PAD.poll(); if (!S.paused) update(dt); draw(now); } catch (err) { console.error(err); }   // PAD: controller (pad.js)
 }
 
 /* ---------- Interface ---------- */
@@ -2852,6 +2977,7 @@ function chooseArena(mode) {
 }
 function enterArena() { startFight(); S.paused = false; }
 function newRun() {
+  S.seen = {};   // uitleg over nieuwe spullen weer tonen
   S.mode = 'fight'; S.stage = 0; S.inStage = 0; S.finished = false;
   S.xp = 0; S.points = POINTS.start; for (const k in S.stats) S.stats[k] = 0;
   S.money = 0; S.delta = 0; S.owned = ['fists']; S.gear = { body: null, head: null, shield: null, mount: null, quiver: null }; S.townSeen = false; S.ammo = 0; S.melee = 'fists'; S.ranged = null; S.active = 'melee'; S.switching = 0; PLAYER.weapon = 'fists'; S.over = null;
@@ -2901,6 +3027,7 @@ function openStats(mode = 'town') {
   S.paused = true; added = {}; statsMode = mode;
   for (const k in STATS) added[k] = 0;
   $('statsBack').hidden = mode !== 'arena';
+  $('stats').classList.toggle('over-arena', mode === 'toTown');   // net uit een gevecht: de arena blijft erachter zichtbaar
   renderStats(); $('stats').hidden = false; $('statsBtn').focus();
 }
 function statEffect(k, n) {
