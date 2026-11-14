@@ -298,8 +298,8 @@ const MONEY = { lossShare: .5 };
 // knock = hoe ver je wordt weggeduwd (× dit getal); front = schild: pijlen van voren houdt het tegen, klappen van voren doen 1 minder.
 const GEAR = {
   leather: { slot: 'body',   name: 'Leather armor',     price: 35,  armor: 1, short: 'armor 1', desc: 'armor 1: every hit does 1 less' },
-  // Galea: na een klap ben je langer onaantastbaar (invuln × dit getal). Tegen groepen: vijf tikjes tegelijk worden er minder.
-  galea:   { slot: 'head',   name: 'Galea',             price: 30,  invuln: 1.6, short: '+60% recovery', desc: 'after a hit, nothing can hurt you for 60% longer (1 s instead of 0.6 s): strong in a crowd' },
+  // Galea: gewoon meer leven, dat zie je meteen aan je levensbalk. (invuln = langer onaantastbaar na een klap kan nog, maar gebruikt nu niets)
+  galea:   { slot: 'head',   name: 'Galea',             price: 30,  hp: 2, short: '+2 health', desc: '2 extra health' },
   scutum:  { slot: 'shield', name: 'Scutum',            price: 50,  front: 1, short: 'front −1 · arrows 0', desc: 'stops arrows from the front; hits from the front do 1 less' },
   secutorHelm: { slot: 'head', name: 'Secutor helmet', price: 70, netMul: .5, speed: -8, short: '−50% net · −8 speed', desc: 'smooth and round: a net slides off twice as fast, but you can barely breathe (−8 move speed)' },
   lorica:  { slot: 'body',   name: 'Lorica segmentata', price: 120, armor: 2, speed: -8, short: 'armor 2 · −8 speed', desc: 'armor 2, but −8 move speed' },
@@ -438,7 +438,7 @@ function switchTo(slot) {
 }
 const gearSum = key => Object.values(S.gear).reduce((n, g) => n + (g && GEAR[g][key] || 0), 0);
 const me = {
-  get maxHp() { return PLAYER.hp + STAT_RULES.hp * S.stats.vitality; },
+  get maxHp() { return PLAYER.hp + STAT_RULES.hp * S.stats.vitality + gearSum('hp'); },   // helm: hp erbij
   get speed() { return (PLAYER.speed + STAT_RULES.speed * S.stats.agility + gearSum('speed')) * (S.active === 'ranged' && S.ranged ? ARMS.speedMul : 1) * (P.slow > 0 ? P.slowMul : 1) * (P.guard ? BLOCK.shieldSpeed : 1) * (P.crowdMul || 1); },   // drukte remt   // brul van de leeuw: trager; achter je schild: langzaam
   get armor() { return gearSum('armor'); },
   get riding() { return !!S.gear.mount && S.active === 'ranged' && !!S.ranged; },   // op de wagen alleen met de boog in je handen
