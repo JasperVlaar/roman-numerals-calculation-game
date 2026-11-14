@@ -69,8 +69,9 @@ function buildArena() {
   AR.dirty = false;
   const K = AR.col = arenaColors(), A = ARENA, L = A.loge;
   if (!AR.glow) AR.glow = glowSprite(K.glow);
-  const { cw, ch, dpr, scale } = view, rx = W.rx, ry = W.ry;
-  const bg = AR.bg; bg.width = cvs.width; bg.height = cvs.height;
+  // bw/bh = het hele stadion dat de camera kan laten zien (groter dan het scherm als de camera meebeweegt).
+  const { dpr, scale } = view, cw = view.bw || view.cw, ch = view.bh || view.ch, rx = W.rx, ry = W.ry;
+  const bg = AR.bg; bg.width = Math.round(cw * dpr); bg.height = Math.round(ch * dpr);
   const g = bg.getContext('2d');
   g.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * cw / 2, dpr * ch / 2);
   const X = cw / 2 / scale + 12, Y = ch / 2 / scale + 12;

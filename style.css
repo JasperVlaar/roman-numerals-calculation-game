@@ -330,6 +330,17 @@ button:disabled{opacity:.4;cursor:default}
 .panel.dev .dev-check input{height:auto}
 .dev-grid.dev-test{grid-template-columns:2fr 1fr}
 .panel.dev{max-height:94vh;overflow-y:auto}
+/* Testmenu in twee kolommen: links naar een gevecht springen, rechts de testarena. Smal scherm: onder elkaar. */
+.panel.dev{width:min(1040px,100%)}
+.dev-cols{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+.dev-col{display:flex;flex-direction:column;gap:10px;min-width:0}
+.dev-col + .dev-col{border-left:2px solid var(--wood-edge);padding-left:28px}
+.dev-col h2{margin:0}
+.dev-col .dev-row{margin-top:auto}
+.dev-col .dev-row .primary{flex:1 1 120px}
+.dev-foot{align-items:center;margin-top:6px}
+.dev-foot .btn.wide{flex:1}
+@media (max-width:820px){.dev-cols{grid-template-columns:1fr}.dev-col + .dev-col{border-left:0;padding-left:0;border-top:2px solid var(--wood-edge);padding-top:16px}}
 .wares li.locked{opacity:.55}
 
 /* ===== Wastablet: één interfacestijl voor het hele spel =====
@@ -366,6 +377,25 @@ button:disabled{opacity:.4;cursor:default}
   background:var(--wax);border:6px solid var(--wood);border-radius:4px;outline:2px solid var(--wood-edge);box-shadow:inset 0 0 0 2px var(--wood-edge),0 6px 18px rgba(0,0,0,.4)}
 .inv-title{margin:0;font-family:var(--f-display);font-weight:700;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--wax-ink);line-height:1.35}
 .inv-sub{color:var(--wax-muted);font-weight:500}
+.app.fight #arena{cursor:crosshair}
+/* Toetsen op het startscherm: iconen van Kenney (wit), iets warmer gemaakt zodat ze bij de wastablet passen */
+.keys{display:grid;grid-template-columns:max-content 1fr;column-gap:14px;row-gap:8px;align-items:center}
+.keys li{display:contents}
+.key-ico{display:flex;align-items:center;gap:1px}
+.key-ico img{width:30px;height:30px;display:block;filter:sepia(.35) brightness(.96) drop-shadow(0 1px 0 rgba(0,0,0,.6))}
+.key-ico img.wide{width:46px;height:46px;margin:-8px -3px}
+.key-ico i{font-style:normal;color:var(--muted);margin:0 3px;font-size:12px}
+/* Bovenin: doel van de ronde (goud, groot) en je leven als brede balk in een houten lijst */
+.top-hud{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:3;width:min(560px,calc(100% - 24px));display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none}
+.goal-top{margin:0;font-family:var(--f-display);font-weight:900;font-size:clamp(17px,2.6vw,26px);letter-spacing:.08em;text-transform:uppercase;text-align:center;color:var(--coin);text-shadow:0 2px 0 #140d08,0 0 14px rgba(0,0,0,.85),0 0 4px rgba(0,0,0,.9)}
+.hp-top{width:100%;display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--tex-grain),var(--wax);border:5px solid var(--wood);border-radius:4px;outline:2px solid var(--wood-edge);box-shadow:inset 0 0 0 2px var(--wood-edge),0 6px 18px rgba(0,0,0,.4)}
+.hp-top .ico{width:28px;height:28px}
+.hp-top .bar{flex:1;height:22px;border-radius:2px;background:#140d08;border:2px solid var(--wood-edge);overflow:hidden;box-shadow:inset 0 2px 3px rgba(0,0,0,.8)}
+.hp-top .bar>div{height:100%;transform-origin:left;transition:transform .2s ease-out}
+.hp-top #hpFill{background:var(--blood);box-shadow:inset 0 3px 0 rgba(255,255,255,.18)}
+.hp-top .hp-bar.low #hpFill{background:#ff5a4a;animation:hpLow .6s ease-in-out infinite alternate}
+.hp-num{min-width:74px;flex:none;text-align:right;font-family:var(--f-display);font-weight:700;font-size:19px;color:var(--wax-ink);font-variant-numeric:tabular-nums;text-shadow:0 -1px 0 rgba(0,0,0,.8)}
+@media (max-width:520px){.hp-top{padding:4px 8px;border-width:4px}.hp-top .bar{height:16px}.hp-num{font-size:15px;min-width:58px}}
 .inv-row{display:flex;align-items:center;gap:8px}
 .inv .bar{flex:1;height:11px;border-radius:2px;background:#17120f;border:2px solid var(--wood-edge);overflow:hidden}
 .inv .bar>div{height:100%;transform-origin:left;transition:transform .2s ease-out}

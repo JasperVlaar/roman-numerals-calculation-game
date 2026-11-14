@@ -19,17 +19,33 @@
   function build() {
     box = document.createElement('div');
     box.className = 'overlay'; box.id = 'dev'; box.hidden = true;
+    // Elk gevecht met zijn soort erbij ([Team fight], [Survive 40 s], ...) en categorieën om op te filteren.
     const opts = [];
     let n = 0;
+    const cats = def => {   // soorten in een gevecht (of in de rondes van een toernooi)
+      const parts = [def, ...(def.rounds || []).filter(r => !Array.isArray(r))], c = new Set();
+      for (const p of parts) { if (p.type) c.add(p.type); if (p.goal) c.add(p.goal.kind); if (p.hatches) c.add('hatches'); }
+      if (def.kind === 'boss') c.add('boss');
+      if (def.kind === 'tournament') c.add('tournament');
+      if (![...c].some(k => k in TYPES || k in GOALS_DEFAULT)) c.add('plain');
+      return [...c].join(' ');
+    };
+    const tag = def => fightTag(def) ? `[${fightTag(def)}] ` : '';
     STAGES.forEach((st, si) => {
-      st.fights.forEach((f, fi) => { n++; opts.push(`<option value="f:${si}:${fi}">Fight ${toRoman(n)} · ${f.kind === 'boss' ? 'mini-boss: ' : ''}${listSummary(f.foes)}</option>`); });
-      opts.push(`<option value="t:${si}">Tournament ${toRoman(si + 1)} · final boss ${listSummary(roundsOf(st.tourney).at(-1))}</option>`);
+      st.fights.forEach((f, fi) => { n++; opts.push(`<option value="f:${si}:${fi}" data-cats="${cats(f)}">Fight ${toRoman(n)} · ${tag(f)}${f.kind === 'boss' ? 'mini-boss: ' : ''}${listSummary(f.foes)}</option>`); });
+      const t = st.tourney, rt = t.rounds.map((r, i) => !Array.isArray(r) && fightTag(r) ? `R${i + 1} ${fightTag(r)}` : '').filter(Boolean);
+      opts.push(`<option value="t:${si}" data-cats="${cats(t)}">Tournament ${toRoman(si + 1)} · ${rt.length ? `[${rt.join(', ')}] ` : ''}final boss ${listSummary(roundsOf(t).at(-1))}</option>`);
     });
+    const filters = [['', 'all fights'], ['plain', 'defeat all (no special type)'], ...Object.entries(TYPES), ['survive', 'Survive'], ['trample', 'Let the elephant trample'],
+                     ['champion', 'Defeat the champion'], ['timed', 'Win in time'], ['hold', 'Hold the center'], ['hatches', 'Hatches (animals)'], ['boss', 'Mini-boss'], ['tournament', 'Tournament']];
     const weapons = Object.entries(WEAPONS).filter(([k]) => !isBow(k)).map(([k, w]) => `<option value="${k}">${w.name}</option>`).join('');
     const bows = '<option value="">none</option>' + Object.entries(WEAPONS).filter(([k]) => isBow(k)).map(([k, w]) => `<option value="${k}">${w.name}</option>`).join('');
     box.innerHTML = `<div class="panel dev">
       <p class="eyebrow">Test menu</p>
+      <div class="dev-cols">
+      <section class="dev-col">
       <h2>Jump to a fight</h2>
+      <label>Show<select id="devFilter">${filters.map(([k, nm]) => `<option value="${k}">${nm}</option>`).join('')}</select></label>
       <label>Fight<select id="devFight">${opts.join('')}</select></label>
       <div class="dev-grid">
         ${Object.entries(STATS).map(([k, d]) => `<label>${d.nl}<input type="number" min="0" max="30" step="1" id="dev_${k}" value="0"></label>`).join('')}
@@ -40,30 +56,55 @@
         <label>Denarii<input type="number" min="0" max="9999" step="1" id="devMoney" value="0"></label>
       </div>
       <p class="muted small" id="devNote"></p>
-      <h3 class="dev-h">Test arena</h3>
-      <div class="dev-grid dev-test">
-        ${[0, 1, 2].map(i => `<label>Enemy ${i + 1}<select id="devFoe${i}"><option value="">—</option>${foeTypes()}</select></label><label>Count<input type="number" min="1" max="20" step="1" id="devFoeN${i}" value="1"></label>`).join('')}
-        <label class="dev-check"><input type="checkbox" id="devGod"> Immortal</label>
-      </div>
       <div class="dev-row">
         <button class="btn" id="devRandom">Random</button>
         <button class="btn" id="devTown">To the town</button>
-        <button class="btn" id="devTest">Test</button>
         <button class="primary" id="devGo">Fight</button>
       </div>
-      <button class="btn wide" id="devClose">Close (Esc)</button>
+      </section>
+      <section class="dev-col">
+      <h2>Test arena</h2>
+      <p class="muted small">Pick enemies and a fight type; your stats and gear come from the left.</p>
+      <div class="dev-grid dev-test">
+        ${[0, 1, 2].map(i => `<label>Enemy ${i + 1}<select id="devFoe${i}"><option value="">—</option>${foeTypes()}</select></label><label>Count<input type="number" min="1" max="20" step="1" id="devFoeN${i}" value="1"></label>`).join('')}
+        <label>Type<select id="devType"><option value="">normal</option>${Object.entries(TYPES).map(([k, n]) => `<option value="${k}">${n}</option>`).join('')}</select></label>
+        <label>Goal<select id="devGoal"><option value="">defeat all</option>${Object.keys(GOALS_DEFAULT).map(k => `<option value="${k}">${k}</option>`).join('')}</select></label>
+        <label>Ally (team)<select id="devAlly"><option value="">—</option>${foeTypes()}</select></label><label>Count<input type="number" min="1" max="10" step="1" id="devAllyN" value="1"></label>
+        <label>Hatches<select id="devHatch"><option value="">—</option>${['hyena', 'tiger', 'lion', 'bear'].map(k => `<option value="${k}">${FOES[k].plural} every 10 s</option>`).join('')}</select></label>
+        <label>Nets<input type="number" min="0" max="9" step="1" id="devNets" value="0"></label>
+      </div>
+      <div class="dev-row">
+        <button class="primary" id="devTest">Test</button>
+      </div>
+      </section>
+      </div>
+      <div class="dev-row dev-foot">
+        <label class="dev-check"><input type="checkbox" id="devGod"> Immortal</label>
+        <button class="btn wide" id="devClose">Close (Esc)</button>
+      </div>
     </div>`;
     document.body.appendChild(box);
     $('devRandom').onclick = randomize;
     $('devGo').onclick = () => apply(true);
     $('devTest').onclick = () => {
       const list = [0, 1, 2].map(i => [$('devFoe' + i).value, Math.max(1, Math.round(+$('devFoeN' + i).value || 1))]).filter(([t]) => t);
-      if (list.length) apply(true, list);
+      const ally = $('devAlly').value, hatch = $('devHatch').value, nets = Math.round(+$('devNets').value || 0);
+      S.testCfg = { type: $('devType').value || undefined, goal: $('devGoal').value ? { kind: $('devGoal').value } : undefined,
+                    allies: ally ? [[ally, Math.max(1, Math.round(+$('devAllyN').value || 1))]] : undefined,
+                    hatches: hatch ? { every: 10, foes: [[hatch, hatch === 'hyena' ? 2 : 1]], max: 3 } : undefined, nets: nets || undefined };
+      if (list.length || hatch) apply(true, list);
     };
     $('devFoe0').value = 'murmillo';
     $('devTown').onclick = () => apply(false);
     $('devClose').onclick = close;
     $('devFight').onchange = randomize;   // ander gevecht: meteen logische stats, wapen en geld
+    $('devFilter').onchange = () => {   // filter op soort gevecht: alleen die gevechten in de lijst
+      const want = $('devFilter').value, sel = $('devFight');
+      let first = null;
+      for (const o of sel.options) { o.hidden = !!want && !o.dataset.cats.split(' ').includes(want); if (!o.hidden && !first) first = o; }
+      $('devNote').textContent = first ? '' : 'No fight of this kind in the series yet.';
+      if (first && sel.selectedOptions[0].hidden) { sel.value = first.value; randomize(); }
+    };
     for (const k of Object.keys(STATS)) $('dev_' + k).oninput = note;
     box.addEventListener('keydown', ev => { if (ev.key === 'Escape') close(); });
   }

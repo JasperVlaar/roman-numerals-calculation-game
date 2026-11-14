@@ -421,7 +421,7 @@ const TOWN = (() => {
       const f = st.fights[fightIdx()], fine = Math.round(f.reward * MONEY.lossShare);
       box.appendChild(card({
         title: fightLabel(),
-        lines: [listSummary(f.foes), `${f.reward} d ${pips()}`],
+        lines: [fightTag(f) ? `${fightTag(f)} · ${listSummary(f.foes)}` : listSummary(f.foes), `${f.reward} d ${pips()}`],
         cls: f.kind === 'boss' ? 'boss' : '', go: () => go('fight')
       }));
     } else {
@@ -587,7 +587,7 @@ const TOWN = (() => {
         const cur = S.gear[it.slot];
         info = it.short; cmp = '';
       } else if (it.kind === 'bow') {
-        const cd = it.cooldown * Math.max(STAT_RULES.shootMin, 1 - STAT_RULES.shoot * S.stats.agility);
+        const cd = it.cooldown * Math.max(STAT_RULES.shootMin, 1 - STAT_RULES.shoot * S.stats.agility) * me.haste;
         info = `${fmt(it.dmg)} damage · range ${it.range} · ${fmt(Math.round(cd * 100) / 100)} s`; cmp = '';
       } else {
         const now = WEAPONS[S.melee], diff = it.dmg - now.dmg;

@@ -1,7 +1,7 @@
 /* ---------- Proef: gladiatorgevecht ----------
    Jij te voet met je vuisten tegen slaven. Voor elk gevecht verdeel je punten over vijf stats
-   (zoals in Swords and Sandals). Je stuurt alleen; slaan gaat vanzelf zodra een
-   tegenstander binnen bereik is. Tegenstanders zetten eerst aan (ze kleuren rood en trekken hun
+   (zoals in Swords and Sandals). Je kijkt naar je muis, slaat met links (of J), blokt met rechts (of K/Shift) en rolt (Spatie).
+   Tegenstanders zetten eerst aan (ze kleuren rood en trekken hun
    arm terug) voordat ze uithalen: dat is je moment om weg te stappen.
    Dit bestand vervangt game.js op deze branch. arena.js, quadriga.js en judge.js blijven werken. */
 
@@ -18,11 +18,13 @@ const PLAYER = { hp: 8, speed: 85, radius: 10, accel: 12, invuln: .6, weapon: 'f
 const STATS = {
   strength: { name: 'Strength', nl: 'Strength', desc: '+0.25 damage per hit' },
   agility:  { name: 'Agility',  nl: 'Agility', desc: '+3 move speed, and you shoot faster with a bow' },
-  vitality: { name: 'Vitality', nl: 'Vitality', desc: '+1 health' }
+  vitality: { name: 'Vitality', nl: 'Vitality', desc: '+1 health' },
+  haste:    { name: 'Attack speed', nl: 'Attack speed', desc: 'less time between two attacks' }
 };
 // Attack en Defense (raak- en blokkans) staan voorlopig uit: elke klap binnen bereik raakt.
 // Terugzetten: hitBase .6 en blockBase .1, en de twee stats weer in STATS en S.stats.
-const STAT_RULES = { dmg: .25, speed: 3, shoot: .04, shootMin: .5, hitBase: 1, hit: .05, hitMax: 1, blockBase: 0, block: .06, blockMax: .75, hp: 1 };
+// haste = per punt Attack speed zoveel korter wachten tussen twee aanvallen (alle wapens), nooit korter dan hasteMin × de wachttijd van het wapen.
+const STAT_RULES = { haste: .06, hasteMin: .5, dmg: .25, speed: 3, shoot: .04, shootMin: .5, hitBase: 1, hit: .05, hitMax: 1, blockBase: 0, block: .06, blockMax: .75, hp: 1 };
 // Punten verdien je met XP: verslagen tegenstanders laten blauwwitte bolletjes vallen. Een niveau omhoog = POINTS.perLevel punten.
 const POINTS = { start: 0, perLevel: 2 };
 // XP-drempels (totaal) voor niveau II, III, IV, ... Gevecht I, II, III leveren 5, 10, 15 XP op.
@@ -35,24 +37,25 @@ const blockChance = def => Math.min(STAT_RULES.blockMax, STAT_RULES.blockBase + 
 // reach = hoe ver voorbij je eigen lijf je raakt; cooldown = seconden tussen twee slagen; price = in denarii bij de wapensmid.
 // Je begint met je vuisten, net als een slaaf: zelfde schade, zelfde bereik, ongeveer even vaak.
 const WEAPONS = {
-  fists: { name: 'Fists', kind: 'fists', dmg: 2, reach: 10, cooldown: 2, swing: .22, knock: 0, price: 0 },   // vuisten duwen niet terug
+  fists: { name: 'Fists', kind: 'fists', dmg: 2, reach: 10, cooldown: .8, swing: .22, knock: 0, price: 0, arc: .7 },   // vuisten duwen niet terug
   // hit: 'single' = één tegenstander; 'sweep' = iedereen binnen bereik in een boog voor je (arc = halve breedte, rad);
-  // 'pierce' = iedereen op een smalle lijn recht voor je (width = halve breedte).
-  stick: { name: 'Staff', kind: 'stick', dmg: 2, reach: 21, cooldown: 2, swing: .22, knock: 85, price: 12, hit: 'sweep', arc: 1.6 },
-  gladius: { name: 'Gladius', kind: 'sword', dmg: 5, reach: 19, cooldown: 2, swing: .2, knock: 60, price: 40, hit: 'sweep', arc: .52 },   // arc .52 = ca. 60° breed
+  // 'pierce' = iedereen op een smalle lijn recht voor je (width = halve breedte). Zonder hit: de dichtstbijzijnde binnen arc voor je.
+  // cooldown = seconden tussen twee slagen (je slaat zelf; Attack speed maakt dit korter).
+  stick: { name: 'Staff', kind: 'stick', dmg: 2, reach: 21, cooldown: .9, swing: .22, knock: 85, price: 12, hit: 'sweep', arc: 1.6 },
+  gladius: { name: 'Gladius', kind: 'sword', dmg: 5, reach: 19, cooldown: .8, swing: .2, knock: 60, price: 40, hit: 'sweep', arc: .52 },   // arc .52 = ca. 60° breed
   // Hasta: speer. Groot bereik en duwt ver, maar trager.
-  hasta: { name: 'Hasta', kind: 'spear', dmg: 6, reach: 22, cooldown: 2.3, swing: .26, knock: 120, price: 70, hit: 'pierce', width: 7 },
-  // Bogen: schieten vanzelf op de dichtstbijzijnde tegenstander binnen range. Staat er iemand tegen je aan, dan sla je met je vuisten.
+  hasta: { name: 'Hasta', kind: 'spear', dmg: 6, reach: 22, cooldown: 1, swing: .26, knock: 120, price: 70, hit: 'pierce', width: 7 },
+  // Bogen: J schiet op de dichtstbijzijnde tegenstander binnen range (of naar je muis). Staat er iemand tegen je aan, dan sla je met je vuisten.
   // Behendigheid: per punt STAT_RULES.shoot korter wachten tussen twee pijlen (hoogstens tot shootMin × cooldown). Niet samen met een schild.
-  bow: { name: 'Short bow', kind: 'bow', dmg: 2, range: 150, arrow: 300, reach: 0, cooldown: 1.8, swing: .25, knock: 20, price: 60 },
-  composite: { name: 'Composite bow', kind: 'bow', dmg: 3, range: 190, arrow: 340, reach: 0, cooldown: 1.4, swing: .25, knock: 30, price: 140 },
+  bow: { name: 'Short bow', kind: 'bow', dmg: 2, range: 150, arrow: 300, reach: 0, cooldown: 1.2, swing: .25, knock: 20, price: 60 },
+  composite: { name: 'Composite bow', kind: 'bow', dmg: 3, range: 190, arrow: 340, reach: 0, cooldown: 1, swing: .25, knock: 30, price: 140 },
   // Late wapens (after = pas te koop na zoveel gewonnen toernooien).
   // Sica: kort gebogen zwaard van de Thraciërs. Minder schade dan de gladius, maar veel sneller.
-  sica: { name: 'Sica', kind: 'sword', dmg: 4, reach: 17, cooldown: 1.3, swing: .16, knock: 30, price: 150, hit: 'sweep', arc: .6, after: 2 },
+  sica: { name: 'Sica', kind: 'sword', dmg: 4, reach: 17, cooldown: .6, swing: .16, knock: 30, price: 150, hit: 'sweep', arc: .6, after: 2 },
   // Spatha: lang zwaard van de ruiterij. Zwaar, lang bereik, brede zwaai.
-  spatha: { name: 'Spatha', kind: 'sword', dmg: 7, reach: 23, cooldown: 2.2, swing: .24, knock: 90, price: 240, hit: 'sweep', arc: .75, after: 3 },
+  spatha: { name: 'Spatha', kind: 'sword', dmg: 7, reach: 23, cooldown: .95, swing: .24, knock: 90, price: 240, hit: 'sweep', arc: .75, after: 3 },
   // Scythische boog: ver, hard en snel.
-  scythian: { name: 'Scythian bow', kind: 'bow', dmg: 4, range: 220, arrow: 380, reach: 0, cooldown: 1.3, swing: .25, knock: 40, price: 260, after: 3 }
+  scythian: { name: 'Scythian bow', kind: 'bow', dmg: 4, range: 220, arrow: 380, reach: 0, cooldown: .9, swing: .25, knock: 40, price: 260, after: 3 }
 };
 const isBow = k => !!k && WEAPONS[k].kind === 'bow';
 // Twee wapenvakken: melee (dichtbij) en ranged (boog). Wisselen met 1 en 2 duurt switchTime seconden;
@@ -168,6 +171,10 @@ const FOES = {
           tunic: '#c9934a', hair: 'hair-2', skin: 'skin-2' },
   // Hyena: in een roedel. Bijten en wegrennen (flee s). Ruikt bloed: zit je in een net of heb je minder dan 'weak' van je
   // leven, dan bijten ze steeds door. En ze eten je XP-bolletjes op (smell = zo ver ruiken ze een bolletje) als ze kunnen.
+  // Bestiarius: dierenvechter met een korte speer. In een escort-ronde moet jij hem in leven houden; de dieren jagen vooral op hem.
+  // Hij blijft bij je in de buurt, deinst terug voor een dier dichter dan fear en prikt als er een binnen bereik komt.
+  bestiarius: { name: 'bestiarius', plural: 'bestiarii', hp: 22, dmg: 2, armor: 0, attack: 0, defense: 0, speed: 70, radius: 10, reach: 18, windup: .35, recover: .5, cooldown: 1.4, lunge: 8, weapon: 'javelin', ai: 'bestiarius',
+           fear: 60, keep: 34, tunic: '#6d7a3a', belt: '#3b2a1e', hair: 'hair-1', skin: 'skin', cap: true, follow: true },
   hyena: { name: 'hyena', plural: 'hyenas', hp: 6, dmg: 1, armor: 0, attack: 0, defense: 0, speed: 96, radius: 9, reach: 8, windup: .22, recover: .25, cooldown: 1.1, lunge: 6, animal: true, ai: 'hyena',
            flee: .8, weak: .35, smell: 90, tunic: '#9a8460', hair: 'hair-2', skin: 'skin-2' },
 };
@@ -191,40 +198,40 @@ const STAGES = [
   { fights: [
       { kind: 'normal', foes: [['slave', 1]], reward: 5 },
       { kind: 'normal', foes: [['slave', 2]], reward: 8 },
-      { kind: 'normal', foes: [['slave', 2], ['archer', 1]], reward: 12 },
-      { kind: 'normal', foes: [['tiro', 1], ['archer', 1], ['slave', 2]], reward: 18 },
+      { kind: 'normal', foes: [['slave', 2], ['archer', 1]], goal: { kind: 'survive', time: 40 }, waves: { every: 10, foes: [['slave', 1]] }, reward: 12 },
+      { kind: 'normal', type: 'team', allies: [['tiro', 1]], foes: [['tiro', 2], ['archer', 1], ['slave', 2]], reward: 18 },
       { kind: 'boss', foes: [['murmillo', 1], ['slave', 2]], reward: 25 } ],
-    tourney: { kind: 'tournament', rounds: [[['slave', 3]], [['slave', 2], ['archer', 2]], [['champion:murmillo', 1]]], reward: 60 } },
+    tourney: { kind: 'tournament', rounds: [[['slave', 3]], { type: 'ffa', foes: [['slave', 3], ['archer', 2]] }, [['champion:murmillo', 1]]], reward: 60 } },
   // Blok 2: de Thraciër en de hoplomachus komen erbij, en de klassieke paringen met de murmillo.
   { fights: [
       { kind: 'normal', foes: [['thraex', 1], ['slave', 2]], reward: 20 },
-      { kind: 'normal', foes: [['hoplomachus', 1], ['archer', 2]], extra: { at: .5, foes: [['tiro', 2]] }, reward: 22 },
+      { kind: 'normal', foes: [['hoplomachus', 1], ['archer', 2]], extra: { at: .5, foes: [['tiro', 2]] }, hatches: [{ after: 9, foes: [['tiger', 1]] }], reward: 22 },
       { kind: 'normal', foes: [['slave', 10]], extra: { at: .5, foes: [['hyena', 4]] }, reward: 25 },
       { kind: 'normal', foes: [['murmillo', 1], ['thraex', 1]], extra: { at: .5, foes: [['tiro', 2]] }, reward: 30 },
       { kind: 'boss', foes: [['hoplomachus', 1], ['thraex', 1]], extra: { at: .5, foes: [['murmillo', 1]] }, reward: 40 } ],
-    tourney: { kind: 'tournament', rounds: [[['tiro', 2], ['archer', 2]], [['murmillo', 1], ['slave', 4]], { foes: [['champion:hoplomachus', 1]], extra: { after: 8, foes: [['tiger', 1]] } }], reward: 120 } },
+    tourney: { kind: 'tournament', rounds: [{ type: 'hunt', foes: [['hyena', 3]], hatches: [{ after: 4, foes: [['tiger', 1]] }, { after: 10, foes: [['hyena', 2]] }] }, [['murmillo', 1], ['slave', 4]], { foes: [['champion:hoplomachus', 1]], extra: { after: 8, foes: [['tiger', 1]] } }], reward: 120 } },
   // Blok 3: na toernooi II gaan de stallen open. De retiarius en de secutor (zijn vaste tegenstander) komen erbij.
   { fights: [
       { kind: 'normal', foes: [['retiarius', 1], ['slave', 2]], reward: 35 },
       { kind: 'normal', foes: [['secutor', 1], ['archer', 2]], extra: { at: .5, foes: [['dimachaerus', 1]] }, reward: 40 },
-      { kind: 'normal', foes: [['slave', 8], ['archer', 2]], extra: { at: .4, foes: [['lion', 1], ['tiger', 1], ['hyena', 4]] }, reward: 45 },
-      { kind: 'normal', foes: [['retiarius', 1], ['secutor', 1], ['archer', 1]], extra: { at: .4, foes: [['dimachaerus', 1], ['tiger', 1]] }, reward: 55 },
+      { kind: 'normal', type: 'escort', foes: [['hyena', 4]], hatches: [{ after: 5, foes: [['tiger', 1]] }, { after: 12, foes: [['lion', 1]] }, { after: 18, foes: [['hyena', 3]] }], reward: 45 },
+      { kind: 'normal', foes: [['retiarius', 1], ['secutor', 1], ['archer', 1]], extra: { at: .4, foes: [['dimachaerus', 1], ['tiger', 1]] }, goal: { kind: 'hold', time: 20 }, reward: 55 },
       { kind: 'boss', foes: [['murmillo', 1], ['retiarius', 1]], extra: { at: .5, foes: [['secutor', 1], ['hoplomachus', 1]] }, reward: 70 } ],
-    tourney: { kind: 'tournament', rounds: [[['thraex', 1], ['hoplomachus', 1]], [['slave', 10], ['archer', 3]], { foes: [['champion:secutor', 1], ['retiarius', 1]], extra: { after: 8, foes: [['lion', 2]] } }], reward: 200 } },
+    tourney: { kind: 'tournament', rounds: [[['thraex', 1], ['hoplomachus', 1]], { type: 'ffa', foes: [['slave', 6], ['archer', 2], ['dimachaerus', 1], ['murmillo', 1]] }, { foes: [['champion:secutor', 1], ['retiarius', 1]], extra: { after: 8, foes: [['lion', 2]] } }], reward: 200 } },
   // Blok 4: de bereden vechters. Ruiters en strijdwagens: ontwijken (rollen) en het paard of de wagen raken.
   { fights: [
       { kind: 'normal', foes: [['eques', 1], ['tiro', 2]], reward: 80 },
       { kind: 'normal', foes: [['sagittarius', 1], ['slave', 4]], extra: { at: .5, foes: [['hyena', 3]] }, reward: 90 },
       { kind: 'normal', foes: [['essedarius', 1], ['archer', 2]], extra: { at: .5, foes: [['thraex', 1]] }, reward: 100 },
-      { kind: 'normal', foes: [['eques', 2]], extra: { at: .5, foes: [['essedarius2', 1]] }, reward: 110 },
+      { kind: 'normal', type: 'team', allies: [['murmillo', 1], ['archer', 1]], foes: [['eques', 2]], extra: { at: .5, foes: [['essedarius2', 1]] }, reward: 110 },
       { kind: 'boss', foes: [['essedarius2', 1], ['sagittarius', 1]], extra: { at: .5, foes: [['eques', 1], ['dimachaerus', 1]] }, reward: 130 } ],
-    tourney: { kind: 'tournament', rounds: [[['murmillo', 1], ['thraex', 1]], [['sagittarius', 2], ['slave', 4]], { foes: [['champion:eques', 1], ['essedarius', 1]], extra: { after: 8, foes: [['lion', 1], ['tiger', 1]] } }], reward: 320 } },
+    tourney: { kind: 'tournament', rounds: [{ type: 'hunt', foes: [['lion', 1], ['hyena', 3]], hatches: [{ after: 8, foes: [['tiger', 1]] }] }, [['sagittarius', 2], ['slave', 4]], { foes: [['champion:eques', 1], ['essedarius', 1]], extra: { after: 8, foes: [['lion', 1], ['tiger', 1]] } }], reward: 320 } },
   // Blok 5: de grote dieren en de beste gladiatoren. Het slottoernooi eindigt met een olifant.
   { fights: [
       { kind: 'normal', foes: [['bear', 1], ['tiro', 2]], reward: 150 },
-      { kind: 'normal', foes: [['murmillo', 1], ['secutor', 1], ['retiarius', 1]], extra: { at: .5, foes: [['bear', 1]] }, reward: 160 },
-      { kind: 'normal', foes: [['elephant', 1], ['slave', 6]], reward: 170 },
-      { kind: 'normal', foes: [['eques', 1], ['sagittarius', 1], ['thraex', 1]], extra: { at: .5, foes: [['bear', 1], ['hyena', 4]] }, reward: 185 },
+      { kind: 'normal', foes: [['murmillo', 1], ['secutor', 1], ['retiarius', 1]], extra: { at: .5, foes: [['bear', 1]] }, goal: { kind: 'timed', time: 75 }, reward: 160 },
+      { kind: 'normal', foes: [['elephant', 1], ['slave', 6]], goal: { kind: 'trample', count: 4 }, waves: { every: 9, foes: [['slave', 2]], max: 4 }, reward: 170 },
+      { kind: 'normal', foes: [['eques', 1], ['sagittarius', 1], ['champion:thraex', 1]], extra: { at: .5, foes: [['bear', 1], ['hyena', 4]] }, goal: { kind: 'champion' }, reward: 185 },
       { kind: 'boss', foes: [['elephant', 1], ['dimachaerus', 1]], extra: { at: .5, foes: [['champion:murmillo', 1]] }, reward: 220 } ],
     tourney: { kind: 'tournament', rounds: [[['champion:thraex', 1], ['champion:hoplomachus', 1]], [['essedarius2', 1], ['sagittarius', 2]], { foes: [['elephant', 1], ['champion:secutor', 1]], extra: { after: 10, foes: [['lion', 1], ['bear', 1]] } }], reward: 500 } }
 ];
@@ -238,12 +245,19 @@ const stageOf = () => STAGES[Math.min(S.stage, STAGES.length - 1)];
 const fightIdx = () => S.finished ? stageOf().fights.length - 1 : Math.min(S.inStage, stageOf().fights.length - 1);
 const fightNumber = () => STAGES.slice(0, Math.min(S.stage, STAGES.length - 1)).reduce((n, st) => n + st.fights.length, 0) + fightIdx() + 1;
 const fightOpen = () => S.finished || S.inStage < stageOf().fights.length;   // na 5 gevechten: eerst het toernooi
-const fightDef = () => S.test ? { kind: 'normal', foes: S.test, reward: 0 } : S.mode === 'tournament' ? stageOf().tourney : stageOf().fights[fightIdx()];   // S.test = testarena (spqr-menu)
+const fightDef = () => S.test ? { kind: 'normal', reward: 0, ...(S.testCfg || {}), foes: S.test } : S.mode === 'tournament' ? stageOf().tourney : stageOf().fights[fightIdx()];   // S.test = testarena (spqr-menu)
 const fightTitle = () => S.test ? 'Testarena' : S.mode === 'tournament' ? `Tournament ${toRoman(Math.min(S.stage, STAGES.length - 1) + 1)}` : `Fight ${toRoman(fightNumber())}`;
 // Een ronde is een lijst [[type, aantal], ...] of { foes, extra }. extra = versterking die door de poort binnenkomt:
 // { foes, at: 0,5 } = als de helft van de eerste groep verslagen is; { foes, after: 8 } = na 8 seconden.
 const roundsOf = def => (def.rounds || [def.extra ? { foes: def.foes, extra: def.extra } : def.foes]).map(r => Array.isArray(r) ? r : r.foes);
 const extraOf = def => def.rounds ? def.rounds.map(r => Array.isArray(r) ? null : r.extra || null) : [def.extra || null];
+// Kort label voor een gevecht met een doel of rondetype (keuzescherm in de stad, testmenu).
+function fightTag(def) {
+  const g = def.goal, t = def.type;
+  const goal = g && { survive: `Survive ${g.time || GOALS_DEFAULT.survive.time} s`, trample: 'Let the elephant trample', champion: 'Defeat the champion',
+                      timed: `Win in ${g.time || GOALS_DEFAULT.timed.time} s`, hold: 'Hold the center' }[g.kind];
+  return [t && TYPES[t], goal, def.hatches && 'hatches'].filter(Boolean).join(' · ');
+}
 const listSummary = list => list.map(([t, n]) => `${n} ${n > 1 ? foeBase(t).plural : foeBase(t).name}`).join(' and ');
 // Na elk gevecht ga je de stad in; terug naar de arena door op de arena te klikken.
 const MONEY = { lossShare: .5 };
@@ -280,8 +294,12 @@ const shopOpen = id => SHOPS[id].wares.length > 0 && (S.finished ? STAGES.length
 const FEEL = { hitstop: .06, shake: 5, playerShake: 9, flash: .12 };
 // Aftellen aan het begin (III, II, I, Pugnate!): je kunt al lopen, tegenstanders wachten nog.
 const INTRO = { step: .8, count: 3, shout: .7 };
-// Grootte van het zandveld (oppervlak in wereld-eenheden). Kleiner = de camera zit dichter op het gevecht.
-const FIGHT_AREA = 30000;
+// Grootte van het zandveld (oppervlak in wereld-eenheden). VIEW_AREA = hoeveel zand je tegelijk ziet (de zoom).
+// Is het zandveld groter dan wat je ziet, dan loopt de camera met je mee tot de rand van het stadion.
+// edge = zoveel tribune zie je nog voorbij het zand als de camera aan de rand staat (x opzij, y boven en onder, voor de keizersloge).
+// follow = hoe snel de camera je volgt (hoger = strakker).
+const FIGHT_AREA = 51000, VIEW_AREA = 20000;
+const CAMERA = { edgeX: 40, edgeY: 58, follow: 7 };
 // Ontwijkrol (Spatie): time = hoe lang de rol duurt, inv = de eerste zoveel seconden kun je niet geraakt worden,
 // speed = vaart tijdens de rol, cd = wachttijd daarna (Behendigheid: −cdAgi per punt, nooit onder cdMin).
 // Niet op de strijdwagen en niet als je in een net zit.
@@ -292,12 +310,43 @@ const ROLL = { time: .3, inv: .25, speed: 240, cd: 1.2, cdAgi: .05, cdMin: .6 };
 // Werpsperen (hasta van de eques, speren van de essedarius): een rode cirkel waar hij landt, flight seconden vliegen.
 const JAVELIN = { flight: .6, radius: 16 };
 const NET = { flight: .6, radius: 20, hold: 1.5, mash: .12, pick: 12, block: 18 };
+// Zelf slaan (linkermuisknop of J): je slaat in de richting van je muis. Zonder muis draai je vanzelf naar wie binnen bereik staat.
+// buffer = druk je tot zoveel seconden te vroeg, dan slaat hij zodra het kan. foeHp = tegenstanders hebben zoveel keer het leven uit FOES
+// (je slaat veel vaker dan toen het vanzelf ging).
+const ATTACK = { buffer: .2, foeHp: 2 };
+// Blokken (rechtermuisknop, K of Shift ingedrukt houden).
+// Met schild: zolang je de toets vasthoudt houd je klappen (en, als het schild dat kan, pijlen) van voren tegen (arc = halve hoek, rad).
+//   Je loopt dan shieldSpeed zo snel en slaat niet. Heel zware klappen (knock >= heavy: beer, olifant, charge te paard) breken erdoorheen:
+//   je wankelt break s en krijgt de helft. Hef je het schild vlak voor de klap (binnen perfect s), dan wankelt de aanvaller stagger s.
+// Zonder schild, met een wapen (niet met vuisten of boog): een korte parade van window s. Komt de klap in die tijd van voren, dan wankelt
+//   hij stagger s. Mis je, dan sta je recover s open (je kunt niet slaan). cd = wachttijd tot je weer kunt pareren.
+// Na een geslaagde parade of perfect blok doet je volgende klap riposteMul × schade, als hij binnen riposte s valt.
+// Luiken in het zand: hier komen dieren uit. warn = zo lang schudt het luik met een rode cirkel voordat het opengaat,
+// open = zo lang staat het open. size = halve breedte. spots = plekken als deel van de arena (x × breedte, y × hoogte).
+const HATCH = { warn: 1.4, open: 1.6, size: 12, spots: [[-.45, -.4], [.45, -.4], [-.55, .25], [.55, .25], [0, -.55]] };
+// Doelen: zet goal: { kind, ... } in een gevecht of ronde. Zonder goal: versla iedereen.
+//   survive  { time }  blijf time seconden in leven. Met waves blijven er tegenstanders door de poort komen.
+//   trample  { count } zorg dat de olifant count keer een ander vertrapt. Gaat de olifant eerder dood: verloren.
+//   champion {}        versla de kampioen ('champion:<klasse>'); de rest geeft zich dan over.
+//   timed    { time }  versla iedereen binnen time seconden.
+//   hold     { time, radius } sta in totaal time seconden in de cirkel in het midden.
+// Rondetypen: zet type: in een gevecht of ronde.
+//   hunt   versla of vang alle dieren. Je hebt netten (toets E). Is een dier zwakker dan HUNT.capture van zijn leven als het net
+//          hem raakt (of sla je hem zo ver terwijl hij vastzit), dan is hij gevangen: captureBonus denarii extra. Sterker: hij zit hold s vast.
+//          Olifanten glijden eruit. Een net blijft daarna liggen: loop eroverheen om het op te rapen.
+//   escort houd de bestiarius in leven (hij staat naast je). De dieren jagen vooral op hem (prefer: kleiner = liever).
+//   team   jij en je maten (allies: [[klasse, aantal]]) tegen de rest.
+//   ffa    ieder voor zich: iedereen valt de dichtstbijzijnde aan, ook elkaar.
+// Extra's: hatches: [{ after: s, foes }] of { every: s, foes, max } (dieren uit de luiken); waves: { every: s, foes, max } (door de poort).
+const HUNT = { nets: 3, capture: .5, hold: 2.5, range: 170, captureBonus: 5, prefer: .6 };
+const TYPES = { hunt: 'Hunt', escort: 'Protect the bestiarius', team: 'Team fight', ffa: 'Free for all' };
+const BLOCK = { arc: 1.2, shieldSpeed: .5, heavy: 200, break: .6, perfect: .2, stagger: .8, window: .25, recover: .35, cd: .7, riposte: 1.2, riposteMul: 2 };
 
 /* ---------- Toestand ---------- */
-const S = { ammo: 0, melee: 'fists', ranged: null, active: 'melee', switching: 0, switchTo: null, arrows: [], mode: 'fight', stage: 0, inStage: 0, finished: false, round: 0, dealt: 0, poolHp: 0, money: 0, delta: 0, owned: ['fists'], gear: { body: null, head: null, shield: null, mount: null, quiver: null }, townSeen: false, xp: 0, xpStart: 0, pointsStart: 0, orbs: [], collect: 0, gained: 0, levelUps: 0, stats: { strength: 0, agility: 0, vitality: 0 }, points: 0, foes: [], floats: [], dust: [], paused: true, over: null, overT: 0, freeze: 0, shake: 0, intro: 0, shout: 0 };
+const S = { ammo: 0, melee: 'fists', ranged: null, active: 'melee', switching: 0, switchTo: null, arrows: [], mode: 'fight', stage: 0, inStage: 0, finished: false, round: 0, dealt: 0, poolHp: 0, money: 0, delta: 0, owned: ['fists'], gear: { body: null, head: null, shield: null, mount: null, quiver: null }, townSeen: false, xp: 0, xpStart: 0, pointsStart: 0, orbs: [], collect: 0, gained: 0, levelUps: 0, stats: { strength: 0, agility: 0, vitality: 0, haste: 0 }, points: 0, foes: [], floats: [], dust: [], paused: true, over: null, overT: 0, freeze: 0, shake: 0, intro: 0, shout: 0 };
 const W = { rx: 280, ry: 220, area: 66000 };
 const view = { cw: 1, ch: 1, dpr: 1, scale: 1 };
-const P = { x: 0, y: 0, vx: 0, vy: 0, face: -Math.PI / 2, hp: PLAYER.hp, cd: 0, swing: 0, swingDir: 1, hurt: 0, flash: 0, target: null, dead: false };
+const P = { side: 'hero', x: 0, y: 0, vx: 0, vy: 0, face: -Math.PI / 2, hp: PLAYER.hp, cd: 0, swing: 0, swingDir: 1, hurt: 0, flash: 0, target: null, dead: false };
 const car = P;   // arena.js laat Caesar kijken naar 'car'; hier is dat de speler
 const steer = { active: false, down: false, x: 0, y: 0 };
 const keys = new Set();
@@ -338,14 +387,17 @@ function switchTo(slot) {
 const gearSum = key => Object.values(S.gear).reduce((n, g) => n + (g && GEAR[g][key] || 0), 0);
 const me = {
   get maxHp() { return PLAYER.hp + STAT_RULES.hp * S.stats.vitality; },
-  get speed() { return (PLAYER.speed + STAT_RULES.speed * S.stats.agility + gearSum('speed')) * (S.active === 'ranged' && S.ranged ? ARMS.speedMul : 1) * (P.slow > 0 ? P.slowMul : 1); },   // brul van de leeuw: trager
+  get speed() { return (PLAYER.speed + STAT_RULES.speed * S.stats.agility + gearSum('speed')) * (S.active === 'ranged' && S.ranged ? ARMS.speedMul : 1) * (P.slow > 0 ? P.slowMul : 1) * (P.guard ? BLOCK.shieldSpeed : 1); },   // brul van de leeuw: trager; achter je schild: langzaam
   get armor() { return gearSum('armor'); },
   get riding() { return !!S.gear.mount && S.active === 'ranged' && !!S.ranged; },   // op de wagen alleen met de boog in je handen
   get ammoMax() { return S.gear.quiver ? GEAR[S.gear.quiver].capacity : AMMO.base; },
   get mount() { return GEAR[S.gear.mount] || {}; },
   get netMul() { const g = GEAR[S.gear.head]; return g && g.netMul || 1; },
   get shield() { return !!S.gear.shield && S.active === 'melee'; },
-  get shootCd() { const w = WEAPONS[PLAYER.weapon]; return w.cooldown * Math.max(STAT_RULES.shootMin, 1 - STAT_RULES.shoot * S.stats.agility); },
+  get haste() { return Math.max(STAT_RULES.hasteMin, 1 - STAT_RULES.haste * (S.stats.haste || 0)); },
+  get meleeCd() { return WEAPONS[S.melee].cooldown * me.haste; },
+  get shootCd() { const w = WEAPONS[PLAYER.weapon]; return w.cooldown * Math.max(STAT_RULES.shootMin, 1 - STAT_RULES.shoot * S.stats.agility) * me.haste; },
+  get canParry() { const w = WEAPONS[S.melee]; return S.active === 'melee' && w.kind !== 'fists' && !me.riding; },
   get knock() { return Object.values(S.gear).reduce((k, g) => k * (g && GEAR[g].knock || 1), 1); },
   get dmg() { return WEAPONS[S.melee].dmg + STAT_RULES.dmg * S.stats.strength; },   // kracht telt voor je melee-wapen
   get hit() { return hitChance(S.stats.attack || 0); },
@@ -366,8 +418,28 @@ function fitWorld(reset) {
     P.x *= sx; P.y *= sy; steer.x *= sx; steer.y *= sy;
   }
   W.rx = nrx; W.ry = nry;
-  view.scale = Math.min(view.cw / (2 * (W.rx + 40)), view.ch / (2 * (W.ry + 58)));
+  // Zoom: alsof het zandveld VIEW_AREA groot was. Het stadion achter de camera (bw × bh) is minstens zo groot als het scherm.
+  const vrx = Math.sqrt(Math.min(W.area, VIEW_AREA) * aspect), vry = Math.sqrt(Math.min(W.area, VIEW_AREA) / aspect);
+  view.scale = Math.min(view.cw / (2 * (vrx + CAMERA.edgeX)), view.ch / (2 * (vry + CAMERA.edgeY)));
+  view.bw = Math.max(view.cw, 2 * (W.rx + CAMERA.edgeX) * view.scale);
+  view.bh = Math.max(view.ch, 2 * (W.ry + CAMERA.edgeY) * view.scale);
+  if (reset) snapCam(); else clampCam();
   AR.dirty = true;
+}
+// Camera: midden van het scherm in wereld-eenheden. Volgt jou, maar niet verder dan de rand van het stadion.
+const cam = { x: 0, y: 0 };
+function clampCam() {
+  const mx = Math.max(0, (view.bw - view.cw) / 2 / view.scale), my = Math.max(0, (view.bh - view.ch) / 2 / view.scale);
+  cam.x = clamp(cam.x, -mx, mx); cam.y = clamp(cam.y, -my, my);
+}
+function snapCam() { cam.x = P.x; cam.y = P.y; clampCam(); }
+function updateCam(dt) {
+  const k = 1 - Math.exp(-dt * CAMERA.follow), x0 = cam.x, y0 = cam.y;
+  cam.x += (P.x - cam.x) * k; cam.y += (P.y - cam.y) * k; clampCam();
+  // de muis staat stil op het scherm, maar de wereld eronder schuift mee
+  const dx = cam.x - x0, dy = cam.y - y0;
+  steer.hx = (steer.hx || 0) + dx; steer.hy = (steer.hy || 0) + dy;
+  if (steer.down) { steer.x += dx; steer.y += dy; }
 }
 function contain(o, ex, ey) {
   const k = (o.x / ex) ** 2 + (o.y / ey) ** 2; if (k <= 1) return;
@@ -379,43 +451,199 @@ function contain(o, ex, ey) {
 function startFight() {
   const def = fightDef();
   W.area = FIGHT_AREA; fitWorld(true);
-  Object.assign(P, { bleed: null, slow: 0, slowMul: 1, roll: 0, rollInv: 0, rollCd: 0, netted: 0, heading: -Math.PI / 2, spd: 0, punch: 0, x: 0, y: W.ry * .45, vx: 0, vy: 0, face: -Math.PI / 2, hp: me.maxHp, cd: 0, swing: 0, hurt: 0, flash: 0, target: null, dead: false });
+  Object.assign(P, { guard: false, guardT: 0, guardPress: false, guardBroken: 0, parryT: 0, parryCd: 0, parryLock: 0, parried: 0, riposte: 0, atkBuf: 0, bleed: null, slow: 0, slowMul: 1, roll: 0, rollInv: 0, rollCd: 0, netted: 0, heading: -Math.PI / 2, spd: 0, punch: 0, x: 0, y: W.ry * .45, vx: 0, vy: 0, face: -Math.PI / 2, hp: me.maxHp, cd: 0, swing: 0, hurt: 0, flash: 0, target: null, dead: false });
   steer.active = false;
   S.foes = []; S.floats = []; S.dust = []; S.arrows = []; S.nets = []; S.javs = []; S.wrecks = []; S.calls = []; S.over = null; S.overT = 0; S.freeze = 0; S.shake = 0;
-  S.intro = INTRO.step * INTRO.count; S.shout = 0;
+  S.intro = INTRO.step * INTRO.count; S.shout = 0; snapCam();
   S.orbs = []; S.collect = 0; S.gained = 0; S.levelUps = 0; S.xpStart = S.xp; S.pointsStart = S.points;
   S.round = 0; S.dealt = 0; S.switching = 0;
   if (S.gear.mount && S.ranged) S.active = 'ranged';   // met een strijdwagen begin je op de wagen
   syncWeapon(); P.cdMax = 0;
-  S.poolHp = [...roundsOf(def), ...extraOf(def).filter(Boolean).map(e => e.foes)].flat().reduce((n, [t, c]) => n + (foeBase(t).hp + (foeBase(t).mount ? foeBase(t).mount.hp : 0)) * c, 0);
+  S.poolHp = [...roundsOf(def), ...extraOf(def).filter(Boolean).map(e => e.foes)].flat().reduce((n, [t, c]) => n + foeHpOf(t) * c, 0);
+  S.bonus = 0; S.captures = 0;
   spawnRound();
 }
 // De tegenstanders van de huidige ronde (een gewoon gevecht heeft één ronde).
 function spawnRound() {
   const list = testCount ? [['slave', testCount]] : roundsOf(fightDef())[S.round];
   S.foes = []; S.extra = testCount ? null : extraOf(fightDef())[S.round]; S.extraDone = false; S.roundT = 0;
+  const c = S.cfg = roundCfg(fightDef(), S.round);
+  S.goalT = 0; S.holdT = 0; S.trampled = 0; S.goalShown = null;   // null: de tekst bovenin wordt sowieso ververst
+  S.netsLeft = c.nets ?? (c.type === 'hunt' ? HUNT.nets : 0);
   S.firstCount = list.reduce((n, [, c]) => n + c, 0);
   let i = 0, total = list.reduce((n, [, c]) => n + c, 0);
   for (const [type, count] of list) for (let k = 0; k < count; k++, i++) {
-    // Tegenstanders staan links en rechts, een eind van je af, en komen meteen op je af.
-    const side = i % 2 ? 1 : -1, spread = (Math.floor(i / 2) - (Math.ceil(total / 2) - 1) / 2) * 26;
-    S.foes.push(mkFoe(type, side * W.rx * .5, spread - W.ry * .1)); call(type);
+    let f;
+    if (c.type === 'ffa') {   // ieder voor zich: in een kring om het midden, iedereen zijn eigen kant
+      const a = Math.PI * .85 + (i + .5) / total * Math.PI * 1.3;
+      f = mkFoe(type, Math.cos(a) * W.rx * .62, Math.sin(a) * W.ry * .62); f.side = 'ffa' + i;
+    } else {   // tegenstanders staan links en rechts, een eind van je af, en komen meteen op je af
+      const side = i % 2 ? 1 : -1, spread = (Math.floor(i / 2) - (Math.ceil(total / 2) - 1) / 2) * 26;
+      f = mkFoe(type, side * W.rx * .5, spread - W.ry * .1);
+    }
+    S.foes.push(f); call(type);
   }
+  // Jouw kant: maten (team) of de bestiarius (escort) staan naast je.
+  const mates = [...(c.allies || []), ...(c.type === 'escort' ? [['bestiarius', 1]] : [])];
+  let j = 0; const nm = mates.reduce((n, [, k]) => n + k, 0);
+  for (const [type, count] of mates) for (let k = 0; k < count; k++, j++) {
+    const f = mkFoe(type, (j - (nm - 1) / 2) * 34 + (nm === 1 ? 30 : 0), P.y - 8);
+    f.side = 'hero'; f.face = -Math.PI / 2; S.foes.push(f);
+  }
+  // Luiken en golven: wat er wanneer binnenkomt.
+  S.hatches = c.hatches ? HATCH.spots.map(([x, y]) => ({ fx: x, fy: y, state: 'closed', t: 0 })) : [];   // luiken alleen als er iets uit komt
+  S.queue = [];
+  const plan = (src, how) => {
+    if (!src) return;
+    for (const e of Array.isArray(src) ? src : [src]) {
+      if (e.every) for (let k = 1; k <= (e.max ?? (c.goal && c.goal.kind === 'survive' ? 99 : 3)); k++) S.queue.push({ at: e.every * k, foes: e.foes, how, every: true });
+      else S.queue.push({ at: e.after || 0, foes: e.foes, how });
+    }
+  };
+  plan(c.hatches, 'hatch'); plan(c.waves, 'gate');
+  S.teamColors = S.foes.some(f => f.side === 'hero');   // er is een team: kleuren aan
+  for (const f of S.foes) teamTint(f);
   updateUI();
+}
+// Teamkleuren: in een gevecht met maten krijgen jouw kant groene en de tegenstanders rode kleding/harnas (dieren niet).
+const TEAM = { mix: .65 };
+function teamTint(f) {
+  if (!S.teamColors || f.d.animal || f.tinted) return;
+  f.d = { ...f.d, tunic: mix(f.d.tunic, f.side === 'hero' ? C.laurel : C.blood, TEAM.mix) };
+  if (f.d.foot) f.d.foot = { ...f.d.foot };
+  f.tinted = true;
+}
+// Instellingen van de huidige ronde: wat in de ronde staat, gaat voor wat in het gevecht staat.
+function roundCfg(def, i) {
+  const r = def.rounds && !Array.isArray(def.rounds[i]) ? def.rounds[i] : {};
+  const c = {};
+  for (const k of ['type', 'goal', 'allies', 'hatches', 'waves', 'nets']) c[k] = r[k] ?? def[k];
+  if (c.goal && GOALS_DEFAULT[c.goal.kind]) c.goal = { ...GOALS_DEFAULT[c.goal.kind], ...c.goal };
+  return c;
+}
+const GOALS_DEFAULT = { survive: { time: 40 }, trample: { count: 4 }, champion: {}, timed: { time: 60 }, hold: { time: 20, radius: 34 } };
+const foeHpOf = t => Math.round((foeBase(t).hp + (foeBase(t).mount ? foeBase(t).mount.hp : 0)) * ATTACK.foeHp);
+// Nieuwe tegenstanders door de poorten links en rechts.
+function gateSpawn(list) {
+  S.gate = 1.2; let i = 0;
+  for (const [type, count] of list) for (let k = 0; k < count; k++, i++) {
+    const side = i % 2 ? 1 : -1, f = mkFoe(type, side * (W.rx - 18), (Math.floor(i / 2) - .5) * 22);
+    f.face = side > 0 ? Math.PI : 0; f.cd = .8; teamTint(f); S.foes.push(f); call(type); S.poolHp += foeHpOf(type);
+    for (let j = 0; j < 6; j++) S.dust.push({ x: f.x + (Math.random() - .5) * 16, y: f.y + (Math.random() - .5) * 16, t: 1 });
+  }
+  arenaCheer(); SFX.cheer(.8); S.shake = Math.max(S.shake, 4);
+}
+// Luiken en golven bijhouden: een luik schudt eerst (rode cirkel), gaat open en het dier springt eruit.
+function updateArena(dt) {
+  for (const h of S.hatches || []) {
+    if (h.state === 'closed') continue;
+    h.t -= dt;
+    if (h.state === 'warn' && h.t <= 0) {
+      h.state = 'open'; h.t = HATCH.open;
+      const x = h.fx * W.rx, y = h.fy * W.ry; let i = 0;
+      for (const [type, count] of h.foes) for (let k = 0; k < count; k++, i++) {
+        const a = i * 2.4, f = mkFoe(type, x + Math.cos(a) * i * 6, y + Math.sin(a) * i * 6);
+        f.cd = .6; f.vx = Math.cos(a) * 60; f.vy = Math.sin(a) * 60; teamTint(f); S.foes.push(f); call(type); S.poolHp += foeHpOf(type);
+      }
+      for (let j = 0; j < 10; j++) S.dust.push({ x: x + (Math.random() - .5) * 26, y: y + (Math.random() - .5) * 26, t: 1 });
+      arenaCheer(); SFX.cheer(.8); SFX.fx('woodBreak'); S.shake = Math.max(S.shake, 4);
+    } else if (h.state === 'open' && h.t <= 0) h.state = 'closed';
+  }
+  if (S.collect > 0 || S.over) return;
+  for (const q of S.queue || []) {
+    if (q.done || S.roundT < q.at) continue;
+    if (q.how === 'gate') { q.done = true; gateSpawn(q.foes); continue; }
+    // luik: het dichte luik het verst van jou
+    const free = S.hatches.filter(h => h.state === 'closed');
+    if (!free.length) continue;
+    const far = free.sort((a, b) => Math.hypot(b.fx * W.rx - P.x, b.fy * W.ry - P.y) - Math.hypot(a.fx * W.rx - P.x, a.fy * W.ry - P.y));
+    const h = far[Math.floor(Math.random() * Math.min(2, far.length))];
+    h.state = 'warn'; h.t = HATCH.warn; h.foes = q.foes; q.done = true; SFX.fx('netCharge');
+  }
+}
+
+/* ---------- Kanten en doelwitten ----------
+   Iedereen heeft een kant (side): jij en je maten 'hero', tegenstanders 'foe', bij ieder-voor-zich elk zijn eigen.
+   Tegenstanders kiezen het dichtstbijzijnde doelwit van een andere kant. TG = het doelwit van wie nu aan de beurt is. */
+let TG = P;
+const hostile = (a, b) => a !== b && a.side !== b.side;
+const targetable = f => f.state !== 'dead' && f.state !== 'yield';
+const liveTarget = t => t === P ? !P.dead : !!t && targetable(t);
+const rad = t => t === P ? PLAYER.radius : t.d.radius;
+const maxHp = t => t === P ? me.maxHp : t.d.hp;
+const knockOf = t => t === P ? me.knock : t.d.heavy ? 0 : 1;
+const blockOf = t => t === P ? me.block : 0;
+function pickTarget(f) {
+  const escort = S.cfg && S.cfg.type === 'escort' && f.d.animal;
+  const weight = t => Math.hypot(t.x - f.x, t.y - f.y) * (escort && t.d && t.d.ai === 'bestiarius' ? HUNT.prefer : 1);
+  let best = null, bs = Infinity;
+  if (!P.dead && hostile(f, P)) { bs = weight(P); best = P; }
+  for (const o of S.foes) if (o !== f && targetable(o) && hostile(f, o)) { const w = weight(o); if (w < bs) { bs = w; best = o; } }
+  if (f.tg && f.tg !== best && liveTarget(f.tg) && hostile(f, f.tg) && weight(f.tg) < bs * 1.3) return f.tg;   // niet steeds wisselen
+  return best;
+}
+// Een klap van een tegenstander op zijn doelwit TG.
+function strike(att) { if (TG === P) hitPlayer(att); else if (TG) hitUnit(TG, att); }
+// Een tegenstander of maat raakt een ander (niet jou).
+function hitUnit(t, att, dmg = att.d.dmg) {
+  if (!targetable(t)) return;
+  if (t.mount) { t.mount.hp -= dmg; t.flash = FEEL.flash; float(t.x, t.y - 22, '−' + fmt(dmg), C.muted); SFX.hit(); if (t.mount.hp <= 0) dismount(t); return; }
+  if (!(t.netted > 0) && shieldBlocks(t, att)) { crack(t, 1, att); return; }
+  if (t.state === 'parry') { t.parried = .35; SFX.block(); return; }   // de Thraciër pareert ook anderen (zonder tegenaanval)
+  const real = Math.max(1, dmg - (t.state === 'stunned' ? 0 : t.d.armor));
+  t.hp -= real; t.flash = FEEL.flash;
+  const dx = t.x - att.x, dy = t.y - att.y, l = Math.hypot(dx, dy) || 1, kb = (60 + (att.d.knock || 0) * .5) * knockOf(t);
+  t.vx += dx / l * kb; t.vy += dy / l * kb;
+  float(t.x, t.y - 18, '−' + fmt(real), t.side === 'hero' ? C.blood : C.muted);
+  SFX.hit(); SFX.cheer(t.hp <= 0 ? .6 : .25);
+  if (t.hp <= 0) foeDown(t);
+}
+// Iemand anders dan jij gaat neer.
+function foeDown(f) {
+  f.state = 'dead'; f.dead = 1; f.vx *= 1.6; f.vy *= 1.6; f.netted = 0;
+  if (f.side !== 'hero') dropXp(f);
+  checkExtra(); checkWin();
+}
+// Gewonnen? Verloren? Hangt af van het doel en het rondetype.
+function checkWin() {
+  if (S.over || S.collect > 0 || S.intro > 0 || !S.cfg) return;
+  const c = S.cfg, g = c.goal || {};
+  const up = S.foes.filter(f => f.side !== 'hero' && targetable(f));
+  const pending = (S.extra && !S.extraDone) || (S.queue || []).some(q => !q.done) || (S.hatches || []).some(h => h.state === 'warn');
+  if (c.type === 'escort' && S.foes.some(f => f.d.ai === 'bestiarius' && f.state === 'dead')) { lose(); return; }
+  if (g.kind === 'trample' && S.trampled < g.count && !S.foes.some(f => f.d.ai === 'elephant' && targetable(f))) { lose(); return; }
+  if (g.kind === 'timed' && S.goalT >= g.time) { lose(); return; }
+  const cleared = !up.length && !pending;
+  const won = g.kind === 'survive' ? S.goalT >= g.time || cleared
+    : g.kind === 'trample' ? S.trampled >= g.count
+    : g.kind === 'champion' ? !S.foes.some(f => f.d.champ && f.side !== 'hero' && targetable(f)) && !(S.extra && !S.extraDone && S.extra.foes.some(([t]) => t.startsWith('champion:')))
+    : g.kind === 'hold' ? S.holdT >= g.time || cleared
+    : cleared;
+  if (!won) return;
+  for (const f of S.foes) if (f.side !== 'hero' && targetable(f)) { f.state = 'yield'; f.vx = 0; f.vy = 0; }   // de rest geeft zich over
+  for (const q of S.queue || []) q.done = true;
+  S.extraDone = true;
+  S.collect = XP.collect; arenaCheer(); SFX.cheer(1);
+}
+function lose() { if (!S.over) { arenaJeer(); endFight(false); } }
+// Tekst in de wastablet: wat je moet doen (alleen als het geen gewoon gevecht is).
+function goalText() {
+  const c = S.cfg || {}, g = c.goal || {};
+  if (g.kind === 'survive') return `Survive · ${Math.max(0, Math.ceil(g.time - S.goalT))}`;
+  if (g.kind === 'timed') return `Win in ${Math.max(0, Math.ceil(g.time - S.goalT))}`;
+  if (g.kind === 'trample') return `Let the elephant trample · ${Math.min(S.trampled, g.count)}/${g.count}`;
+  if (g.kind === 'champion') return 'Defeat the champion';
+  if (g.kind === 'hold') return `Hold the center · ${Math.floor(Math.min(S.holdT, g.time))}/${g.time}`;
+  if (c.type === 'hunt') { const all = S.foes.filter(f => f.side !== 'hero'); return `Hunt · ${all.filter(f => !targetable(f)).length}/${all.length}`; }
+  return TYPES[c.type] || '';
 }
 // Versterking: de poorten links en rechts gaan open en de nieuwe tegenstanders lopen het zand op.
 function checkExtra() {
   const e = S.extra; if (!e || S.extraDone) return;
-  const dead = S.foes.filter(f => f.state === 'dead').length, allDead = dead >= S.foes.length;
+  const them = S.foes.filter(f => f.side !== 'hero'), dead = them.filter(f => f.state === 'dead').length, allDead = dead >= them.length;
   if (!(e.at !== undefined ? dead >= Math.ceil(S.firstCount * e.at) : S.roundT >= e.after || allDead)) return;
-  S.extraDone = true; S.gate = 1.2;
-  let i = 0;
-  for (const [type, count] of e.foes) for (let k = 0; k < count; k++, i++) {
-    const side = i % 2 ? 1 : -1, f = mkFoe(type, side * (W.rx - 18), (Math.floor(i / 2) - .5) * 22);
-    f.face = side > 0 ? Math.PI : 0; f.cd = .8; S.foes.push(f); call(type);
-    for (let j = 0; j < 6; j++) S.dust.push({ x: f.x + (Math.random() - .5) * 16, y: f.y + (Math.random() - .5) * 16, t: 1 });
-  }
-  arenaCheer(); SFX.cheer(.8); S.shake = Math.max(S.shake, 4);
+  S.extraDone = true; S.poolHp -= e.foes.reduce((n, [t, c]) => n + foeHpOf(t) * c, 0);   // stond al in de pot
+  gateSpawn(e.foes);
 }
 // Toernooi: volgende ronde. Een deel van je leven komt terug, nieuw aftellen.
 function nextRound() {
@@ -447,13 +675,15 @@ function mkFoe(type, x, y) {
               after: base.after && { ...base.after, windup: base.after.windup * m.windup, cooldown: base.after.cooldown * m.cooldown },
               foot: base.foot && { ...base.foot, windup: base.foot.windup * m.windup, cooldown: base.foot.cooldown * m.cooldown },
               ranged: base.ranged && { ...base.ranged, arrow: base.ranged.arrow * m.arrow } };
-  return { type, d, x, y, vx: 0, vy: 0, face: Math.atan2(P.y - y, P.x - x), hp: d.hp, state: 'walk', t: 0, cd: .2 + Math.random() * .4,
+  d.hp = Math.round(base.hp * ATTACK.foeHp);   // je slaat zelf en vaak: twee keer zoveel leven
+  if (d.mount) d.mount = { ...d.mount, hp: Math.round(d.mount.hp * ATTACK.foeHp) };
+  return { side: 'foe', type, d, x, y, vx: 0, vy: 0, face: Math.atan2(P.y - y, P.x - x), hp: d.hp, state: 'walk', t: 0, cd: .2 + Math.random() * .4,
            flash: 0, lunge: 0, dead: 0, wob: Math.random() * 10, cracks: 0, shieldOn: !!d.shield, spear: d.weapon === 'spear', parryCd: 1.5, hasNet: d.ai === 'retiarius', breath: d.breath || 0, mount: d.mount ? { ...d.mount, max: d.mount.hp } : null, heading: Math.atan2(P.y - y, P.x - x) };
 }
 
 /* ---------- Gevecht ---------- */
 // soft = omverrijden: geen hit-stop en weinig schudden, anders schokt het als je door een groep rijdt.
-function hitFoe(f, dmg, from, soft) {
+function hitFoe(f, dmg, from, soft, crit) {
   const w = WEAPONS[PLAYER.weapon];
   if (f.mount) {   // bereden: het paard of de wagen vangt de klap
     const real = Math.max(0, dmg);
@@ -465,8 +695,8 @@ function hitFoe(f, dmg, from, soft) {
     if (f.mount.hp <= 0) dismount(f);
     return;
   }
-  if (!soft && shieldBlocks(f, from)) { crack(f, dmg >= f.d.shield.heavy || w.kind === 'spear' ? 2 : 1, from); return; }
-  if (!soft && f.state === 'parry') { parried(f); return; }                  // Thraciër stapt opzij en snijdt terug
+  if (!soft && !(f.netted > 0) && shieldBlocks(f, from)) { crack(f, dmg >= f.d.shield.heavy || w.kind === 'spear' ? 2 : 1, from); return; }
+  if (!soft && f.state === 'parry' && !(f.netted > 0)) { parried(f); return; }                  // Thraciër stapt opzij en snijdt terug
   if (P.bleed && P.bleed.src === f) P.bleed = null;                          // raak je de Thraciër, dan stopt het bloeden
   const breaks = !soft && f.spear && (f.state === 'windup' || f.state === 'thrust');   // hoplomachus: speer breekt
   if (f.state === 'spent') dmg *= 2;                                         // secutor op zijn knieën: dubbele schade
@@ -478,18 +708,15 @@ function hitFoe(f, dmg, from, soft) {
   f.vx += dx / l * kb; f.vy += dy / l * kb;
   if (soft) S.shake = Math.max(S.shake, 1.5);
   else { S.freeze = FEEL.hitstop; S.shake = Math.max(S.shake, FEEL.shake); }
-  float(f.x, f.y - 18, real ? '−' + fmt(real) : '0', C.ink);
+  if (crit) S.floats.push({ x: f.x, y: f.y - 20, text: '−' + fmt(real), color: C.coin, t: 1.2, size: 20 });   // na een parade: dubbel, goud
+  else float(f.x, f.y - 18, real ? '−' + fmt(real) : '0', C.ink);
   const now = performance.now();
   if (!soft || now - (S.lastRamSfx || 0) > 120) { SFX.hit(); S.lastRamSfx = now; }   // niet tien klappen tegelijk
   SFX.cheer(f.hp <= 0 ? .75 : .35);   // het publiek juicht bij elke rake klap, harder als hij valt
   if (breaks && f.hp > 0) breakSpear(f);
   if (!soft && f.d.flinch && f.hp > 0 && (f.state === 'windup' || f.state === 'combo')) { f.state = 'stagger'; f.t = f.d.flinch; f.combo = 0; }   // dimachaerus: raak je hem tijdens zijn aanval, dan breekt zijn combo
-  if (f.hp <= 0) {
-    f.state = 'dead'; f.dead = 1; f.vx *= 1.6; f.vy *= 1.6;
-    dropXp(f);
-    checkExtra();
-    if (S.foes.every(o => o.state === 'dead') && (!S.extra || S.extraDone)) { S.collect = XP.collect; arenaCheer(); SFX.cheer(1); }   // nog even oprapen
-  }
+  if (f.hp <= 0) foeDown(f);
+  else if (f.netted > 0 && f.d.animal && f.netBy === P && f.hp <= f.d.hp * HUNT.capture) capture(f);   // vastgebonden en zwak genoeg: gevangen
 }
 // Murmillo-schild: blokt als het nog heel is, hij in dekking staat (lopen of aanzetten) en de klap van voren komt.
 function shieldBlocks(f, from) {
@@ -528,14 +755,16 @@ function dismount(f) {
 }
 // Werpspeer: vliegt naar een plek (rode cirkel); sta je daar als hij landt, dan raakt hij.
 function throwJav(f, x, y, dmg) {
-  S.javs.push({ x0: f.x, y0: f.y, x, y, t: 0, T: JAVELIN.flight / (DIFFICULTY[difficulty] || DIFFICULTY.hard).arrow, dmg }); SFX.fx('javelin');   // makkelijk: langer in de lucht
+  S.javs.push({ side: f.side, x0: f.x, y0: f.y, x, y, t: 0, T: JAVELIN.flight / (DIFFICULTY[difficulty] || DIFFICULTY.hard).arrow, dmg }); SFX.fx('javelin');   // makkelijk: langer in de lucht
 }
 function updateJavs(dt) {
   for (const j of S.javs) {
     j.t += dt;
     if (j.t >= j.T && !j.done) {
       j.done = true; j.stuck = 1.2;
-      if (!P.dead && Math.hypot(P.x - j.x, P.y - j.y) <= JAVELIN.radius + PLAYER.radius * .5) hitPlayer({ x: j.x0, y: j.y0, d: { dmg: j.dmg, knock: 40 } });
+      const att = { x: j.x0, y: j.y0, d: { dmg: j.dmg, knock: 40 } };
+      if (!P.dead && j.side !== P.side && Math.hypot(P.x - j.x, P.y - j.y) <= JAVELIN.radius + PLAYER.radius * .5) hitPlayer(att);
+      for (const o of S.foes) if (targetable(o) && o.side !== j.side && Math.hypot(o.x - j.x, o.y - j.y) <= JAVELIN.radius + o.d.radius * .5) hitUnit(o, att);
     }
     if (j.done) j.stuck -= dt;
   }
@@ -576,12 +805,34 @@ function hitPlayer(f) {
   if (P.hurt > 0 || P.dead || P.rollInv > 0) return;   // tijdens het begin van de rol raakt niets je
   // Schild: geldt alleen als de klap of pijl van voren komt (binnen 60° van waar je naar kijkt).
   const toward = Math.abs(((Math.atan2(f.y - P.y, f.x - P.x) - P.face + Math.PI * 3) % TAU2) - Math.PI);
+  // Blokken (K / Shift): schild omhoog houdt klappen van voren tegen; zonder schild een getimede parade met je wapen.
+  let mul = 1;
+  const src = realFoe(f), heavy = !f.arrow && ((f.d.knock || 0) >= BLOCK.heavy || !!f.d.heavy);
+  if (toward < BLOCK.arc) {
+    if (P.guard && !f.d.hook && !(f.arrow && GEAR[S.gear.shield].arrows === false)) {   // de sica haakt om je schild; de parma houdt geen pijlen
+      if (heavy) {   // te zwaar: je schild wordt opzij geslagen, je wankelt en krijgt de helft
+        P.guard = false; P.guardBroken = BLOCK.break; mul = .5;
+        float(P.x, P.y - 30, '!', C.blood); SFX.block();
+      } else {
+        P.block = .3; P.blockA = Math.atan2(f.y - P.y, f.x - P.x);
+        S.freeze = FEEL.hitstop * .6; S.shake = Math.max(S.shake, 2); SFX.block();
+        if (!f.arrow && P.guardT <= BLOCK.perfect && src) { staggerFoe(src); P.riposte = BLOCK.riposte; arenaCheer(); SFX.cheer(.6); }   // net op tijd: hij wankelt
+        return;
+      }
+    } else if (P.parryT > 0 && !f.arrow && !heavy) {   // parade op het goede moment
+      P.parryT = 0; P.parried = .35; P.block = .3; P.blockA = Math.atan2(f.y - P.y, f.x - P.x);
+      S.freeze = FEEL.hitstop; S.shake = Math.max(S.shake, 3); SFX.block(); SFX.whoosh();
+      if (src) staggerFoe(src);
+      P.riposte = BLOCK.riposte; arenaCheer(); SFX.cheer(.7);
+      return;
+    }
+  }
   const front = me.shield && !f.d.hook && toward < Math.PI / 3 ? GEAR[S.gear.shield].front : 0;   // de sica haakt om je schild heen
   if (front && f.arrow && GEAR[S.gear.shield].arrows !== false) {   // pijl op het schild (de parma houdt geen pijlen tegen)
     P.block = .3; P.blockA = Math.atan2(f.y - P.y, f.x - P.x);
     SFX.block(); return;
   }
-  const real = Math.max(1, f.d.dmg - me.armor - front);   // harnas en schild: altijd minstens 1
+  const real = Math.max(1, Math.ceil((f.d.dmg - me.armor - front) * mul));   // harnas en schild: altijd minstens 1
   P.hp = Math.max(S.god ? 1 : 0, P.hp - real); P.hurt = PLAYER.invuln; P.flash = FEEL.flash;   // S.god: onsterfelijk (testmenu)
   const dx = P.x - f.x, dy = P.y - f.y, l = Math.hypot(dx, dy) || 1;
   const push = (170 + (f.d.knock || 0)) * me.knock;
@@ -601,42 +852,138 @@ function tryRoll() {
   let dx = 0, dy = 0;
   if (keys.has('ArrowLeft') || keys.has('a')) dx--; if (keys.has('ArrowRight') || keys.has('d')) dx++;
   if (keys.has('ArrowUp') || keys.has('w')) dy--; if (keys.has('ArrowDown') || keys.has('s')) dy++;
-  // Richting: naar je muis (als die boven de arena is), anders je toetsen, anders waar je naar kijkt.
-  const mouse = steer.hoverT && performance.now() - steer.hoverT < 4000;
-  P.rollDir = mouse ? Math.atan2(steer.hy - P.y, steer.hx - P.x) : dx || dy ? Math.atan2(dy, dx) : P.face;
+  // Richting: waar je heen loopt (toetsen), anders waar je naar kijkt (je muis).
+  P.rollDir = dx || dy ? Math.atan2(dy, dx) : P.face;
   P.roll = ROLL.time; P.rollInv = ROLL.inv;
   P.rollCd = Math.max(ROLL.cdMin, ROLL.cd - ROLL.cdAgi * S.stats.agility) * (1 - gearSum('roll'));   // parma: sneller weer rollen
   for (let j = 0; j < 4; j++) S.dust.push({ x: P.x + (Math.random() - .5) * 10, y: P.y + (Math.random() - .5) * 10, t: 1 });
   SFX.fx('roll');
 }
+/* ---------- Zelf slaan en blokken ---------- */
+// Slaan met je melee-wapen (of je vuisten) in richting aim. Wie geraakt wordt: zie 'hit' bij WEAPONS.
+function swingMelee(w, aim) {
+  P.cd = P.cdMax = me.meleeCd; P.swing = w.swing; P.swingDir *= -1;
+  const hits = S.foes.filter(f => {
+    if (!targetable(f) || !hostile(P, f)) return false;
+    const dx = f.x - P.x, dy = f.y - P.y, dist = Math.hypot(dx, dy);
+    if (dist - f.d.radius - PLAYER.radius > w.reach) return false;
+    const along = dx * Math.cos(aim) + dy * Math.sin(aim), side = -dx * Math.sin(aim) + dy * Math.cos(aim);
+    if (w.hit === 'pierce') return along > 0 && Math.abs(side) <= f.d.radius + w.width;
+    return Math.abs(((Math.atan2(dy, dx) - aim + Math.PI * 3) % TAU2) - Math.PI) <= (w.arc || .7) || dist < f.d.radius + PLAYER.radius + 2;
+  });
+  const near = o => Math.hypot(o.x - P.x, o.y - P.y);
+  const list = w.hit === 'sweep' || w.hit === 'pierce' ? hits : hits.sort((a, b) => near(a) - near(b)).slice(0, 1);   // vuisten: één
+  if (w.kind === 'stick' || !list.length) SFX.whoosh();   // mis: alleen een zwiep
+  const crit = P.riposte > 0 && list.length > 0;
+  if (crit) P.riposte = 0;
+  for (const t of list) hitFoe(t, me.dmg * (crit ? BLOCK.riposteMul : 1), P, false, crit);
+}
+// Schieten in richting aim; met een doelwit richt je een tikje voor (waar hij heen loopt).
+function shoot(w, aim, target) {
+  if (S.ammo <= 0) {   // koker leeg: vak 2 knippert rood
+    if (!(P.noAmmo > 0)) { P.noAmmo = 2.5; const b = $('slot_ranged'); b.classList.remove('empty'); void b.offsetWidth; b.classList.add('empty'); }
+    return;
+  }
+  let a = aim;
+  if (target) {
+    const t = Math.hypot(target.x - P.x, target.y - P.y) / w.arrow, mv = target.state === 'walk' ? target.d.speed * t * .6 : 0;
+    a = Math.atan2(target.y + Math.sin(target.face) * mv - P.y, target.x + Math.cos(target.face) * mv - P.x);
+  }
+  S.arrows.push({ x: P.x + Math.cos(a) * (PLAYER.radius + 4), y: P.y + Math.sin(a) * (PLAYER.radius + 4), vx: Math.cos(a) * w.arrow, vy: Math.sin(a) * w.arrow, t: 0, life: w.range / w.arrow * 1.15, dmg: w.dmg, stuck: 0, mine: true });
+  P.cd = P.cdMax = me.shootCd; P.swing = w.swing; S.ammo--; updateUI();
+}
+// Blokken: K of Shift. Met schild zolang je hem vasthoudt; zonder schild (met een wapen) een korte parade bij het indrukken.
+function updateGuard(dt) {
+  const held = keys.has('k') || keys.has('Shift') || steer.block;
+  P.parryCd = Math.max(0, (P.parryCd || 0) - dt); P.parryLock = Math.max(0, (P.parryLock || 0) - dt);
+  P.guardBroken = Math.max(0, (P.guardBroken || 0) - dt); P.parried = Math.max(0, (P.parried || 0) - dt);
+  if (P.parryT > 0) { P.parryT -= dt; if (P.parryT <= 0) { P.parryT = 0; P.parryLock = BLOCK.recover; } }   // niets geraakt: even open
+  const able = !P.dead && !S.over && S.switching <= 0 && !(P.roll > 0) && !(P.netted > 0) && !(P.guardBroken > 0);
+  const was = P.guard;
+  P.guard = able && held && me.shield;
+  P.guardT = P.guard ? (was ? P.guardT + dt : 0) : 0;
+  if (P.guardPress) {
+    P.guardPress = false;
+    if (able && !me.shield && me.canParry && P.parryCd === 0 && !(P.parryLock > 0) && P.cd < .15) { P.parryT = BLOCK.window; P.parryCd = BLOCK.cd + BLOCK.window; SFX.whoosh(); }
+  }
+}
+// Een tegenstander wankelt (door jouw blok of parade): hij doet even niets, witte rand.
+function staggerFoe(f, t = BLOCK.stagger) {
+  if (!f || f.state === 'dead' || f.mount || f.d.heavy) return;
+  f.state = 'stagger'; f.t = t; f.combo = 0; f.hitP = true;
+  const a = Math.atan2(f.y - P.y, f.x - P.x); f.vx += Math.cos(a) * 90; f.vy += Math.sin(a) * 90;
+}
+// Sommige klappen komen als kopie van de tegenstander binnen ({ ...f, d: ... }); zoek dan de echte.
+const realFoe = f => S.foes.includes(f) ? f : S.foes.find(o => o.state !== 'dead' && o.x === f.x && o.y === f.y && o.type === f.type) || null;
+
 // Net: vliegt van de retiarius naar een plek (rode cirkel); wie er dan in staat, zit vast.
 function throwNet(f, x, y) {
-  const n = { x0: f.x, y0: f.y, x, y, t: 0, T: NET.flight / (DIFFICULTY[difficulty] || DIFFICULTY.hard).arrow, state: 'fly', owner: f };   // makkelijk: langer in de lucht
+  const n = { side: f.side, x0: f.x, y0: f.y, x, y, t: 0, T: NET.flight / (DIFFICULTY[difficulty] || DIFFICULTY.hard).arrow, state: 'fly', owner: f };   // makkelijk: langer in de lucht
   S.nets.push(n); f.hasNet = false; f.myNet = n; SFX.fx('netThrow');
 }
 function releaseNet() {
   P.netted = 0;
-  const n = S.nets.find(n => n.state === 'held');
-  if (n) { n.state = 'ground'; n.x = P.x; n.y = P.y; }
+  const n = S.nets.find(n => n.state === 'held' && n.on === P);
+  if (n) { n.state = 'ground'; n.x = P.x; n.y = P.y; n.on = null; }
+}
+// Een tegenstander komt los uit een net: het net valt op het zand.
+function freeFoe(f) {
+  f.netted = 0;
+  const n = S.nets.find(n => n.state === 'held' && n.on === f);
+  if (n) { n.state = 'ground'; n.x = f.x; n.y = f.y; n.on = null; }
+}
+// Gevangen (jacht): telt als verslagen, hij blijft vastgebonden liggen. XP en een beloning.
+function capture(f) {
+  f.state = 'dead'; f.dead = 1; f.captured = true; f.vx = 0; f.vy = 0; f.netted = 0;
+  dropXp(f); S.captures++; S.bonus += HUNT.captureBonus;
+  S.floats.push({ x: f.x, y: f.y - 24, text: `+${HUNT.captureBonus} d`, color: C.coin, t: 1.4, size: 15 });
+  arenaCheer(); SFX.cheer(1); S.shake = Math.max(S.shake, 3);
+  checkExtra(); checkWin();
+}
+// Net gooien (toets E): naar je muis, anders naar de dichtstbijzijnde tegenstander (een tikje voor hem), anders recht vooruit.
+function throwPlayerNet() {
+  if (!(S.netsLeft > 0) || P.dead || S.over || S.paused || S.intro > 0 || P.netted > 0 || P.roll > 0 || S.switching > 0 || me.riding) return;
+  let x, y; const mouse = steer.mouse;
+  if (mouse) { x = steer.hx; y = steer.hy; }
+  else if (P.target && Math.hypot(P.target.x - P.x, P.target.y - P.y) <= HUNT.range) { const t = P.target; x = t.x + t.vx * .25 + (t.state === 'walk' ? Math.cos(t.face) * t.d.speed * .3 : 0); y = t.y + t.vy * .25 + (t.state === 'walk' ? Math.sin(t.face) * t.d.speed * .3 : 0); }
+  else { x = P.x + Math.cos(P.face) * 80; y = P.y + Math.sin(P.face) * 80; }
+  const dx = x - P.x, dy = y - P.y, dd = Math.hypot(dx, dy) || 1;
+  if (dd > HUNT.range) { x = P.x + dx / dd * HUNT.range; y = P.y + dy / dd * HUNT.range; }
+  const r = Math.hypot(x / (W.rx - 20), y / (W.ry - 20)); if (r > 1) { x /= r; y /= r; }
+  P.face = Math.atan2(y - P.y, x - P.x); P.swing = .25;
+  S.nets.push({ mine: true, side: P.side, owner: P, x0: P.x, y0: P.y, x, y, t: 0, T: NET.flight * .8, state: 'fly' });
+  S.netsLeft--; SFX.fx('netThrow'); updateUI();
 }
 function updateNets(dt) {
   for (const n of S.nets) {
+    if (n.state === 'ground' && n.mine && !P.dead && Math.hypot(P.x - n.x, P.y - n.y) < NET.pick + PLAYER.radius) {   // je eigen net oprapen
+      n.state = 'gone'; S.netsLeft++; SFX.fx('roll'); updateUI(); continue;
+    }
     if (n.state !== 'fly') continue;
     n.t += dt;
-    if (n.t >= n.T) {
-      n.state = 'ground';
-      if (!P.dead && !(P.rollInv > 0) && Math.hypot(P.x - n.x, P.y - n.y) <= NET.radius + PLAYER.radius * .5) {
-        n.state = 'held'; P.netted = NET.hold * me.netMul; P.roll = 0; arenaCheer(); SFX.cheer(.7); SFX.fx('net'); S.shake = Math.max(S.shake, 2);
-      }
+    if (n.t < n.T) continue;
+    n.state = 'ground';
+    if (n.side !== P.side && !P.dead && !(P.rollInv > 0) && Math.hypot(P.x - n.x, P.y - n.y) <= NET.radius + PLAYER.radius * .5) {
+      n.state = 'held'; n.on = P; P.netted = NET.hold * me.netMul; P.roll = 0; arenaCheer(); SFX.cheer(.7); SFX.fx('net'); S.shake = Math.max(S.shake, 2);
+      continue;
     }
+    // een ander in het net
+    const f = S.foes.find(o => targetable(o) && o.side !== n.side && !(o.netted > 0) && Math.hypot(o.x - n.x, o.y - n.y) <= NET.radius + o.d.radius * .5);
+    if (!f) continue;
+    if (f.mount || f.d.heavy) { float(f.x, f.y - 24, '✗', C.muted); continue; }   // olifant of ruiter: glijdt eraf
+    n.state = 'held'; n.on = f; f.netBy = n.owner; f.state = 'walk'; f.lunge = 0;
+    SFX.fx('net'); arenaCheer(); SFX.cheer(.7); S.shake = Math.max(S.shake, 2);
+    if (n.mine && f.d.animal && f.hp <= f.d.hp * HUNT.capture) capture(f);
+    else f.netted = f.d.animal ? HUNT.hold : NET.hold;
   }
+  S.nets = S.nets.filter(n => n.state !== 'gone' && (n.state !== 'held' || !n.on || n.on === P || n.on.state !== 'dead' || n.on.captured));
 }
 function endFight(won) {
   if (S.over) return;
   S.over = won ? 'won' : 'lost'; S.overT = 0;
   const def = fightDef(), reward = def.reward || 0;
   if (won) {
-    S.delta = reward; S.money += reward;
+    S.delta = reward + (S.bonus || 0); S.money += S.delta;
   } else {
     arenaJeer(); SFX.boo(1); S.xp = S.xpStart; S.points = S.pointsStart;   // verloren: XP en punten uit dit gevecht vervallen
     // gewoon gevecht of tussenbaas: boete. Toernooi: geen boete, Caesar beslist (openMercy).
@@ -678,13 +1025,13 @@ const AI = {
     if (f.state === 'walk') {
       f.face = lerpAngle(f.face, Math.atan2(ey, ex), 1 - Math.exp(-dt * 6));
       mx = Math.cos(f.face) * f.d.speed; my = Math.sin(f.face) * f.d.speed;
-      if (!P.dead && f.cd === 0 && d <= D.range) { f.state = 'windup'; f.t = f.d.windup; f.aim = Math.atan2(ey, ex); }
+      if (!TG.dead && f.cd === 0 && d <= D.range) { f.state = 'windup'; f.t = f.d.windup; f.aim = Math.atan2(ey, ex); }
     } else if (f.state === 'windup') {
       f.t -= dt; f.face = f.aim;
       if (f.t <= 0) { f.state = 'dash'; f.t = D.time; f.hitP = false; SFX.cheer(.5); }
     } else if (f.state === 'dash') {
       f.t -= dt; mx = Math.cos(f.aim) * D.speed; my = Math.sin(f.aim) * D.speed;
-      if (!f.hitP && gap <= 2) { f.hitP = true; hitPlayer(f); }
+      if (!f.hitP && gap <= 2) { f.hitP = true; strike(f); }
       if (f.t <= 0) { f.state = 'recover'; f.t = f.d.recover; f.cd = f.d.cooldown; }
     } else if (f.state === 'recover') { f.t -= dt; if (f.t <= 0) f.state = 'walk'; }
     return [mx, my];
@@ -700,12 +1047,12 @@ const AI = {
       const side = Math.sin(performance.now() / 900 + f.wob) > 0 ? 1 : -1;   // anders langzaam opzij stappen
       if (dir) { mx = ex / d * f.d.speed * dir; my = ey / d * f.d.speed * dir; }
       else { mx = -ey / d * f.d.speed * .35 * side; my = ex / d * f.d.speed * .35 * side; }
-      if (!P.dead && f.cd === 0 && d <= R.max + 30) { f.state = 'windup'; f.t = f.d.windup; }   // ook als je dichtbij staat
+      if (!TG.dead && f.cd === 0 && d <= R.max + 30) { f.state = 'windup'; f.t = f.d.windup; }   // ook als je dichtbij staat
     } else if (f.state === 'windup') {
       f.t -= dt;
       if (f.t <= 0) {
         const a = Math.atan2(ey, ex);
-        S.arrows.push({ x: f.x + Math.cos(a) * (f.d.radius + 4), y: f.y + Math.sin(a) * (f.d.radius + 4), vx: Math.cos(a) * R.arrow, vy: Math.sin(a) * R.arrow, t: 0, life: R.life, dmg: f.d.dmg, stuck: 0 });
+        S.arrows.push({ x: f.x + Math.cos(a) * (f.d.radius + 4), y: f.y + Math.sin(a) * (f.d.radius + 4), vx: Math.cos(a) * R.arrow, vy: Math.sin(a) * R.arrow, t: 0, life: R.life, dmg: f.d.dmg, stuck: 0, side: f.side });
         f.state = 'recover'; f.t = f.d.recover; f.cd = f.d.cooldown;
       }
     } else if (f.state === 'recover') { f.t -= dt; if (f.t <= 0) f.state = 'walk'; }
@@ -717,7 +1064,7 @@ const AI = {
     if (f.state === 'walk') {
       f.face = lerpAngle(f.face, Math.atan2(ey, ex), 1 - Math.exp(-dt * 8));
       if (gap > f.d.reach * .6) { const wob = Math.sin(performance.now() / 300 + f.wob) * .25; mx = Math.cos(f.face + wob) * f.d.speed; my = Math.sin(f.face + wob) * f.d.speed; }
-      if (!P.dead && gap <= f.d.reach && f.cd === 0) { f.state = 'windup'; f.t = f.d.windup; }
+      if (!TG.dead && gap <= f.d.reach && f.cd === 0) { f.state = 'windup'; f.t = f.d.windup; }
     } else if (f.state === 'windup') {
       f.face = lerpAngle(f.face, Math.atan2(ey, ex), 1 - Math.exp(-dt * 4));
       f.t -= dt;
@@ -726,8 +1073,8 @@ const AI = {
         // Uithalen: raakt als je nog binnen bereik staat (met een klein beetje speling voor de uitval).
         if (gap > f.d.reach + f.d.lunge) { /* ontweken: buiten bereik gestapt */ }
         else if (Math.random() >= hitChance(f.d.attack)) { /* mis */ }
-        else if (Math.random() < me.block) blocked(P, f);
-        else hitPlayer(f);
+        else if (Math.random() < blockOf(TG)) blocked(TG, f);
+        else strike(f);
       }
     } else if (f.state === 'recover') { f.t -= dt; if (f.t <= 0) f.state = 'walk'; }
     return [mx, my];
@@ -739,13 +1086,13 @@ const AI = {
     if (f.state === 'walk') {
       f.face = lerpAngle(f.face, Math.atan2(ey, ex), 1 - Math.exp(-dt * 6));
       if (gap > f.d.reach * .6) { mx = Math.cos(f.face) * f.d.speed; my = Math.sin(f.face) * f.d.speed; }
-      if (!P.dead && gap <= f.d.reach + 4 && f.cd === 0) { f.state = 'windup'; f.t = f.d.windup; }
+      if (!TG.dead && gap <= f.d.reach + 4 && f.cd === 0) { f.state = 'windup'; f.t = f.d.windup; }
     } else if (f.state === 'windup') {
       f.face = lerpAngle(f.face, Math.atan2(ey, ex), 1 - Math.exp(-dt * 4));
       f.t -= dt;
       if (f.t <= 0) {   // schildstoot: duwt je weg, geen schade
         f.state = 'thrust'; f.t = B.gap; f.lunge = .6;
-        if (!P.dead && !(P.hurt > 0) && gap <= f.d.reach + 4) { P.vx += ex / d * B.push * me.knock; P.vy += ey / d * B.push * me.knock; S.shake = Math.max(S.shake, 2); SFX.block(); }
+        if (!TG.dead && !(TG.hurt > 0) && gap <= f.d.reach + 4) { TG.vx += ex / d * B.push * knockOf(TG); TG.vy += ey / d * B.push * knockOf(TG); S.shake = Math.max(S.shake, 2); SFX.block(); }
       }
     } else if (f.state === 'thrust') {   // de steek: hij stapt naar voren
       f.t -= dt; mx = Math.cos(f.face) * f.d.speed * 2.2; my = Math.sin(f.face) * f.d.speed * 2.2;
@@ -753,8 +1100,8 @@ const AI = {
         f.lunge = 1; f.state = 'recover'; f.t = f.d.recover; f.cd = f.d.cooldown;
         if (gap > f.d.reach + f.d.lunge) { /* ontweken */ }
         else if (Math.random() >= hitChance(f.d.attack)) { /* mis */ }
-        else if (Math.random() < me.block) blocked(P, f);
-        else hitPlayer(f);
+        else if (Math.random() < blockOf(TG)) blocked(TG, f);
+        else strike(f);
       }
     } else if (f.state === 'recover') { f.t -= dt; if (f.t <= 0) f.state = 'walk'; }
     return [mx, my];
@@ -766,11 +1113,11 @@ const AI = {
     if (f.state === 'parry') { f.t -= dt; f.face = lerpAngle(f.face, at, 1 - Math.exp(-dt * 10)); if (f.t <= 0) { f.state = 'walk'; f.parryCd = f.d.parry.cd; } return [0, 0]; }
     if (f.state === 'walk') {
       f.face = lerpAngle(f.face, at, 1 - Math.exp(-dt * 10));
-      if (!P.dead && f.parryCd === 0 && gap < f.d.parry.near && P.cd < .35) { f.state = 'parry'; f.t = f.d.parry.time; return [0, 0]; }
+      if (!TG.dead && f.parryCd === 0 && gap < f.d.parry.near && TG.cd < .35) { f.state = 'parry'; f.t = f.d.parry.time; return [0, 0]; }
       const want = f.d.reach + f.d.orbit, side = Math.sin(performance.now() / 1300 + f.wob) > 0 ? 1 : -1;
       const radial = gap > want + 6 ? 1 : gap < want - 6 ? -.8 : 0;   // op zijn afstand blijven en eromheen draaien
       mx = (ex / d * radial - ey / d * side * .9) * f.d.speed; my = (ey / d * radial + ex / d * side * .9) * f.d.speed;
-      if (!P.dead && f.cd === 0 && gap < want + 12) { f.state = 'windup'; f.t = f.d.windup; }
+      if (!TG.dead && f.cd === 0 && gap < want + 12) { f.state = 'windup'; f.t = f.d.windup; }
     } else if (f.state === 'windup') {
       f.face = lerpAngle(f.face, at, 1 - Math.exp(-dt * 6)); f.t -= dt;
       if (f.t <= 0) { f.state = 'dart'; f.t = f.d.dart.time; f.aim = at; }
@@ -778,7 +1125,7 @@ const AI = {
       f.t -= dt; f.face = f.aim; mx = Math.cos(f.aim) * f.d.dart.speed; my = Math.sin(f.aim) * f.d.dart.speed;
       if (gap <= f.d.reach || f.t <= 0) {
         f.lunge = 1; f.state = 'recover'; f.t = f.d.recover; f.cd = f.d.cooldown;
-        if (gap <= f.d.reach + f.d.lunge && Math.random() < hitChance(f.d.attack)) hitPlayer(f);   // geen blok: de sica haakt erom
+        if (gap <= f.d.reach + f.d.lunge && Math.random() < hitChance(f.d.attack)) strike(f);   // geen blok: de sica haakt erom
       }
     } else if (f.state === 'recover') {   // na de snee weer weg
       f.t -= dt; mx = -ex / d * f.d.speed * .7; my = -ey / d * f.d.speed * .7;
@@ -795,14 +1142,14 @@ const AI = {
     if (f.state === 'toss') {   // net gooien: arm omhoog, dan werpen naar waar je heen loopt
       f.t -= dt; f.face = lerpAngle(f.face, at, 1 - Math.exp(-dt * 8));
       if (f.t <= 0) {
-        let x = P.x + P.vx * T.lead, y = P.y + P.vy * T.lead; const r = Math.hypot(x / (W.rx - 20), y / (W.ry - 20));
+        let x = TG.x + TG.vx * T.lead, y = TG.y + TG.vy * T.lead; const r = Math.hypot(x / (W.rx - 20), y / (W.ry - 20));
         if (r > 1) { x /= r; y /= r; }
         throwNet(f, x, y); f.state = 'recover'; f.t = .4; f.tossCd = T.cd;
       }
       return [0, 0];
     }
     if (f.state === 'stab') {   // dolk: snel
-      f.t -= dt; if (f.t <= 0) { f.lunge = 1; f.state = 'recover'; f.t = .35; f.stabCd = K.cd; if (gap <= K.near + 6) hitPlayer({ ...f, d: { ...f.d, dmg: K.dmg, knock: 0 } }); }
+      f.t -= dt; if (f.t <= 0) { f.lunge = 1; f.state = 'recover'; f.t = .35; f.stabCd = K.cd; if (gap <= K.near + 6) strike({ ...f, d: { ...f.d, dmg: K.dmg, knock: 0 } }); }
       return [0, 0];
     }
     if (f.state === 'windup') {   // drietand: richten, richting ligt vast
@@ -813,20 +1160,20 @@ const AI = {
       if (f.t <= 0) {
         f.state = 'recover'; f.t = f.d.recover; f.cd = f.d.cooldown;
         const along = ex * Math.cos(f.aim) + ey * Math.sin(f.aim), side = Math.abs(-ex * Math.sin(f.aim) + ey * Math.cos(f.aim));
-        if (along > 0 && along <= f.d.reach + f.d.radius + PLAYER.radius + f.d.lunge && side <= PLAYER.radius + f.d.width) {
-          if (Math.random() >= hitChance(f.d.attack)) { /* mis */ } else if (Math.random() < me.block) blocked(P, f); else hitPlayer(f);
+        if (along > 0 && along <= f.d.reach + f.d.radius + rad(TG) + f.d.lunge && side <= rad(TG) + f.d.width) {
+          if (Math.random() >= hitChance(f.d.attack)) { /* mis */ } else if (Math.random() < blockOf(TG)) blocked(TG, f); else strike(f);
         }
       }
       return [0, 0];
     }
     if (f.state === 'recover') { f.t -= dt; if (f.t <= 0) f.state = 'walk'; return [0, 0]; }
     // lopen: wat is het plan?
-    if (!P.dead && gap < K.near && f.stabCd === 0) { f.state = 'stab'; f.t = K.windup; f.face = at; return [0, 0]; }
-    const fight = P.netted > 0 || (onGround && Math.hypot(P.x - net.x, P.y - net.y) < NET.block) || (!f.hasNet && !onGround);
+    if (!TG.dead && gap < K.near && f.stabCd === 0) { f.state = 'stab'; f.t = K.windup; f.face = at; return [0, 0]; }
+    const fight = TG.netted > 0 || (onGround && Math.hypot(TG.x - net.x, TG.y - net.y) < NET.block) || (!f.hasNet && !onGround);
     if (fight) {   // drietand: op je af en steken
       f.face = lerpAngle(f.face, at, 1 - Math.exp(-dt * 8));
       if (gap > f.d.reach * .8) { mx = Math.cos(f.face) * f.d.speed; my = Math.sin(f.face) * f.d.speed; }
-      if (!P.dead && f.cd === 0 && gap <= f.d.reach) { f.state = 'windup'; f.t = P.netted > 0 ? f.d.windup * .7 : f.d.windup; f.aim = at; }
+      if (!TG.dead && f.cd === 0 && gap <= f.d.reach) { f.state = 'windup'; f.t = TG.netted > 0 ? f.d.windup * .7 : f.d.windup; f.aim = at; }
     } else if (onGround) {   // net terughalen
       const nx = net.x - f.x, ny = net.y - f.y, nd = Math.hypot(nx, ny) || 1;
       f.face = lerpAngle(f.face, Math.atan2(ny, nx), 1 - Math.exp(-dt * 8));
@@ -836,7 +1183,7 @@ const AI = {
       f.face = lerpAngle(f.face, at, 1 - Math.exp(-dt * 8));
       const side = Math.sin(performance.now() / 1500 + f.wob) > 0 ? 1 : -1, radial = d > f.d.keep + 15 ? 1 : d < f.d.keep - 15 ? -1 : 0;
       mx = (ex / d * radial - ey / d * side * .6) * f.d.speed; my = (ey / d * radial + ex / d * side * .6) * f.d.speed;
-      if (!P.dead && f.tossCd === 0 && d <= T.range && d >= T.min) { f.state = 'toss'; f.t = T.windup; SFX.fx('netCharge'); }
+      if (!TG.dead && f.tossCd === 0 && d <= T.range && d >= T.min) { f.state = 'toss'; f.t = T.windup; SFX.fx('netCharge'); }
     }
     return [mx, my];
   },
@@ -849,7 +1196,7 @@ const AI = {
     if (f.state === 'aim') { f.t -= dt; f.face = f.aim; if (f.t <= 0) { f.state = 'sprint'; f.t = R.time; f.hitP = false; } return [0, 0]; }
     if (f.state === 'sprint') {
       f.t -= dt; mx = Math.cos(f.aim) * R.speed; my = Math.sin(f.aim) * R.speed;
-      if (!f.hitP && gap <= 3) { f.hitP = true; if (Math.random() < me.block) blocked(P, f); else hitPlayer(f); }
+      if (!f.hitP && gap <= 3) { f.hitP = true; if (Math.random() < blockOf(TG)) blocked(TG, f); else strike(f); }
       if (f.t <= 0) {
         f.breath--; f.sprintCd = R.cd;
         const off = Math.abs(((at - f.face + Math.PI * 3) % TAU2) - Math.PI);
@@ -862,14 +1209,14 @@ const AI = {
     if (f.state === 'walk') {
       f.face = lerpAngle(f.face, at, 1 - Math.exp(-dt * 6));
       if (gap > f.d.reach * .6) { mx = Math.cos(f.face) * f.d.speed; my = Math.sin(f.face) * f.d.speed; }
-      if (!P.dead && f.breath > 0 && f.sprintCd === 0 && gap > f.d.reach + 10 && d <= R.range) { f.state = 'aim'; f.t = R.windup; f.aim = at; return [0, 0]; }
-      if (!P.dead && gap <= f.d.reach && f.cd === 0) { f.state = 'windup'; f.t = f.d.windup; }
+      if (!TG.dead && f.breath > 0 && f.sprintCd === 0 && gap > f.d.reach + 10 && d <= R.range) { f.state = 'aim'; f.t = R.windup; f.aim = at; return [0, 0]; }
+      if (!TG.dead && gap <= f.d.reach && f.cd === 0) { f.state = 'windup'; f.t = f.d.windup; }
     } else if (f.state === 'windup') {
       f.face = lerpAngle(f.face, at, 1 - Math.exp(-dt * 4)); f.t -= dt;
       if (f.t <= 0) {
         f.lunge = 1; f.state = 'recover'; f.t = f.d.recover; f.cd = f.d.cooldown;
         if (gap > f.d.reach + f.d.lunge) { /* ontweken */ } else if (Math.random() >= hitChance(f.d.attack)) { /* mis */ }
-        else if (Math.random() < me.block) blocked(P, f); else hitPlayer(f);
+        else if (Math.random() < blockOf(TG)) blocked(TG, f); else strike(f);
       }
     } else if (f.state === 'recover') { f.t -= dt; if (f.t <= 0) f.state = 'walk'; }
     return [mx, my];
@@ -880,20 +1227,20 @@ const AI = {
     if (f.state === 'windup') { f.t -= dt; f.face = f.heading = f.aim; f.gallop += dt * 6; if (f.t <= 0) { f.state = 'charge'; f.t = C2.time; f.hitP = false; SFX.fx('gallop'); } return [Math.cos(f.aim) * f.d.speed * .5, Math.sin(f.aim) * f.d.speed * .5]; }
     if (f.state === 'charge') {
       f.t -= dt; f.gallop += dt * 25;
-      if (!f.hitP && gap <= 4) { f.hitP = true; if (Math.random() < me.block) blocked(P, f); else hitPlayer(f); }
+      if (!f.hitP && gap <= 4) { f.hitP = true; if (Math.random() < blockOf(TG)) blocked(TG, f); else strike(f); }
       if (f.t <= 0) { f.state = 'walk'; f.cd = f.d.cooldown; }
       return [Math.cos(f.aim) * C2.speed, Math.sin(f.aim) * C2.speed];
     }
     if (f.state === 'recover') f.state = 'walk';
     const off = Math.abs(((at - f.heading + Math.PI * 3) % TAU2) - Math.PI);
-    if (!P.dead && f.cd === 0 && off < .45 && d >= C2.min && d <= C2.max) { f.state = 'windup'; f.t = f.d.windup; f.aim = f.heading; }
+    if (!TG.dead && f.cd === 0 && off < .45 && d >= C2.min && d <= C2.max) { f.state = 'windup'; f.t = f.d.windup; f.aim = f.heading; }
     // na een charge eerst een stuk doorrijden voordat hij weer omdraait
     return ride(f, f.cd > f.d.cooldown * .4 ? f.heading : d < C2.min ? at + Math.PI * .6 : at, f.d.speed, dt);
   },
   // Eques te voet: eerst zijn lans gooien (rode cirkel), daarna gewoon met de gladius.
   throwThen(f, dt, ex, ey, d, gap) {
     if (f.thrown) return AI.melee(f, dt, ex, ey, d, gap);
-    if (f.state !== 'aimJav') { f.state = 'aimJav'; f.t = f.d.hasta.windup; f.target = { x: P.x, y: P.y }; }
+    if (f.state !== 'aimJav') { f.state = 'aimJav'; f.t = f.d.hasta.windup; f.target = { x: TG.x, y: TG.y }; }
     f.t -= dt; f.face = lerpAngle(f.face, Math.atan2(f.target.y - f.y, f.target.x - f.x), 1 - Math.exp(-dt * 8));
     if (f.t <= 0) { throwJav(f, f.target.x, f.target.y, f.d.hasta.dmg); f.thrown = true; f.state = 'recover'; f.t = .4; }
     return [0, 0];
@@ -906,10 +1253,10 @@ const AI = {
     if (f.state === 'windup') {
       f.t -= dt;
       if (f.t <= 0) {
-        S.arrows.push({ x: f.x + Math.cos(at) * (f.d.radius + 4), y: f.y + Math.sin(at) * (f.d.radius + 4), vx: Math.cos(at) * R.arrow, vy: Math.sin(at) * R.arrow, t: 0, life: R.life, dmg: f.d.dmg, stuck: 0 });
+        S.arrows.push({ x: f.x + Math.cos(at) * (f.d.radius + 4), y: f.y + Math.sin(at) * (f.d.radius + 4), vx: Math.cos(at) * R.arrow, vy: Math.sin(at) * R.arrow, t: 0, life: R.life, dmg: f.d.dmg, stuck: 0, side: f.side });
         f.state = 'walk'; f.cd = f.d.cooldown;
       }
-    } else if (!P.dead && f.cd === 0 && d >= R.min && d <= R.max) { f.state = 'windup'; f.t = f.d.windup; }
+    } else if (!TG.dead && f.cd === 0 && d >= R.min && d <= R.max) { f.state = 'windup'; f.t = f.d.windup; }
     f.aimAt = at;
     return ride(f, goal, f.d.speed, dt);
   },
@@ -919,13 +1266,13 @@ const AI = {
     f.huntT = (f.huntT === undefined ? H.every * .5 : f.huntT - dt);
     if (f.huntT < -H.time) f.huntT = H.every;
     f.ramCd2 = Math.max(0, (f.ramCd2 || 0) - dt);
-    if (!P.dead && f.ramCd2 === 0 && gap <= 2) { f.ramCd2 = .8; hitPlayer(f); }   // overreden
+    if (!TG.dead && f.ramCd2 === 0 && gap <= 2) { f.ramCd2 = .8; strike(f); }   // overreden
     if (f.state === 'aimJav') {
       f.t -= dt;
       if (f.t <= 0) { throwJav(f, f.target.x, f.target.y, f.d.dmg); f.state = 'walk'; f.cd = f.d.cooldown; }
-    } else if (!P.dead && f.cd === 0 && d >= J.min && d <= J.max) {
+    } else if (!TG.dead && f.cd === 0 && d >= J.min && d <= J.max) {
       f.state = 'aimJav'; f.t = f.d.windup;
-      let x = P.x + P.vx * J.lead, y = P.y + P.vy * J.lead; const r = Math.hypot(x / (W.rx - 20), y / (W.ry - 20)); if (r > 1) { x /= r; y /= r; }
+      let x = TG.x + TG.vx * J.lead, y = TG.y + TG.vy * J.lead; const r = Math.hypot(x / (W.rx - 20), y / (W.ry - 20)); if (r > 1) { x /= r; y /= r; }
       f.target = { x, y };
     }
     let goal;
@@ -943,13 +1290,13 @@ const AI = {
     if (f.state === 'walk') {
       f.face = lerpAngle(f.face, at, 1 - Math.exp(-dt * 5));
       if (gap > f.d.reach * .5) { mx = Math.cos(f.face) * f.d.speed; my = Math.sin(f.face) * f.d.speed; }
-      if (!P.dead && gap <= f.d.reach && f.cd === 0) { f.state = 'windup'; f.t = f.d.windup; f.aim = at; }
+      if (!TG.dead && gap <= f.d.reach && f.cd === 0) { f.state = 'windup'; f.t = f.d.windup; f.aim = at; }
     } else if (f.state === 'windup') {   // op de achterpoten: de richting ligt vast
       f.t -= dt; f.face = f.aim;
       if (f.t <= 0) {
         f.lunge = 1; f.state = 'recover'; f.t = f.d.recover; f.cd = f.d.cooldown;
         const off = Math.abs(((at - f.aim + Math.PI * 3) % TAU2) - Math.PI);
-        if (gap <= f.d.reach + f.d.lunge && off <= f.d.swipe.arc + .2) { if (Math.random() < me.block) blocked(P, f); else hitPlayer(f); }
+        if (gap <= f.d.reach + f.d.lunge && off <= f.d.swipe.arc + .2) { if (Math.random() < blockOf(TG)) blocked(TG, f); else strike(f); }
       }
     } else if (f.state === 'recover') { f.t -= dt; if (f.t <= 0) f.state = 'walk'; }
     return [mx, my];
@@ -962,12 +1309,12 @@ const AI = {
     if (f.state === 'aim') { f.t -= dt; f.face = f.aim; if (f.t <= 0) { f.state = 'run'; f.t = St.time; f.hitP = false; f.hitFoes = new Set(); SFX.fx('elephant'); SFX.cheer(.8); } return [0, 0]; }
     if (f.state === 'run') {
       f.t -= dt; mx = Math.cos(f.aim) * St.speed; my = Math.sin(f.aim) * St.speed;
-      if (!f.hitP && gap <= 2) { f.hitP = true; hitPlayer(f); }
+      if (!f.hitP && gap <= 2) { f.hitP = true; strike(f); }
       for (const o of S.foes) {   // vertrapt ook andere vijanden
         if (o === f || o.state === 'dead' || f.hitFoes.has(o)) continue;
         if (Math.hypot(o.x - f.x, o.y - f.y) <= f.d.radius + o.d.radius) {
           f.hitFoes.add(o); o.vx += Math.cos(f.aim) * 260; o.vy += Math.sin(f.aim) * 260;
-          hitFoe(o, St.trample, f, true);
+          hitFoe(o, St.trample, f, true); S.trampled++; checkWin();   // doel 'trample'
         }
       }
       const nx = f.x + mx * dt, ny = f.y + my * dt, rr = Math.hypot(nx / (W.rx - f.d.radius - 4), ny / (W.ry - f.d.radius - 4));
@@ -980,15 +1327,15 @@ const AI = {
       if (f.t <= 0) {
         f.lunge = 1; f.state = 'recover'; f.t = f.d.recover; f.cd = f.d.cooldown;
         const off = Math.abs(((at - f.aim + Math.PI * 3) % TAU2) - Math.PI);
-        if (gap <= f.d.reach + f.d.lunge && off <= T.arc + .2) hitPlayer({ ...f, d: { ...f.d, dmg: T.dmg, knock: T.knock } });
+        if (gap <= f.d.reach + f.d.lunge && off <= T.arc + .2) strike({ ...f, d: { ...f.d, dmg: T.dmg, knock: T.knock } });
       }
       return [0, 0];
     }
     if (f.state === 'recover') { f.t -= dt; if (f.t <= 0) f.state = 'walk'; return [0, 0]; }
     f.face = lerpAngle(f.face, at, 1 - Math.exp(-dt * 2.5));
     if (gap > f.d.reach * .6) { mx = Math.cos(f.face) * f.d.speed; my = Math.sin(f.face) * f.d.speed; }
-    if (!P.dead && f.runCd === 0 && d >= St.min) { f.state = 'aim'; f.t = St.windup; f.aim = at; return [0, 0]; }
-    if (!P.dead && gap <= f.d.reach && f.cd === 0) { f.state = 'windup'; f.t = f.d.windup; f.aim = at; }
+    if (!TG.dead && f.runCd === 0 && d >= St.min) { f.state = 'aim'; f.t = St.windup; f.aim = at; return [0, 0]; }
+    if (!TG.dead && gap <= f.d.reach && f.cd === 0) { f.state = 'windup'; f.t = f.d.windup; f.aim = at; }
     return [mx, my];
   },
   // Dimachaerus: oplopen, aanzetten, dan 'combo' klappen kort na elkaar.
@@ -997,7 +1344,7 @@ const AI = {
     if (f.state === 'walk') {
       f.face = lerpAngle(f.face, at, 1 - Math.exp(-dt * 9));
       if (gap > f.d.reach * .6) { mx = Math.cos(f.face) * f.d.speed; my = Math.sin(f.face) * f.d.speed; }
-      if (!P.dead && gap <= f.d.reach + 4 && f.cd === 0) { f.state = 'windup'; f.t = f.d.windup; }
+      if (!TG.dead && gap <= f.d.reach + 4 && f.cd === 0) { f.state = 'windup'; f.t = f.d.windup; }
     } else if (f.state === 'windup') {
       f.face = lerpAngle(f.face, at, 1 - Math.exp(-dt * 5)); f.t -= dt;
       if (f.t <= 0) { f.state = 'combo'; f.combo = f.d.combo; f.t = 0; }
@@ -1006,7 +1353,7 @@ const AI = {
       mx = Math.cos(f.face) * f.d.speed * .5; my = Math.sin(f.face) * f.d.speed * .5;
       if (f.t <= 0) {
         f.lunge = 1; f.side = -(f.side || 1); f.combo--; f.t = f.d.gap;
-        if (gap <= f.d.reach + f.d.lunge && Math.random() < hitChance(f.d.attack)) { if (Math.random() < me.block) blocked(P, f); else hitPlayer(f); }
+        if (gap <= f.d.reach + f.d.lunge && Math.random() < hitChance(f.d.attack)) { if (Math.random() < blockOf(TG)) blocked(TG, f); else strike(f); }
         if (f.combo <= 0) { f.state = 'recover'; f.t = f.d.recover; f.cd = f.d.cooldown; }
       }
     } else if (f.state === 'recover') { f.t -= dt; if (f.t <= 0) f.state = 'walk'; }
@@ -1021,14 +1368,14 @@ const AI = {
       f.t -= dt; f.face = lerpAngle(f.face, at, 1 - Math.exp(-dt * 6));
       if (f.t <= 0) {
         f.state = 'recover'; f.t = .4; f.roarCd = R.cd; f.roared = .5; SFX.fx('lion'); S.shake = Math.max(S.shake, 3);
-        if (!P.dead && d <= R.radius) { P.slow = f.d.slow.time; P.slowMul = f.d.slow.mul; }
+        if (!TG.dead && d <= R.radius) { TG.slow = f.d.slow.time; TG.slowMul = f.d.slow.mul; }
       }
       return [0, 0];
     }
     if (f.state === 'windup') { f.t -= dt; f.face = f.aim; if (f.t <= 0) { f.state = 'dash'; f.t = J.time; f.hitP = false; } return [0, 0]; }
     if (f.state === 'dash') {
       f.t -= dt; mx = Math.cos(f.aim) * J.speed; my = Math.sin(f.aim) * J.speed;
-      if (!f.hitP && gap <= 2) { f.hitP = true; hitPlayer(f); }
+      if (!f.hitP && gap <= 2) { f.hitP = true; strike(f); }
       if (f.t <= 0) { f.state = 'recover'; f.t = f.d.recover; f.jumpCd = J.cd; }
       return [mx, my];
     }
@@ -1037,17 +1384,17 @@ const AI = {
     f.face = lerpAngle(f.face, at, 1 - Math.exp(-dt * 5));
     const side = f.wob > 5 ? 1 : -1, radial = d > f.d.orbit + 12 ? 1 : d < f.d.orbit - 12 ? -.7 : 0;
     mx = (ex / d * radial - ey / d * side * .75) * f.d.speed; my = (ey / d * radial + ex / d * side * .75) * f.d.speed;
-    const busy = P.target && P.target !== f && P.target.state !== 'dead' && P.cd > 0;   // jij slaat een ander
-    if (!P.dead && f.roarCd === 0 && d <= R.radius * 1.2) { f.state = 'roar'; f.t = R.windup; return [0, 0]; }
-    if (!P.dead && d <= J.range && (f.jumpCd === 0 || (busy && f.jumpCd < J.cd - J.busy))) { f.state = 'windup'; f.t = f.d.windup; f.aim = at; return [0, 0]; }
+    const busy = TG.target && TG.target !== f && TG.target.state !== 'dead' && TG.cd > 0;   // jij slaat een ander
+    if (!TG.dead && f.roarCd === 0 && d <= R.radius * 1.2) { f.state = 'roar'; f.t = R.windup; return [0, 0]; }
+    if (!TG.dead && d <= J.range && (f.jumpCd === 0 || (busy && f.jumpCd < J.cd - J.busy))) { f.state = 'windup'; f.t = f.d.windup; f.aim = at; return [0, 0]; }
     return [mx, my];
   },
   // Hyena: XP-bolletjes eten als die er liggen, anders bijten en wegrennen; ben jij zwak of gevangen, dan doorbijten.
   hyena(f, dt, ex, ey, d, gap) {
-    let mx = 0, my = 0; const at = Math.atan2(ey, ex), frenzy = P.netted > 0 || P.hp <= me.maxHp * f.d.weak;
+    let mx = 0, my = 0; const at = Math.atan2(ey, ex), frenzy = TG.netted > 0 || TG.hp <= maxHp(TG) * f.d.weak;
     if (f.state === 'windup') {
       f.t -= dt; f.face = lerpAngle(f.face, at, 1 - Math.exp(-dt * 8));
-      if (f.t <= 0) { f.lunge = 1; f.cd = frenzy ? f.d.cooldown * .5 : f.d.cooldown; if (gap <= f.d.reach + f.d.lunge) hitPlayer(f); f.state = frenzy ? 'recover' : 'flee'; f.t = frenzy ? f.d.recover : f.d.flee; }
+      if (f.t <= 0) { f.lunge = 1; f.cd = frenzy ? f.d.cooldown * .5 : f.d.cooldown; if (gap <= f.d.reach + f.d.lunge) strike(f); f.state = frenzy ? 'recover' : 'flee'; f.t = frenzy ? f.d.recover : f.d.flee; }
       return [0, 0];
     }
     if (f.state === 'flee') { f.t -= dt; f.face = lerpAngle(f.face, at + Math.PI, 1 - Math.exp(-dt * 8)); mx = -ex / d * f.d.speed; my = -ey / d * f.d.speed; if (f.t <= 0) f.state = 'walk'; return [mx, my]; }
@@ -1063,7 +1410,25 @@ const AI = {
     }
     f.face = lerpAngle(f.face, at, 1 - Math.exp(-dt * 10));
     if (gap > f.d.reach * .6) { const wob = Math.sin(performance.now() / 250 + f.wob) * .5; mx = Math.cos(f.face + wob) * f.d.speed; my = Math.sin(f.face + wob) * f.d.speed; }
-    if (!P.dead && gap <= f.d.reach && f.cd === 0) { f.state = 'windup'; f.t = f.d.windup; }
+    if (!TG.dead && gap <= f.d.reach && f.cd === 0) { f.state = 'windup'; f.t = f.d.windup; }
+    return [mx, my];
+  },
+  // Bestiarius (escort): bij jou in de buurt blijven, terugdeinzen voor een dier dat te dichtbij komt, prikken als het binnen bereik is.
+  bestiarius(f, dt, ex, ey, d, gap) {
+    let mx = 0, my = 0; const at = Math.atan2(ey, ex);
+    if (f.state === 'windup') {
+      f.t -= dt; f.face = f.aim;
+      if (f.t <= 0) { f.lunge = 1; f.state = 'recover'; f.t = f.d.recover; f.cd = f.d.cooldown; if (gap <= f.d.reach + f.d.lunge) strike(f); }
+      return [0, 0];
+    }
+    if (f.state === 'recover') { f.t -= dt; if (f.t <= 0) f.state = 'walk'; }
+    if (f.state === 'walk' && !TG.dead && gap <= f.d.reach && f.cd === 0) { f.state = 'windup'; f.t = f.d.windup; f.aim = at; return [0, 0]; }
+    const px = P.x - f.x, py = P.y - f.y, pd = Math.hypot(px, py) || 1;
+    if (!P.dead && pd > f.d.keep) { mx += px / pd; my += py / pd; }               // naar jou toe
+    if (gap < f.d.fear) { const k = 1.4 * (1 - gap / f.d.fear); mx -= ex / d * k; my -= ey / d * k; }   // weg van het dier
+    const l = Math.hypot(mx, my);
+    if (l > .15) { mx = mx / l * f.d.speed; my = my / l * f.d.speed; } else { mx = 0; my = 0; }
+    f.face = lerpAngle(f.face, at, 1 - Math.exp(-dt * 6));
     return [mx, my];
   },
   // Hoplomachus: op speerafstand blijven, richten (rode lijn) en stoten. Te dichtbij: schild-ram of achteruit.
@@ -1072,11 +1437,11 @@ const AI = {
     f.ramCd = Math.max(0, (f.ramCd || 0) - dt);
     if (f.state === 'walk') {
       f.face = lerpAngle(f.face, at, 1 - Math.exp(-dt * 7));
-      if (!P.dead && gap < R.near && f.ramCd === 0) { f.state = 'ram'; f.t = R.time; f.aim = at; f.hitP = false; return [0, 0]; }
+      if (!TG.dead && gap < R.near && f.ramCd === 0) { f.state = 'ram'; f.t = R.time; f.aim = at; f.hitP = false; return [0, 0]; }
       const want = f.d.reach * .8;
       if (gap > want + 4) { mx = Math.cos(f.face) * f.d.speed; my = Math.sin(f.face) * f.d.speed; }
       else if (gap < want - 8) { mx = -ex / d * f.d.speed * .8; my = -ey / d * f.d.speed * .8; }   // achteruit naar speerafstand
-      if (!P.dead && f.cd === 0 && gap <= f.d.reach) { f.state = 'windup'; f.t = f.d.windup; f.aim = at; }
+      if (!TG.dead && f.cd === 0 && gap <= f.d.reach) { f.state = 'windup'; f.t = f.d.windup; f.aim = at; }
     } else if (f.state === 'windup') {   // richten: de richting ligt vast
       f.t -= dt; f.face = f.aim;
       if (f.t <= 0) { f.state = 'thrust'; f.t = .14; f.lunge = 1; }
@@ -1085,13 +1450,13 @@ const AI = {
       if (f.t <= 0) {
         f.state = 'recover'; f.t = f.d.recover; f.cd = f.d.cooldown;
         const along = ex * Math.cos(f.aim) + ey * Math.sin(f.aim), side = Math.abs(-ex * Math.sin(f.aim) + ey * Math.cos(f.aim));
-        if (along > 0 && along <= f.d.reach + f.d.radius + PLAYER.radius + f.d.lunge && side <= PLAYER.radius + f.d.width) {
-          if (Math.random() >= hitChance(f.d.attack)) { /* mis */ } else if (Math.random() < me.block) blocked(P, f); else hitPlayer(f);
+        if (along > 0 && along <= f.d.reach + f.d.radius + rad(TG) + f.d.lunge && side <= rad(TG) + f.d.width) {
+          if (Math.random() >= hitChance(f.d.attack)) { /* mis */ } else if (Math.random() < blockOf(TG)) blocked(TG, f); else strike(f);
         }
       }
     } else if (f.state === 'ram') {   // schild-ram: korte stoot naar voren, duwt je terug naar speerafstand
       f.t -= dt; mx = Math.cos(f.aim) * 240; my = Math.sin(f.aim) * 240;
-      if (!f.hitP && gap <= 3) { f.hitP = true; P.vx += Math.cos(f.aim) * R.push * me.knock; P.vy += Math.sin(f.aim) * R.push * me.knock; S.shake = Math.max(S.shake, 2.5); SFX.block(); }
+      if (!f.hitP && gap <= 3) { f.hitP = true; TG.vx += Math.cos(f.aim) * R.push * knockOf(TG); TG.vy += Math.sin(f.aim) * R.push * knockOf(TG); S.shake = Math.max(S.shake, 2.5); SFX.block(); }
       if (f.t <= 0) { f.state = 'walk'; f.ramCd = R.cd; }
     } else if (f.state === 'recover') { f.t -= dt; if (f.t <= 0) f.state = 'walk'; }
     return [mx, my];
@@ -1152,6 +1517,7 @@ function update(dt) {
   P.x += P.vx * dt; P.y += P.vy * dt;
   P.walk = ((P.walk || 0) + Math.hypot(P.vx, P.vy) * dt * .16) % TAU2;   // stappen
   contain(P, W.rx - PLAYER.radius - 4, W.ry - PLAYER.radius - 4);
+  updateCam(dt);
   if (me.riding && !P.dead) {   // tegen de muur: de wagen remt af en draait mee langs de muur, maar jij kunt er nog vanaf sturen
     const v = Math.hypot(P.vx, P.vy);
     if (v < (P.spd || 0) * .7 && v > 5) { P.heading = lerpAngle(P.heading, Math.atan2(P.vy, P.vx), 1 - Math.exp(-dt * 3)); P.spd *= Math.exp(-dt * 2); }
@@ -1173,7 +1539,14 @@ function update(dt) {
   }
   S.shout = Math.max(0, S.shout - dt);
   S.roundT = (S.roundT || 0) + dt; checkExtra(); S.gate = Math.max(0, (S.gate || 0) - dt);
-  updateNets(dt); updateJavs(dt);
+  updateNets(dt); updateJavs(dt); updateArena(dt);
+  if (!S.over && !(S.collect > 0)) {   // klok voor doelen; in de cirkel staan (hold)
+    S.goalT += dt;
+    const g = S.cfg && S.cfg.goal;
+    if (g && g.kind === 'hold' && !P.dead && Math.hypot(P.x, P.y) <= g.radius) S.holdT += dt;
+    checkWin();
+  }
+  const gt = goalText(); if (gt !== S.goalShown) { S.goalShown = gt; const el = $('goalText'); el.textContent = gt; el.hidden = !gt; }
   // Automatisch slaan: de dichtstbijzijnde levende tegenstander binnen bereik.
   P.block = Math.max(0, (P.block || 0) - dt);
   if (P.bleed && !P.dead && !S.over) {   // bloeden: elke seconde schade, tot de tijd op is of je de Thraciër raakt
@@ -1185,46 +1558,53 @@ function update(dt) {
     if (P.bleed && P.bleed.t <= 0) P.bleed = null;
   }
   P.cd = Math.max(0, P.cd - dt); P.swing = Math.max(0, P.swing - dt); P.hurt = Math.max(0, P.hurt - dt); P.flash = Math.max(0, P.flash - dt);
+  P.atkBuf = Math.max(0, (P.atkBuf || 0) - dt); P.riposte = Math.max(0, (P.riposte || 0) - dt);
+  updateGuard(dt);
   let best = null, bd = Infinity;
-  for (const f of S.foes) if (f.state !== 'dead') { const d = Math.hypot(f.x - P.x, f.y - P.y); if (d < bd) { bd = d; best = f; } }
+  for (const f of S.foes) if (targetable(f) && hostile(P, f)) { const d = Math.hypot(f.x - P.x, f.y - P.y); if (d < bd) { bd = d; best = f; } }
   P.target = best;
-  const bow = w.kind === 'bow', fists = WEAPONS.fists;
+  const bow = w.kind === 'bow';
   const inReach = !bow && best && bd - best.d.radius - PLAYER.radius <= w.reach;
   const inRange = bow && best && bd <= w.range;
-  if (inReach || inRange) P.face = lerpAngle(P.face, Math.atan2(best.y - P.y, best.x - P.x), 1 - Math.exp(-dt * 20));
+  // Kijkrichting: altijd naar je muis. Zonder muis (alleen toetsen): naar wie binnen bereik staat, anders waar je heen loopt.
+  if (steer.mouse && !P.dead && !(P.netted > 0)) P.face = lerpAngle(P.face, Math.atan2(steer.hy - P.y, steer.hx - P.x), 1 - Math.exp(-dt * 30));
+  else if (P.guard && best && bd - best.d.radius - PLAYER.radius <= 60) P.face = lerpAngle(P.face, Math.atan2(best.y - P.y, best.x - P.x), 1 - Math.exp(-dt * 10));
+  else if (inReach || inRange) P.face = lerpAngle(P.face, Math.atan2(best.y - P.y, best.x - P.x), 1 - Math.exp(-dt * 20));
   else if (sp > 20) P.face = lerpAngle(P.face, Math.atan2(P.vy, P.vx), 1 - Math.exp(-dt * 12));
   P.punch = Math.max(0, (P.punch || 0) - dt); P.noAmmo = Math.max(0, (P.noAmmo || 0) - dt);
-  if (S.switching > 0 || P.roll > 0 || P.netted > 0) {   // wisselen, rollen of in het net: even niet slaan
-  } else if (bow && !P.dead && P.cd === 0 && best && inRange && S.ammo <= 0) {
-    if (!(P.noAmmo > 0)) { P.noAmmo = 2.5; const b = $('slot_ranged'); b.classList.remove('empty'); void b.offsetWidth; b.classList.add('empty'); }   // koker leeg: vak 2 knippert rood
-  } else if (bow && !P.dead && P.cd === 0 && best && inRange) {
-    // Schieten: richt een tikje voor (waar hij heen loopt), de pijl vliegt rechtdoor.
-    const t = bd / w.arrow, ax = best.x + (best.state === 'walk' ? Math.cos(best.face) * best.d.speed * t * .6 : 0), ay = best.y + (best.state === 'walk' ? Math.sin(best.face) * best.d.speed * t * .6 : 0);
-    const a = Math.atan2(ay - P.y, ax - P.x);
-    S.arrows.push({ x: P.x + Math.cos(a) * (PLAYER.radius + 4), y: P.y + Math.sin(a) * (PLAYER.radius + 4), vx: Math.cos(a) * w.arrow, vy: Math.sin(a) * w.arrow, t: 0, life: w.range / w.arrow * 1.15, dmg: w.dmg, stuck: 0, mine: true });
-    P.cd = P.cdMax = me.shootCd; P.swing = w.swing; S.ammo--; updateUI();
-  } else if (!bow && !P.dead && inReach && P.cd === 0) {
-    P.cd = P.cdMax = w.cooldown; P.swing = w.swing; P.swingDir *= -1;
-    if (w.kind === 'stick') SFX.whoosh();
-    // Wie wordt er geraakt: één (gladius, vuisten), iedereen in de zwaai (stok) of iedereen op de lijn (speer).
-    const fa = P.face, targets = w.hit === 'sweep' || w.hit === 'pierce' ? S.foes.filter(f => {
-      if (f.state === 'dead') return false;
-      const dx = f.x - P.x, dy = f.y - P.y, dist = Math.hypot(dx, dy);
-      if (dist - f.d.radius - PLAYER.radius > w.reach) return false;
-      const along = dx * Math.cos(fa) + dy * Math.sin(fa), side = -dx * Math.sin(fa) + dy * Math.cos(fa);
-      if (w.hit === 'pierce') return along > 0 && Math.abs(side) <= f.d.radius + w.width;
-      return Math.abs(((Math.atan2(dy, dx) - fa + Math.PI * 3) % TAU2) - Math.PI) <= w.arc || dist < f.d.radius + PLAYER.radius + 2;
-    }) : [best];
-    if (!targets.includes(best)) targets.push(best);
-    for (const t of targets) hitFoe(t, me.dmg, P);
+  // Zelf slaan: alleen als je drukt (P.atkBuf), en niet tijdens wisselen, rollen, in het net, achter je schild of na een gemiste parade.
+  const busy = S.switching > 0 || P.roll > 0 || P.netted > 0 || P.guard || P.parryLock > 0 || P.parryT > 0 || P.dead;
+  if (P.atkBuf > 0 && P.cd === 0 && !busy) {
+    P.atkBuf = 0;
+    // Richting: met de muis naar je muis, anders naar wie het dichtst bij staat (binnen bereik), anders recht vooruit.
+    const aimMouse = steer.mouse;
+    const aim = aimMouse ? Math.atan2(steer.hy - P.y, steer.hx - P.x) : (inReach || inRange) ? Math.atan2(best.y - P.y, best.x - P.x) : P.face;
+    P.face = aim;
+    if (bow) shoot(w, aim, aimMouse ? null : inRange ? best : null);
+    else swingMelee(w, aim);
   }
 
   // Tegenstanders: aanlopen, aanzetten, uithalen, herstellen.
   for (const f of S.foes) {
     f.flash = Math.max(0, f.flash - dt); f.lunge = Math.max(0, f.lunge - dt * 5); f.block = Math.max(0, (f.block || 0) - dt);
     const fr = Math.exp(-dt * 7); f.vx *= fr; f.vy *= fr;   // knockback dooft uit
-    if (f.state === 'dead') { f.dead = Math.max(0, f.dead - dt * .35); f.x += f.vx * dt; f.y += f.vy * dt; continue; }
-    const ex = P.x - f.x, ey = P.y - f.y, d = Math.hypot(ex, ey) || 1, gap = d - f.d.radius - PLAYER.radius;
+    if (f.state === 'dead') { if (!f.captured) f.dead = Math.max(0, f.dead - dt * .35); f.x += f.vx * dt; f.y += f.vy * dt; continue; }
+    f.slow = Math.max(0, (f.slow || 0) - dt); f.hurt = Math.max(0, (f.hurt || 0) - dt);
+    if (f.netted > 0 || f.state === 'yield') {   // in een net (spartelt) of overgegeven: niets doen
+      if (f.netted > 0) { f.netted -= dt; f.wob += dt * 20; if (f.netted <= 0) freeFoe(f); }
+      f.x += f.vx * dt; f.y += f.vy * dt; contain(f, W.rx - f.d.radius - 4, W.ry - f.d.radius - 4); continue;
+    }
+    // Doelwit: de dichtstbijzijnde van een andere kant (meestal jij). Elke halve seconde opnieuw kijken.
+    f.tgT = (f.tgT || 0) - dt;
+    if (f.tgT <= 0 || !liveTarget(f.tg)) { f.tg = pickTarget(f); f.tgT = .5; }
+    TG = f.tg;
+    if (!TG) {   // niemand om aan te vallen: maten lopen met je mee, de rest wacht
+      let mx = 0, my = 0;
+      if (f.side === 'hero' && !P.dead) { const px = P.x - f.x, py = P.y - f.y, pd = Math.hypot(px, py) || 1; if (pd > 45) { mx = px / pd * f.d.speed * .8; my = py / pd * f.d.speed * .8; f.face = lerpAngle(f.face, Math.atan2(py, px), 1 - Math.exp(-dt * 6)); } }
+      if (f.state !== 'walk' && f.state !== 'stagger') f.state = 'walk';
+      f.cd = Math.max(0, f.cd - dt); f.x += (mx + f.vx) * dt; f.y += (my + f.vy) * dt; contain(f, W.rx - f.d.radius - 4, W.ry - f.d.radius - 4); TG = P; continue;
+    }
+    const ex = TG.x - f.x, ey = TG.y - f.y, d = Math.hypot(ex, ey) || 1, gap = d - f.d.radius - rad(TG);
     f.cd = Math.max(0, f.cd - dt);
     f.parryCd = Math.max(0, (f.parryCd || 0) - dt); f.parried = Math.max(0, (f.parried || 0) - dt); f.roared = Math.max(0, (f.roared || 0) - dt); f.chew = Math.max(0, (f.chew || 0) - dt);
     if (f.state === 'stagger') {   // wankelen (kapot schild, gebroken speer): niets doen
@@ -1232,16 +1612,17 @@ function update(dt) {
       f.x += f.vx * dt; f.y += f.vy * dt; contain(f, W.rx - f.d.radius - 4, W.ry - f.d.radius - 4); continue;
     }
     const ai = AI[f.d.ai || (f.d.dash ? 'dash' : f.d.ranged ? 'ranged' : 'melee')];
-    const [mx, my] = ai(f, dt, ex, ey, d, gap);
-    f.x += (mx + f.vx) * dt; f.y += (my + f.vy) * dt;
+    const [mx, my] = ai(f, dt, ex, ey, d, gap), sl = f.slow > 0 ? f.slowMul || .5 : 1;   // brul van de leeuw: trager
+    f.x += (mx * sl + f.vx) * dt; f.y += (my * sl + f.vy) * dt;
     contain(f, W.rx - f.d.radius - 4, W.ry - f.d.radius - 4);
   }
+  TG = P;
   // Strijdwagen: wie je met vaart raakt, gaat omver.
   if (me.riding && !P.dead && S.intro <= 0) {
     const spd = Math.hypot(P.vx, P.vy);
     for (const f of S.foes) {
       f.ramCd = Math.max(0, (f.ramCd || 0) - dt);
-      if (f.state === 'dead' || f.ramCd > 0 || spd < CHARIOT.ramSpeed) continue;
+      if (!targetable(f) || !hostile(P, f) || f.ramCd > 0 || spd < CHARIOT.ramSpeed) continue;
       // de paarden lopen voorop: geraakt wordt wie bij de paarden of de wagen staat
       const hx = P.x + Math.cos(P.heading) * CHARIOT.reach, hy = P.y + Math.sin(P.heading) * CHARIOT.reach;
       const near = Math.min(Math.hypot(f.x - hx, f.y - hy) - 14, Math.hypot(f.x - P.x, f.y - P.y) - PLAYER.radius - 6) - f.d.radius;
@@ -1268,10 +1649,13 @@ function update(dt) {
     if (a.stuck) { a.stuck -= dt; if (a.stuck <= 0) a.stuck = -1; continue; }
     a.t += dt; a.x += a.vx * dt; a.y += a.vy * dt;
     if (a.mine) {   // jouw pijl: raakt de eerste tegenstander die hij tegenkomt
-      const f = S.foes.find(f => f.state !== 'dead' && Math.hypot(a.x - f.x, a.y - f.y) < f.d.radius + 2);
+      const f = S.foes.find(f => targetable(f) && hostile(P, f) && Math.hypot(a.x - f.x, a.y - f.y) < f.d.radius + 2);
       if (f) { hitFoe(f, a.dmg, { x: a.x - a.vx * .05, y: a.y - a.vy * .05 }); a.stuck = -1; continue; }
-    } else if (!P.dead && P.hurt <= 0 && Math.hypot(a.x - P.x, a.y - P.y) < PLAYER.radius + 2) {
-      hitPlayer({ x: a.x - a.vx * .05, y: a.y - a.vy * .05, d: { dmg: a.dmg }, arrow: true }); a.stuck = -1; continue;
+    } else {
+      const from = { x: a.x - a.vx * .05, y: a.y - a.vy * .05, d: { dmg: a.dmg }, arrow: true };
+      if (!P.dead && P.hurt <= 0 && (a.side || 'foe') !== P.side && Math.hypot(a.x - P.x, a.y - P.y) < PLAYER.radius + 2) { hitPlayer(from); a.stuck = -1; continue; }
+      const o = S.foes.find(o => targetable(o) && o.side !== (a.side || 'foe') && Math.hypot(a.x - o.x, a.y - o.y) < o.d.radius + 2);
+      if (o) { hitUnit(o, from); a.stuck = -1; continue; }
     }
     if (a.t > a.life || (a.x / W.rx) ** 2 + (a.y / W.ry) ** 2 > 1) a.stuck = 1.5;
   }
@@ -1300,10 +1684,13 @@ function update(dt) {
 function draw(now) {
   const { cw, ch, dpr, scale } = view;
   if (AR.dirty) buildArena();
-  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(AR.bg, 0, 0);
+  // Camera: het stadion schuift mee; op hele pixels, zodat het niet trilt.
+  const ox = Math.round((cw / 2 - cam.x * scale) * dpr) / dpr, oy = Math.round((ch / 2 - cam.y * scale) * dpr) / dpr;
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = C.night; ctx.fillRect(0, 0, cvs.width, cvs.height);
+  ctx.drawImage(AR.bg, Math.round((ox - view.bw / 2) * dpr), Math.round((oy - view.bh / 2) * dpr));
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const sx = (Math.random() - .5) * S.shake, sy = (Math.random() - .5) * S.shake;
-  ctx.save(); ctx.translate(cw / 2 + sx, ch / 2 + sy); ctx.scale(scale, scale);
+  ctx.save(); ctx.translate(ox + sx, oy + sy); ctx.scale(scale, scale);
   drawArenaLive(ctx, now);
 
   if (steer.active && !P.dead) {
@@ -1317,9 +1704,28 @@ function draw(now) {
   ctx.globalAlpha = 1;
 
   const ents = [...S.foes].sort((a, b) => (a.state === 'dead' ? -1 : 0) - (b.state === 'dead' ? -1 : 0));
+  drawHatches(now);
+  const g = S.cfg && S.cfg.goal;
+  if (g && g.kind === 'hold') {   // de cirkel in het midden: goud gestippeld, voller als je erin staat
+    const inside = Math.hypot(P.x, P.y) <= g.radius;
+    ctx.fillStyle = `rgba(226,179,94,${inside ? .2 : .08})`; ctx.beginPath(); ctx.arc(0, 0, g.radius, 0, TAU2); ctx.fill();
+    ctx.strokeStyle = `rgba(226,179,94,${inside ? .9 : .55})`; ctx.lineWidth = 2.5; ctx.setLineDash([7, 5]); ctx.lineDashOffset = -now / 60;
+    ctx.beginPath(); ctx.arc(0, 0, g.radius, 0, TAU2); ctx.stroke(); ctx.setLineDash([]);
+    const k = Math.min(1, S.holdT / g.time); ctx.lineWidth = 4; ctx.strokeStyle = C.coin;
+    ctx.beginPath(); ctx.arc(0, 0, g.radius + 5, -Math.PI / 2, -Math.PI / 2 + TAU2 * k); ctx.stroke();
+  }
+  for (const f of S.foes) if (f.side === 'hero' && f.state !== 'dead') {   // jouw kant: groen ringetje om de voeten
+    ctx.strokeStyle = 'rgba(166,200,90,.75)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(f.x, f.y + 2, f.d.radius + 4, (f.d.radius + 4) * .8, 0, 0, TAU2); ctx.stroke();
+  }
   drawWrecks();
   drawOrbs(now);
-  for (const f of ents) drawFoe(f, now);
+  for (const f of ents) {
+    if (f.state === 'yield') ctx.globalAlpha = .6;   // overgegeven
+    drawFoe(f, now); ctx.globalAlpha = 1;
+    if (f.state === 'stagger' && f.d.animal) {   // dier wankelt: witte rand (kwetsbaar)
+      ctx.strokeStyle = `rgba(255,255,255,${.55 + .25 * Math.sin(now / 60)})`; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(f.x, f.y, f.d.radius + 6, 0, TAU2); ctx.stroke();
+    }
+  }
   drawJavs();
   drawArrows();
   drawPlayer(now);
@@ -1340,7 +1746,8 @@ function draw(now) {
     ctx.strokeStyle = `rgba(226,179,94,${o.block / .3})`; ctx.lineWidth = 4; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.arc(o.x, o.y, 15, o.blockA - .7, o.blockA + .7); ctx.stroke(); ctx.lineCap = 'butt';
   }
-  for (const f of S.foes) if (f.state !== 'dead' && f.hp < f.d.hp) drawBar(f.x, f.y - f.d.radius - 10, f.hp / f.d.hp);
+  drawOffscreen(view.cw, view.ch, scale);
+  for (const f of S.foes) if (f.state !== 'dead' && f.state !== 'yield' && (f.hp < f.d.hp || f.d.ai === 'bestiarius')) drawBar(f.x, f.y - f.d.radius - 10, f.hp / f.d.hp);
 
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (const f of S.floats) {
@@ -1354,7 +1761,7 @@ function draw(now) {
   if (S.intro > 0 || S.shout > 0) {   // III, II, I, Pugnate!
     const txt = S.intro > 0 ? toRoman(Math.ceil(S.intro / INTRO.step)) : 'Pugnate!';
     const f = S.intro > 0 ? (S.intro / INTRO.step) % 1 : S.shout / INTRO.shout, k = 1 + .3 * f * f;
-    ctx.save(); ctx.translate(0, -W.ry * .35); ctx.scale(k, k);
+    ctx.save(); ctx.translate(cam.x, cam.y - ch / 2 / scale * .55); ctx.scale(k, k);
     ctx.font = `900 ${S.intro > 0 ? 56 : 44}px Cinzel, Georgia, serif`; ctx.globalAlpha = Math.min(1, .35 + f);
     ctx.lineWidth = 6; ctx.strokeStyle = C.night; ctx.strokeText(txt, 0, 0);
     ctx.fillStyle = S.intro > 0 ? C.ink : C.coin; ctx.fillText(txt, 0, 0); ctx.restore();
@@ -1456,7 +1863,8 @@ function drawBody(o, r, tunic, skin, hair, opts = {}) {
 function playerLook() {
   const b = S.gear.body;
   const moving = Math.hypot(P.vx, P.vy);
-  return { tunic: b === 'lorica' ? '#8f8a80' : b === 'leather' ? '#7a5230' : C.blood,
+  const own = b === 'lorica' ? '#8f8a80' : b === 'leather' ? '#7a5230' : C.blood;
+  return { tunic: S.teamColors ? mix(own, C.laurel, TEAM.mix) : own,   // met maten: jij ook groen
            belt: b === 'lorica' ? null : C.bronze, hair: C['hair-1'], shield: me.shield,
            // voor drawBody: uitrusting en lopen
            hero: { armor: b, helmet: S.gear.head || false, quiver: !!S.gear.quiver && !!S.ranged, feet: me.riding ? undefined : P.walk || 0,
@@ -1504,6 +1912,18 @@ function drawPlayer(now) {
     ctx.beginPath(); ctx.arc(P.x, P.y, PLAYER.radius + 7, -Math.PI / 2, -Math.PI / 2 + TAU2 * t); ctx.stroke();
   }
   const sw = P.swing > 0 ? 1 - P.swing / w.swing : -1;   // 0..1 tijdens een slag, anders -1
+  if (P.guard) {   // achter je schild: gele rand aan de voorkant (blokt)
+    ctx.strokeStyle = 'rgba(226,179,94,.75)'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(P.x, P.y, PLAYER.radius + 7, P.face - BLOCK.arc * .8, P.face + BLOCK.arc * .8); ctx.stroke(); ctx.lineCap = 'butt';
+  }
+  if (P.parryT > 0 || P.parried > 0) {   // parade: zilveren flits aan de voorkant
+    ctx.strokeStyle = `rgba(220,228,240,${P.parried > 0 ? .9 : .6})`; ctx.lineWidth = P.parried > 0 ? 4 : 2.5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(P.x, P.y, PLAYER.radius + 8, P.face - BLOCK.arc * .7, P.face + BLOCK.arc * .7); ctx.stroke(); ctx.lineCap = 'butt';
+  }
+  if (P.riposte > 0) {   // je volgende klap telt dubbel: goud om je wapen
+    ctx.strokeStyle = `rgba(240,197,106,${.35 + .3 * Math.sin(now / 60)})`; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(P.x, P.y, PLAYER.radius + 4, 0, TAU2); ctx.stroke();
+  }
   if (w.kind === 'bow') {
     // Boog: pees naar achteren vlak voor het schot; met je vuisten als iemand tegen je aan staat.
     const pull = P.cd > 0 && P.cd < .35 ? 1 - P.cd / .35 : 0, punch = P.punch > 0 ? Math.sin((1 - P.punch / WEAPONS.fists.swing) * Math.PI) : 0;
@@ -1527,7 +1947,7 @@ function drawPlayer(now) {
     // Vuistslag: de rechter- of linkervuist schiet naar voren en het lijf leunt mee, zoals bij een slaaf.
     const punch = sw >= 0 ? Math.sin(sw * Math.PI) : 0, right = P.swingDir > 0;
     drawBody(P, PLAYER.radius, look.tunic, C.skin, look.hair, {
-      ...look.hero, flash: P.flash, belt: look.belt, shield: look.shield, forward: 3 * punch,
+      ...look.hero, flash: P.flash, belt: look.belt, shield: look.shield, shieldUp: P.guard, forward: 3 * punch,
       armR: right ? 9 * punch : 0, armL: right ? 0 : 9 * punch,
       item: () => {
         if (punch > .3) {
@@ -1539,10 +1959,10 @@ function drawPlayer(now) {
     ctx.globalAlpha = 1; return;
   }
   // Stok of zwaard: rust schuin naar voren; bij een slag zwaait hij in een boog langs de voorkant.
-  const ang = sw >= 0 ? P.swingDir * (-1.1 + 2.2 * sw) : .55;
+  const ang = sw >= 0 ? P.swingDir * (-1.1 + 2.2 * sw) : P.parryT > 0 ? -.25 : .55;   // parade: wapen dwars voor je
   const len = PLAYER.radius + w.reach + 2;
   drawBody(P, PLAYER.radius, look.tunic, C.skin, look.hair, {
-    ...look.hero, flash: P.flash, belt: look.belt, shield: look.shield, shieldUp: sw >= 0, armR: sw >= 0 ? 3 : 0,
+    ...look.hero, flash: P.flash, belt: look.belt, shield: look.shield, shieldUp: sw >= 0 || P.guard, armR: sw >= 0 ? 3 : P.parryT > 0 ? 5 : 0,
     item: r => {
       if (sw >= 0) {   // zwaaispoor
         ctx.strokeStyle = 'rgba(255,240,210,.55)'; ctx.lineWidth = 5; ctx.lineCap = 'round';
@@ -1886,15 +2306,59 @@ function drawChargeArrow(f, len, wind) {
   ctx.restore();
 }
 // Netten: in de lucht (rode cirkel waar het landt), op de grond, of over jou heen.
+// Buiten beeld: een driehoekje aan de rand van het scherm, in de richting van wie daar is.
+// Tegenstanders lichtbeige, je eigen kant groen, een luik dat opengaat rood (gevaar).
+function drawOffscreen(cw, ch, scale) {
+  const hw = cw / 2 / scale, hh = ch / 2 / scale, pad = 16 / scale;
+  const mark = (x, y, color) => {
+    const dx = x - cam.x, dy = y - cam.y;
+    if (Math.abs(dx) < hw - 4 && Math.abs(dy) < hh - 4) return;
+    const k = Math.min((hw - pad) / Math.abs(dx || 1e-6), (hh - pad) / Math.abs(dy || 1e-6)), a = Math.atan2(dy, dx);
+    ctx.save(); ctx.translate(cam.x + dx * k, cam.y + dy * k); ctx.rotate(a); ctx.scale(1 / scale, 1 / scale);
+    ctx.fillStyle = color; ctx.strokeStyle = EDGE; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(9, 0); ctx.lineTo(-6, -7); ctx.lineTo(-3, 0); ctx.lineTo(-6, 7); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  };
+  for (const f of S.foes) if (targetable(f)) mark(f.x, f.y, f.side === 'hero' ? 'rgba(166,200,90,.9)' : 'rgba(245,234,214,.85)');
+  for (const h of S.hatches || []) if (h.state === 'warn') mark(h.fx * W.rx, h.fy * W.ry, C.blood);
+}
+// Luiken: houten luik in het zand. Schudt met een rode cirkel als er iets uit komt; open = donker gat met het luik opzij.
+function drawHatches(now) {
+  for (const h of S.hatches || []) {
+    const x = h.fx * W.rx, y = h.fy * W.ry, s = HATCH.size;
+    ctx.save(); ctx.translate(x, y);
+    if (h.state === 'warn') {
+      const k = 1 - h.t / HATCH.warn;
+      ctx.fillStyle = `rgba(212,70,59,${.1 + .2 * k})`; ctx.strokeStyle = `rgba(212,70,59,${.45 + .45 * k})`; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, 0, s + 8 + 3 * Math.sin(now / 90), 0, TAU2); ctx.fill(); ctx.stroke();
+      ctx.translate((Math.random() - .5) * 2.4 * k, (Math.random() - .5) * 2.4 * k);
+    }
+    ctx.fillStyle = 'rgba(40,20,8,.25)'; ctx.beginPath(); ctx.roundRect(-s + 2, -s + 3, s * 2, s * 2, 3); ctx.fill();
+    ctx.strokeStyle = EDGE; ctx.lineWidth = 1.4;
+    if (h.state === 'open') {   // gat, luik klapt naar achteren
+      ctx.fillStyle = '#2a1a12'; ctx.beginPath(); ctx.roundRect(-s, -s, s * 2, s * 2, 3); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#7a5232'; ctx.beginPath(); ctx.roundRect(-s, -s * 2.1, s * 2, s * 1.05, 2); ctx.fill(); ctx.stroke();
+    } else {
+      ctx.fillStyle = '#8a6440'; ctx.beginPath(); ctx.roundRect(-s, -s, s * 2, s * 2, 3); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = 'rgba(30,15,8,.45)'; ctx.lineWidth = 1;
+      for (const k of [-.33, .33]) { ctx.beginPath(); ctx.moveTo(-s, k * s * 2 / 1.33); ctx.lineTo(s, k * s * 2 / 1.33); ctx.stroke(); }   // planken
+      ctx.fillStyle = C.iron; for (const sx of [-1, 1]) { ctx.beginPath(); ctx.arc(sx * s * .6, 0, 1.3, 0, TAU2); ctx.fill(); }   // ijzeren ring/spijkers
+    }
+    ctx.restore();
+  }
+}
 function drawNets(now) {
   for (const n of S.nets) {
     let x = n.x, y = n.y, r = NET.radius, a = 1;
     if (n.state === 'fly') {
       const k = n.t / n.T;
-      ctx.fillStyle = `rgba(212,70,59,${.12 + .25 * k})`; ctx.strokeStyle = `rgba(212,70,59,${.4 + .5 * k})`; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(n.x, n.y, NET.radius + PLAYER.radius * .5, 0, TAU2); ctx.fill(); ctx.stroke();
+      if (n.mine) { ctx.strokeStyle = `rgba(226,179,94,${.4 + .5 * k})`; ctx.lineWidth = 2; ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.arc(n.x, n.y, NET.radius, 0, TAU2); ctx.stroke(); ctx.setLineDash([]); }
+      else {
+        ctx.fillStyle = `rgba(212,70,59,${.12 + .25 * k})`; ctx.strokeStyle = `rgba(212,70,59,${.4 + .5 * k})`; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(n.x, n.y, NET.radius + PLAYER.radius * .5, 0, TAU2); ctx.fill(); ctx.stroke();
+      }
       x = n.x0 + (n.x - n.x0) * k; y = n.y0 + (n.y - n.y0) * k - Math.sin(k * Math.PI) * 30; r = NET.radius * (.4 + .6 * k);
-    } else if (n.state === 'held') { x = P.x; y = P.y; r = PLAYER.radius + 5; }
+    } else if (n.state === 'held') { const o = n.on || P; x = o.x; y = o.y; r = rad(o) + 5; }
     else a = .8;
     ctx.save(); ctx.translate(x, y); ctx.globalAlpha = a;
     ctx.strokeStyle = '#d8c79c'; ctx.lineWidth = 1.2;
@@ -2307,6 +2771,7 @@ function updateUI() {
     b.title = `${key ? WEAPONS[key].name : slot === 'ranged' ? 'No bow' : ''} (key ${slot === 'melee' ? 1 : 2})`;
     b.disabled = !key; b.classList.toggle('on', S.active === slot && !S.switching); b.classList.toggle('to', S.switching > 0 && S.switchTo === slot);
   }
+  const nb = $('slot_net'); nb.hidden = !(S.netsLeft > 0 || (S.cfg && S.cfg.type === 'hunt')); nb.querySelector('span').textContent = S.netsLeft || 0; nb.disabled = !(S.netsLeft > 0);
   $('armor').textContent = me.armor;
   $('hpText').textContent = `${P.hp} / ${me.maxHp}`;
   $('hpFill').style.transform = `scaleX(${P.hp / me.maxHp})`;
@@ -2425,6 +2890,7 @@ showDifficulty();
 function showMute() { const b = $('mute'); b.setAttribute('aria-pressed', String(!SFX.muted)); b.title = (SFX.muted ? 'Sound off' : 'Sound on') + ' (M)'; }
 $('slot_melee').onclick = () => { switchTo('melee'); $('slot_melee').blur(); };
 $('slot_ranged').onclick = () => { switchTo('ranged'); $('slot_ranged').blur(); };
+$('slot_net').onclick = () => { throwPlayerNet(); $('slot_net').blur(); };
 $('mute').onclick = () => { SFX.init(); SFX.setMuted(!SFX.muted); if (!SFX.muted && SFX.volume === 0) SFX.setVolume(.6); showVolume(); };
 showMute(); showVolume();
 
@@ -2441,7 +2907,8 @@ function statEffect(k, n) {
   const v = { ...S.stats, [k]: n };
   return { strength: `${fmt(WEAPONS[S.melee].dmg + STAT_RULES.dmg * v.strength)} damage`,
            agility: `speed ${PLAYER.speed + STAT_RULES.speed * v.agility}`,
-           vitality: `${PLAYER.hp + STAT_RULES.hp * v.vitality} health` }[k];
+           vitality: `${PLAYER.hp + STAT_RULES.hp * v.vitality} health`,
+           haste: `${fmt(Math.round(WEAPONS[S.melee].cooldown * Math.max(STAT_RULES.hasteMin, 1 - STAT_RULES.haste * v.haste) * 100) / 100)} s per attack` }[k];
 }
 function renderStats() {
   const list = $('statList'); list.innerHTML = '';
@@ -2465,24 +2932,37 @@ $('statsBack').onclick = () => { $('stats').hidden = true; openTown(); };
 
 function toWorld(ev) {
   const r = cvs.getBoundingClientRect();
-  steer.x = (ev.clientX - r.left - view.cw / 2) / view.scale;
-  steer.y = (ev.clientY - r.top - view.ch / 2) / view.scale;
+  steer.x = (ev.clientX - r.left - view.cw / 2) / view.scale + cam.x;
+  steer.y = (ev.clientY - r.top - view.ch / 2) / view.scale + cam.y;
 }
-cvs.addEventListener('pointerdown', ev => { if (S.paused) return; cvs.setPointerCapture(ev.pointerId); steer.down = steer.active = true; toWorld(ev); });
-cvs.addEventListener('pointermove', ev => {
-  if (steer.down) toWorld(ev);
-  const r = cvs.getBoundingClientRect();   // waar je muis is (voor de rol), ook zonder te klikken
-  steer.hx = (ev.clientX - r.left - view.cw / 2) / view.scale; steer.hy = (ev.clientY - r.top - view.ch / 2) / view.scale; steer.hoverT = performance.now();
+cvs.addEventListener('contextmenu', ev => ev.preventDefault());
+// Muis: je kijkt altijd naar je muis; linkermuisknop = slaan, rechtermuisknop vasthouden = blokken (of pareren zonder schild).
+// Aanraakscherm: slepen om te lopen (zoals vroeger).
+function mouseAt(ev) {
+  const r = cvs.getBoundingClientRect();
+  steer.hx = (ev.clientX - r.left - view.cw / 2) / view.scale + cam.x; steer.hy = (ev.clientY - r.top - view.ch / 2) / view.scale + cam.y;
+  steer.mouse = true;
+}
+cvs.addEventListener('pointerdown', ev => {
+  if (S.paused) return;
+  if (ev.pointerType === 'touch') { cvs.setPointerCapture(ev.pointerId); steer.down = steer.active = true; toWorld(ev); return; }
+  mouseAt(ev); ev.preventDefault();
+  if (ev.button === 0) { P.atkBuf = ATTACK.buffer; P.atkMouse = true; }           // slaan
+  else if (ev.button === 2) { steer.block = true; P.guardPress = true; }          // blokken
 });
-cvs.addEventListener('pointerleave', () => { steer.hoverT = 0; });
-['pointerup', 'pointercancel'].forEach(t => cvs.addEventListener(t, () => steer.down = false));
+cvs.addEventListener('pointermove', ev => {
+  if (ev.pointerType === 'touch') { if (steer.down) toWorld(ev); return; }
+  mouseAt(ev);
+});
+addEventListener('pointerup', ev => { if (ev.button === 2) steer.block = false; if (ev.pointerType === 'touch') steer.down = false; });
+cvs.addEventListener('pointercancel', () => { steer.down = false; steer.block = false; });
 const anyOverlay = () => ['title', 'settings', 'credits', 'start', 'result', 'stats', 'town', 'shop', 'pick', 'judge'].some(id => !$(id).hidden);
 // Pauze: Escape tijdens een gevecht, nog eens Escape (of Verder) om door te gaan.
 const inFight = () => !S.paused && !anyOverlay();
 // In de stad werkt Escape hetzelfde (geluid en, alleen daar, de stats); de stad blijft gewoon gepauzeerd.
 const inTown = () => !$('town').hidden;
 function pause() {
-  S.paused = true; keys.clear(); steer.down = false; showVolume();
+  S.paused = true; keys.clear(); steer.down = false; steer.block = false; showVolume();
   if (!inTown()) SFX.mood('calm');
   const st = $('pauseStats'); st.hidden = !inTown();
   st.textContent = S.points ? `Stats · ${toRoman(S.points)}` : 'Stats'; st.classList.toggle('has-points', S.points > 0);
@@ -2516,13 +2996,16 @@ addEventListener('keydown', ev => {
   if (k === '1') { switchTo('melee'); return; }
   if (k === '2') { switchTo('ranged'); return; }
   if (k === ' ') { tryRoll(); ev.preventDefault(); return; }
+  if (k === 'e') { throwPlayerNet(); return; }   // net (jacht)
+  if (k === 'j') { P.atkBuf = ATTACK.buffer; P.atkMouse = false; ev.preventDefault(); return; }   // slaan
+  if (k === 'k' || k === 'Shift') { if (!ev.repeat) P.guardPress = true; keys.add(k); ev.preventDefault(); return; }   // blokken
   if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','a','d','w','s'].includes(k)) {
     if (P.netted > 0 && !ev.repeat) { P.netted -= NET.mash; if (P.netted <= 0) releaseNet(); }   // losrammelen
     keys.add(k); ev.preventDefault();
   }
 });
 addEventListener('keyup', ev => keys.delete(ev.key.length === 1 ? ev.key.toLowerCase() : ev.key));
-addEventListener('blur', () => { keys.clear(); if (inFight()) pause(); });   // ander venster: vanzelf pauze
+addEventListener('blur', () => { keys.clear(); steer.block = false; if (inFight()) pause(); });   // ander venster: vanzelf pauze
 new ResizeObserver(() => fitWorld(false)).observe(stage);
 
 startFight();
